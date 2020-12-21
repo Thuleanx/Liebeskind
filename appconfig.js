@@ -1,0 +1,13 @@
+module.exports = {
+	prefix: '!',
+	palete: [ // Pollen8 Palette
+		"#73464c",
+		"#ab5675",
+		"#ee6a7c",
+		"#ffa7a5",
+		"#ffe07e",
+		"#ffe7d6",
+		"#72dcbb",
+		"#34acba"
+	]
+}

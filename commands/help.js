@@ -53,9 +53,9 @@ module.exports = {
 					.setDescription(command.description)
 					.addField(`Name`, command.name, true)
 					.addField(`Aliases`, command.aliases&&command.aliases.length?command.aliases.join(', ') : "None", true)
-					.addField(`Category`, command.category, true)
+					.addField(`Category`, command.category||'Misc', true)
 					.addField(`Cooldown`, `${command.cooldown||"None"}`, true)
-					.addField(`Parameters`, `\`\`\`markdown\n${prefix}${command.name} ${command.usage}\n\`\`\``, false)
+					.addField(`Parameters`, `\`\`\`markdown\n${prefix}${command.name} ${command.usage||''}\n\`\`\``, false)
 					.addField(`Extra Restrictions:`, `Use in DMs: ${boolToEmote(!command.guildOnly)} Use by non-admin: ${boolToEmote(!command.adminOnly)} Use in Guilds: ${boolToEmote(!command.dmOnly)}`, true)
 					.setFooter(`Note that all operation has an implicit cooldown of 3 seconds, to prevent excessive spaming.`);
 

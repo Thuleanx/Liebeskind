@@ -1,15 +1,11 @@
 const http = require('http');
-const express = require('express');
-const app = express();
-app.get("/", (request, response) => {
-  console.log(Date.now() + " Ping Received");
-  response.sendStatus(200);
+const server = http.createServer((req, res) => {
+	console.log("keeping up");
+	res.writeHead(200);
+	res.end('ok');
 });
-app.listen(process.env.PORT);
-setInterval(() => {
-  http.get(`http://${process.env.PROJECT_DOMAIN}.glitch.me/`);
-}, 280000);
-// ============================= KEEP PROJECT ALIVE ON GLITCH ===========================
+server.listen(3000);
+// ============================= KEEP PROJECT ALIVE ON GLITCH + REPL===========================
 
 
 const Discord = require('discord.js');

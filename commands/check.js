@@ -34,10 +34,8 @@ module.exports = {
 	category: 'League',
 	execute(message, args) {
 		const {API_URL} = process.env;
-
 		const username = message.author.username + "*" + message.author.discriminator;
 
-		console.log("HI");
 		retrieveToken().then(token => {
 			axios.get(`${API_URL}/api/event/league/getMembers?league_name=${args[0]}&usernames=${username}`, {
 				headers: {

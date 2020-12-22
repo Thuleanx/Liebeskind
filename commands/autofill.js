@@ -1,32 +1,31 @@
 const axios = require('axios');
 const {retrieveToken} = require('../util/interact.js');
 const {responseFail} = require('./../util/responseFail.js');
-const {prefix} = require('../appconfig.js');
 
-const responseSuccess = (league_name) => {
-	return `${league_name} has ended. Use \`${prefix}info ${league_name}\` to see the final scoreboard.`;
+const responseSuccess = (response) => {
+	return `Operation success! Server responded with: ${response}`;
 }
 
 module.exports = {
-	name: 'endLeague',
-	description: `End a league. Will update all of the user's performance, after which everything is recorded and finalized.`,
+	name: 'autoFill',
+	description: "Assign the user to the weakest team in the league (by gain_rate).",
 	args: 1,
 	usage: '<league_name>',
 	guildOnly: true,
-	adminOnly: true,
 	category: 'League',
-	cooldown: 60*60,
 	execute(message, args) {
 		const {API_URL} = process.env;
 
+		const username = message.author.username + "*" + message.author.discriminator;
+
 		retrieveToken().then(token => {
-			axios.get(`${API_URL}/api/event/league/end?league_name=${args[0]}`, {
+			axios.get(`${API_URL}/api/event/league/autofillMember?league_name=${args[0]}&username=${username}`, {
 				headers: {
 					'Authentication': token
 				}
 			}).then(
 				(res) => {
-					message.channel.send(responseSuccess(args[0]));
+					message.channel.send(responseSuccess(res.data.comment));
 				},
 				(err) => { 
 					message.channel.send(responseFail(message, err.response.data.comment));

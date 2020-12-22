@@ -18,10 +18,12 @@ const responseSuccess = (league, message) => {
 		map[team_name] = 0;
 		return map;
 	}, {});
+	var num_in_teams = 0;
 	for (var i = 0; i < league.members.length; i++) {
 		if (league.members[i].team) {
 			teamMembers[league.members[i].team].push(league.members[i]);
 			teamPoints[league.members[i].team] += league.members[i].points;
+			num_in_teams++;
 		}
 	}
 
@@ -29,7 +31,8 @@ const responseSuccess = (league, message) => {
 		.setTitle(`[League] ${league.league_name}`)
 		.setDescription(
 			`Start at: ${league.start_time ? new Date(league.start_time) : "TBA"}
-			Participants: ${league.members.length}
+			End at: ${league.end_time ? new Date(league.start_time) : "TBA"}
+			Participants: ${num_in_teams}/${league.members.length} in teams
 			Points Total: ${sprintf("%10.4g", Object.entries(teamPoints).map((keyValuePair, index) => { return keyValuePair[1]})
 			.reduce((prev, cur) => {return prev + cur;}, 0))}`
 		);

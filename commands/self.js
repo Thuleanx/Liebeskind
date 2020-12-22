@@ -20,7 +20,7 @@ const responseSuccess = (data) => {
 						Leagues participated in: ${data.league_participation.length}`
 			}
 		);
-	if ("cf_handle" in data) {
+	if ("cf_handle" in data && data.cf_rating) {
 		embed.addFields(
 			{
 				name: "Codeforces Info",

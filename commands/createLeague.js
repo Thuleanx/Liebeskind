@@ -28,7 +28,10 @@ module.exports = {
 					message.channel.send(responseSuccess(args[0]));
 				},
 				(err) => { 
-					message.channel.send(responseFail(message, err.response.data.comment));
+					if (err.response)
+						message.channel.send(responseFail(message, err.response.data.comment));
+					else
+						message.channel.send(responseFail(message, err));
 				}
 			);
 		}, (err) => { 

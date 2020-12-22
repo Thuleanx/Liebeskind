@@ -1,6 +1,7 @@
 const axios = require('axios');
 const {retrieveToken} = require('../util/interact.js');
 const {responseFail} = require('../util/responseFail.js');
+const {prefix} = require('../appconfig.js');
 
 const responseSuccess = () => {
 	return `Your codeforces account is linked! Feel free to check your info using \`${prefix}self\` either in a server or in our dms.`;

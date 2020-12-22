@@ -29,12 +29,20 @@ client.on('message', (message) => {
 		let cmdName = splitCmd[0];
 		let args = splitCmd.splice(1);
 
+		// signal the start of the operation
+		message.react('⚙️');
+
 		var command = client.commands.get(cmdName) || 
 			client.commands.find(cmd => cmd.aliases && cmd.aliases.includes(cmdName));
 		if (!command) return;
 
+
 		if (command.guildOnly && message.channel.type === 'dm') {
 			return message.reply('I can\'t execute that command inside DMs!');
+		}
+
+		if (command.dmOnly && message.channel.type !== 'dm') {
+			return message.reply('I can\'t execute that command inside a server. Slide into my DM!');
 		}
 
 		if (command.args && args.length < command.args) {
@@ -75,6 +83,8 @@ client.on('message', (message) => {
 			console.log(err);
 			message.channel.send(`草. Something went wrong. Please contact bot writer and let them know they did a poor job.`);
 		}
+		// signal the end of the operation
+		message.react('👌');
 	}
 });
 

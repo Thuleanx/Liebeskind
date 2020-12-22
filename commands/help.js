@@ -34,7 +34,7 @@ module.exports = {
 				var command_list = keyValuePair[1];
 				var embedValue = `\`\`\`markdown\n`;
 				command_list.forEach((command) => {
-					embedValue += `\t* ${sprintf("%-15.15s\t%.30s\n", prefix+command.name, command.description)}`;
+					embedValue += `\t* ${sprintf("%-15.15s\t%.20s\n", prefix+command.name, command.description)}`;
 				});
 				embedValue += '\n\`\`\`';
 				embed.addField(category + ' commands', embedValue, false);

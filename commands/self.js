@@ -5,6 +5,8 @@ const {retrieveToken} = require('../util/interact.js');
 const {palete} = require('../appconfig.js');
 const {responseFail} = require('./../util/responseFail.js');
 
+var sprintf = require('sprintf-js').sprintf;
+
 const responseSuccess = (data) => {
 	var imgPath = (data.pfp?`http:${data.pfp}`:null) || process.env.API_URL + "/img/defaultPFP.png";
 	// var imgPath = "https://i.imgur.com/wSTFkRM.png";
@@ -14,9 +16,9 @@ const responseSuccess = (data) => {
 		.addFields(
 			{
 				name: "General Info", 
-				value: `Points accumulated: ${data.points_accumulated}
+				value: `Points accumulated: ${sprintf("%10.4g", data.points_accumulated)}
 						Problems solved: ${data.solved}
-						Gain rate: ${data.gain_rate}
+						Gain rate: ${sprintf("%10.4g", data.gain_rate)}
 						Leagues participated in: ${data.league_participation.length}`
 			}
 		);

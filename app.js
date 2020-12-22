@@ -29,13 +29,12 @@ client.on('message', (message) => {
 		let cmdName = splitCmd[0];
 		let args = splitCmd.splice(1);
 
-		// signal the start of the operation
-		message.react('⚙️');
-
 		var command = client.commands.get(cmdName) || 
 			client.commands.find(cmd => cmd.aliases && cmd.aliases.includes(cmdName));
 		if (!command) return;
 
+		// signal the start of the operation
+		message.react('⚙️');
 
 		if (command.guildOnly && message.channel.type === 'dm') {
 			return message.reply('I can\'t execute that command inside DMs!');

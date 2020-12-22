@@ -1,5 +1,5 @@
 module.exports = {
-	prefix: '!',
+	prefix: '$',
 	palete: [ // Pollen8 Palette
 		"#73464c",
 		"#ab5675",

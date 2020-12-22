@@ -38,7 +38,7 @@ client.on('ready', () => {
 
 client.on('message', (message) => {
 	if (message.content.startsWith(prefix)) {
-		let fullCmd = message.content.substr(1); // assumes prefix is one letter
+		let fullCmd = message.content.substr(prefix.length); // assumes prefix is one letter
 		let splitCmd = fullCmd.split(" ");
 		let cmdName = splitCmd[0];
 		let args = splitCmd.splice(1);

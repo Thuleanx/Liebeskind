@@ -1,4 +1,4 @@
-#include "vulkan/vulkan_core.h"
+#include <cstdlib>
 #include <iostream>
 #include <optional>
 #include <stdexcept>
@@ -42,29 +42,6 @@ public:
     }
 };
 
-std::optional<std::vector<std::string>> getInstanceExtensions() {
-    uint32_t count;
-    char const* const* extensions = SDL_Vulkan_GetInstanceExtensions(&count);
-
-    std::cout << "Query for instance extensions yields:" << std::endl;
-
-    if (!extensions) {
-        return {};
-    }
-
-    std::vector<std::string> allExtensions;
-    for (uint32_t i = 0; i < count; i++) {
-        std::cout << i << ". " << extensions[i] << std::endl;
-        allExtensions.emplace_back(std::string(extensions[i]));
-    }
-
-    allExtensions.emplace_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
-
-    fflush(stdout);
-
-    return allExtensions;
-}
-
 int main() {
     SDL sdl(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
     VulkanLibrary vulkan_library(nullptr);
@@ -78,19 +55,31 @@ int main() {
         VK_API_VERSION_1_3
     );
 
-    std::optional<std::vector<std::string>> instanceExtensions = getInstanceExtensions();
-
-    if (instanceExtensions == std::nullopt)
-        throw SDLException("No supported extensions found");
+    uint32_t extensions_count;
+    const char* const* extensions = SDL_Vulkan_GetInstanceExtensions(&extensions_count);
 
     const vk::InstanceCreateInfo instanceInfo(
-        vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR,
+        vk::InstanceCreateFlags(),
         &appInfo,
         0,
         nullptr,
-        instanceExtensions->size(),
-        (const char* const *) instanceExtensions->data()
+        extensions_count,
+        extensions
     );
+
+    vk::Instance instance;
+    try {
+        instance = vk::createInstance(instanceInfo, nullptr);
+    } catch (vk::SystemError& err) {
+        std::cout << "vk::SystemError: " << err.what() << std::endl;
+        return EXIT_FAILURE;
+    } catch (std::exception& err) {
+        std::cout << "std::exception: " << err.what() << std::endl;
+        return EXIT_FAILURE;
+    } catch (...) {
+        std::cout << "Unknown error" << std::endl;
+        return EXIT_FAILURE;
+    }
 
     while (true) {
         SDL_Event sdl_event;
@@ -102,6 +91,8 @@ int main() {
         }
         if (shouldQuitGame) break;
     }
+
+    instance.destroy();
 
 
     SDL_DestroyWindow(window);

@@ -1,15 +1,12 @@
-#include "SDL3/SDL_error.h"
-#include "SDL3/SDL_events.h"
-#include "SDL3/SDL_init.h"
-#include "SDL3/SDL_video.h"
 #include "vulkan/vulkan_core.h"
 #include <iostream>
+#include <optional>
 #include <stdexcept>
 #include <vector>
 
+#include <vulkan/vulkan.hpp>
 #include <SDL3/SDL.H>
 #include <SDL3/SDL_vulkan.h>
-#include <vulkan/vulkan.h>
 
 #define APP_SHORT_NAME "Game"
 #define ENGINE_NAME "Liebeskind"
@@ -45,20 +42,55 @@ public:
     }
 };
 
+std::optional<std::vector<std::string>> getInstanceExtensions() {
+    uint32_t count;
+    char const* const* extensions = SDL_Vulkan_GetInstanceExtensions(&count);
+
+    std::cout << "Query for instance extensions yields:" << std::endl;
+
+    if (!extensions) {
+        return {};
+    }
+
+    std::vector<std::string> allExtensions;
+    for (uint32_t i = 0; i < count; i++) {
+        std::cout << i << ". " << extensions[i] << std::endl;
+        allExtensions.emplace_back(std::string(extensions[i]));
+    }
+
+    allExtensions.emplace_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+
+    fflush(stdout);
+
+    return allExtensions;
+}
+
 int main() {
     SDL sdl(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
     VulkanLibrary vulkan_library(nullptr);
     SDL_Window* window = SDL_CreateWindow("Liebeskind", 1024, 768, SDL_WINDOW_VULKAN);
 
-    const VkApplicationInfo appInfo = {
-        .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
-        .pNext = NULL,
-        .pApplicationName = APP_SHORT_NAME,
-        .applicationVersion = VK_MAKE_VERSION(0, 1, 0),
-        .pEngineName = ENGINE_NAME,
-        .engineVersion = VK_MAKE_VERSION(1, 0, 0),
-        .apiVersion = VK_API_VERSION_1_0
-    };
+    const vk::ApplicationInfo appInfo(
+        APP_SHORT_NAME,
+        VK_MAKE_VERSION(1, 0, 0),
+        ENGINE_NAME,
+        VK_MAKE_VERSION(1, 0, 0),
+        VK_API_VERSION_1_3
+    );
+
+    std::optional<std::vector<std::string>> instanceExtensions = getInstanceExtensions();
+
+    if (instanceExtensions == std::nullopt)
+        throw SDLException("No supported extensions found");
+
+    const vk::InstanceCreateInfo instanceInfo(
+        vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR,
+        &appInfo,
+        0,
+        nullptr,
+        instanceExtensions->size(),
+        (const char* const *) instanceExtensions->data()
+    );
 
     while (true) {
         SDL_Event sdl_event;
@@ -70,6 +102,7 @@ int main() {
         }
         if (shouldQuitGame) break;
     }
+
 
     SDL_DestroyWindow(window);
 

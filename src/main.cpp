@@ -42,6 +42,27 @@ public:
     }
 };
 
+std::optional<std::vector<const char*>> getInstanceExtensions() {
+    uint32_t count;
+    const char* const* extensions = SDL_Vulkan_GetInstanceExtensions(&count);
+
+    std::cout << "Query for instance extensions yields:" << std::endl;
+
+    if (!extensions) {
+        return {};
+    }
+
+    std::vector<const char*> allExtensions;
+    for (uint32_t i = 0; i < count; i++) {
+        std::cout << i << ". " << extensions[i] << std::endl;
+        allExtensions.emplace_back(extensions[i]);
+    }
+
+    allExtensions.emplace_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+
+    return allExtensions;
+}
+
 int main() {
     SDL sdl(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
     VulkanLibrary vulkan_library(nullptr);
@@ -55,16 +76,18 @@ int main() {
         VK_API_VERSION_1_3
     );
 
-    uint32_t extensions_count;
-    const char* const* extensions = SDL_Vulkan_GetInstanceExtensions(&extensions_count);
+    std::optional<std::vector<const char*>> instanceExtensions = getInstanceExtensions();
+
+    if (instanceExtensions == std::nullopt)
+        throw SDLException("No supported extensions found");
 
     const vk::InstanceCreateInfo instanceInfo(
-        vk::InstanceCreateFlags(),
+        vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR,
         &appInfo,
         0,
         nullptr,
-        extensions_count,
-        extensions
+        instanceExtensions->size(),
+        instanceExtensions->data()
     );
 
     vk::Instance instance;

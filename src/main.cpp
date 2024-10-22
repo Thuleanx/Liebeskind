@@ -1,3 +1,7 @@
+// Disable implicit fallthrough warning
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
+
 #include <cstdlib>
 #include <optional>
 #include <stdexcept>
@@ -8,17 +12,11 @@
 #include "plog/Severity.h"
 #include "plog/Initializers/RollingFileInitializer.h"
 
-// Disable implicit fallthrough warning
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
 #include "plog/Log.h"
-
 #include "vulkan/vulkan_core.h"
-
 #include <vulkan/vulkan.hpp>
 #include <SDL3/SDL.H>
 #include <SDL3/SDL_vulkan.h>
-
 
 PFN_vkCreateDebugUtilsMessengerEXT  pfnVkCreateDebugUtilsMessengerEXT;
 PFN_vkDestroyDebugUtilsMessengerEXT pfnVkDestroyDebugUtilsMessengerEXT;
@@ -34,6 +32,14 @@ PFN_vkDestroyDebugUtilsMessengerEXT pfnVkDestroyDebugUtilsMessengerEXT;
 
 const std::vector<const char*> validationLayers = {
     "VK_LAYER_KHRONOS_validation"
+};
+
+struct QueueFamilyIndices {
+    std::optional<uint32_t> graphicsFamily;
+
+    bool isComplete() {
+        return this->graphicsFamily.has_value();
+    }
 };
 
 class SDLException : private std::runtime_error {
@@ -124,12 +130,45 @@ bool areValidationLayersSupported() {
     return true;
 }
 
+QueueFamilyIndices findQueueFamilies(const vk::PhysicalDevice& device) {
+    QueueFamilyIndices indices;
+
+    std::vector<vk::QueueFamilyProperties> queueFamilies = device.getQueueFamilyProperties();
+
+    for (uint32_t i = 0; i < queueFamilies.size(); i++) {
+        const vk::QueueFamilyProperties& queueFamily = queueFamilies[i];
+        if (queueFamily.queueCount > 0 && (queueFamily.queueFlags & vk::QueueFlagBits::eGraphics))
+            indices.graphicsFamily = i;
+    }
+
+    return indices;
+}
+
+bool isDeviceSuitable(const vk::PhysicalDevice& device) {
+    vk::PhysicalDeviceProperties deviceProperties = device.getProperties();
+    vk::PhysicalDeviceFeatures deviceFeatures = device.getFeatures();
+
+    return deviceProperties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu && 
+        deviceFeatures.geometryShader && 
+        findQueueFamilies(device).isComplete();
+}
+
 bool initializeLogger() {
 	// TODO: create log file
     static plog::ColorConsoleAppender<plog::TxtFormatter> appender;
     plog::init(plog::Severity::debug, "liebeskind_runtime.log").addAppender(&appender);
     PLOG_INFO << "Logger initialized.";
 	return true;
+}
+
+std::optional<vk::PhysicalDevice> getBestPhysicalDevice(const vk::Instance& instance) {
+    std::vector<vk::PhysicalDevice> allPhysicalDevices = instance.enumeratePhysicalDevices();
+
+    for (const vk::PhysicalDevice& device : allPhysicalDevices)
+        if (isDeviceSuitable(device))
+            return device;
+    
+    return {};
 }
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugUtilsMessengerCallback(
@@ -186,7 +225,6 @@ int main() {
         VK_API_VERSION_1_3
     );
 
-
     std::optional<std::vector<const char*>> instanceExtensions = getInstanceExtensions();
 
     if (instanceExtensions == std::nullopt)
@@ -237,6 +275,14 @@ int main() {
         return EXIT_FAILURE;
     }
 
+    std::optional<vk::PhysicalDevice> suitablePhysicalDevice = getBestPhysicalDevice(instance);
+
+    if (!suitablePhysicalDevice)
+        throw new SDLException("No suitable physical devices found");
+
+    const vk::PhysicalDevice physicalDevice = suitablePhysicalDevice.value();
+
+    PLOG_INFO << "Physical device chosen: " << physicalDevice;
 
     PLOG_INFO << "Available Extensions:";
 

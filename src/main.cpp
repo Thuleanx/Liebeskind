@@ -6,6 +6,7 @@
 #include <optional>
 #include <stdexcept>
 #include <vector>
+#include <set>
 
 #include "plog/Appenders/ColorConsoleAppender.h"
 #include "plog/Formatters/TxtFormatter.h"
@@ -36,9 +37,10 @@ const std::vector<const char*> validationLayers = {
 
 struct QueueFamilyIndices {
     std::optional<uint32_t> graphicsFamily;
+    std::optional<uint32_t> presentFamily;
 
     bool isComplete() {
-        return this->graphicsFamily.has_value();
+        return this->graphicsFamily.has_value() && this->presentFamily.has_value();
     }
 };
 
@@ -130,7 +132,7 @@ bool areValidationLayersSupported() {
     return true;
 }
 
-QueueFamilyIndices findQueueFamilies(const vk::PhysicalDevice& device) {
+QueueFamilyIndices findQueueFamilies(const vk::PhysicalDevice& device, const vk::SurfaceKHR &surface) {
     QueueFamilyIndices indices;
 
     std::vector<vk::QueueFamilyProperties> queueFamilies = device.getQueueFamilyProperties();
@@ -139,18 +141,20 @@ QueueFamilyIndices findQueueFamilies(const vk::PhysicalDevice& device) {
         const vk::QueueFamilyProperties& queueFamily = queueFamilies[i];
         if (queueFamily.queueCount > 0 && (queueFamily.queueFlags & vk::QueueFlagBits::eGraphics))
             indices.graphicsFamily = i;
+        if (device.getSurfaceSupportKHR(i, surface))
+            indices.presentFamily = i;
     }
 
     return indices;
 }
 
-bool isDeviceSuitable(const vk::PhysicalDevice& device) {
+bool isDeviceSuitable(const vk::PhysicalDevice& device, const vk::SurfaceKHR &surface) {
     vk::PhysicalDeviceProperties deviceProperties = device.getProperties();
     vk::PhysicalDeviceFeatures deviceFeatures = device.getFeatures();
 
     return deviceProperties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu && 
         deviceFeatures.geometryShader && 
-        findQueueFamilies(device).isComplete();
+        findQueueFamilies(device, surface).isComplete();
 }
 
 bool initializeLogger() {
@@ -161,28 +165,38 @@ bool initializeLogger() {
 	return true;
 }
 
-std::optional<vk::PhysicalDevice> getBestPhysicalDevice(const vk::Instance& instance) {
+std::optional<vk::PhysicalDevice> getBestPhysicalDevice(const vk::Instance& instance, const vk::SurfaceKHR& surface) {
     std::vector<vk::PhysicalDevice> allPhysicalDevices = instance.enumeratePhysicalDevices();
 
     for (const vk::PhysicalDevice& device : allPhysicalDevices)
-        if (isDeviceSuitable(device))
+        if (isDeviceSuitable(device, surface))
             return device;
     
     return {};
 }
 
-std::optional<vk::Device> createDevice(const vk::PhysicalDevice& physicalDevice) {
-    QueueFamilyIndices queueFamily = findQueueFamilies(physicalDevice);
+std::optional<vk::Device> createDevice(const vk::PhysicalDevice& physicalDevice, const vk::SurfaceKHR& surface) {
+    QueueFamilyIndices queueFamily = findQueueFamilies(physicalDevice, surface);
 
     float queuePriority = 1.0f;
 
-    const vk::DeviceQueueCreateInfo deviceQueueCreateInfo({}, queueFamily.graphicsFamily.value(), 1, &queuePriority);
+    const std::set<uint32_t> uniqueQueueFamilies = {
+        queueFamily.graphicsFamily.value(), 
+        queueFamily.presentFamily.value()
+    };
+
+    std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
+    for (uint32_t queueFamilyIndex : uniqueQueueFamilies) {
+        vk::DeviceQueueCreateInfo deviceQueueCreateInfo({}, queueFamilyIndex, 1, &queuePriority);
+        queueCreateInfos.push_back(deviceQueueCreateInfo);
+    }
+
     const vk::PhysicalDeviceFeatures deviceFeatures;
 
     const vk::DeviceCreateInfo deviceCreateInfo(
         {},
-        1,
-        &deviceQueueCreateInfo,
+        queueCreateInfos.size(),
+        queueCreateInfos.data(),
         enableValidationLayers ? static_cast<uint32_t>(validationLayers.size()) : 0,
         enableValidationLayers ? validationLayers.data() : nullptr,
         0,
@@ -305,7 +319,15 @@ int main() {
         return EXIT_FAILURE;
     }
 
-    const std::optional<vk::PhysicalDevice> suitablePhysicalDevice = getBestPhysicalDevice(instance);
+    vk::SurfaceKHR surface;
+    {
+        VkSurfaceKHR rawSurface;
+        if (!SDL_Vulkan_CreateSurface(window, instance, nullptr, &rawSurface)) 
+            throw new SDLException("Cannot create vulkan surface");
+        surface = rawSurface;
+    }
+
+    const std::optional<vk::PhysicalDevice> suitablePhysicalDevice = getBestPhysicalDevice(instance, surface);
 
     if (!suitablePhysicalDevice)
         throw new SDLException("No suitable physical devices found");
@@ -313,7 +335,7 @@ int main() {
     const vk::PhysicalDevice physicalDevice = suitablePhysicalDevice.value();
     PLOG_INFO << "Physical device chosen: " << physicalDevice;
 
-    const std::optional<vk::Device> device_opt = createDevice(physicalDevice);
+    const std::optional<vk::Device> device_opt = createDevice(physicalDevice, surface);
     if (!device_opt)
         throw new SDLException("Logical device can't be created");
 
@@ -321,9 +343,10 @@ int main() {
 
     PLOG_INFO << "Logical device created: " << device;
 
-    QueueFamilyIndices queueFamily = findQueueFamilies(physicalDevice);
+    QueueFamilyIndices queueFamily = findQueueFamilies(physicalDevice, surface);
 
     vk::Queue graphicsQueue = device.getQueue(queueFamily.graphicsFamily.value(), 0);
+    vk::Queue presentQueue = device.getQueue(queueFamily.presentFamily.value(), 0);
 
     PLOG_INFO << "Available Extensions:";
 
@@ -344,7 +367,7 @@ int main() {
     device.destroy();
 
     if (enableValidationLayers) instance.destroyDebugUtilsMessengerEXT(debugUtilsMessenger);
-
+    instance.destroySurfaceKHR(surface);
     instance.destroy();
 
     SDL_DestroyWindow(window);

@@ -171,6 +171,36 @@ std::optional<vk::PhysicalDevice> getBestPhysicalDevice(const vk::Instance& inst
     return {};
 }
 
+std::optional<vk::Device> createDevice(const vk::PhysicalDevice& physicalDevice) {
+    QueueFamilyIndices queueFamily = findQueueFamilies(physicalDevice);
+
+    float queuePriority = 1.0f;
+
+    const vk::DeviceQueueCreateInfo deviceQueueCreateInfo({}, queueFamily.graphicsFamily.value(), 1, &queuePriority);
+    const vk::PhysicalDeviceFeatures deviceFeatures;
+
+    const vk::DeviceCreateInfo deviceCreateInfo(
+        {},
+        1,
+        &deviceQueueCreateInfo,
+        enableValidationLayers ? static_cast<uint32_t>(validationLayers.size()) : 0,
+        enableValidationLayers ? validationLayers.data() : nullptr,
+        0,
+        nullptr,
+        &deviceFeatures
+    );
+
+    vk::Device device;
+    vk::Result result = physicalDevice.createDevice(&deviceCreateInfo, nullptr, &device);
+
+    if (result != vk::Result::eSuccess) {
+        PLOG_ERROR << "Failed to create device with result: " << result;
+        return {};
+    }
+
+    return device;
+}
+
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugUtilsMessengerCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, 
     VkDebugUtilsMessageTypeFlagsEXT messageType,
@@ -275,14 +305,25 @@ int main() {
         return EXIT_FAILURE;
     }
 
-    std::optional<vk::PhysicalDevice> suitablePhysicalDevice = getBestPhysicalDevice(instance);
+    const std::optional<vk::PhysicalDevice> suitablePhysicalDevice = getBestPhysicalDevice(instance);
 
     if (!suitablePhysicalDevice)
         throw new SDLException("No suitable physical devices found");
 
     const vk::PhysicalDevice physicalDevice = suitablePhysicalDevice.value();
-
     PLOG_INFO << "Physical device chosen: " << physicalDevice;
+
+    const std::optional<vk::Device> device_opt = createDevice(physicalDevice);
+    if (!device_opt)
+        throw new SDLException("Logical device can't be created");
+
+    const vk::Device device = device_opt.value();
+
+    PLOG_INFO << "Logical device created: " << device;
+
+    QueueFamilyIndices queueFamily = findQueueFamilies(physicalDevice);
+
+    vk::Queue graphicsQueue = device.getQueue(queueFamily.graphicsFamily.value(), 0);
 
     PLOG_INFO << "Available Extensions:";
 
@@ -299,6 +340,8 @@ int main() {
         }
         if (shouldQuitGame) break;
     }
+
+    device.destroy();
 
     if (enableValidationLayers) instance.destroyDebugUtilsMessengerEXT(debugUtilsMessenger);
 

@@ -7,6 +7,7 @@
 #include <stdexcept>
 #include <vector>
 #include <set>
+#include <limits>
 
 #include "plog/Appenders/ColorConsoleAppender.h"
 #include "plog/Formatters/TxtFormatter.h"
@@ -35,6 +36,10 @@ const std::vector<const char*> validationLayers = {
     "VK_LAYER_KHRONOS_validation"
 };
 
+const std::vector<const char*> deviceExtensions = {
+    VK_KHR_SWAPCHAIN_EXTENSION_NAME
+};
+
 struct QueueFamilyIndices {
     std::optional<uint32_t> graphicsFamily;
     std::optional<uint32_t> presentFamily;
@@ -42,6 +47,12 @@ struct QueueFamilyIndices {
     bool isComplete() {
         return this->graphicsFamily.has_value() && this->presentFamily.has_value();
     }
+};
+
+struct SwapChainSupportDetails {
+    vk::SurfaceCapabilitiesKHR capabilities;
+    std::vector<vk::SurfaceFormatKHR> formats;
+    std::vector<vk::PresentModeKHR> presentModes;
 };
 
 class SDLException : private std::runtime_error {
@@ -148,13 +159,78 @@ QueueFamilyIndices findQueueFamilies(const vk::PhysicalDevice& device, const vk:
     return indices;
 }
 
+SwapChainSupportDetails querySwapChainSupport(const vk::PhysicalDevice& device, const vk::SurfaceKHR& surface) {
+    return {
+        .capabilities = device.getSurfaceCapabilitiesKHR(surface),
+        .formats = device.getSurfaceFormatsKHR(surface),
+        .presentModes = device.getSurfacePresentModesKHR(surface)
+    };
+}
+
+bool areRequiredDeviceExtensionsSupported(const vk::PhysicalDevice& device) {
+    std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
+
+    for (const vk::ExtensionProperties& extension: device.enumerateDeviceExtensionProperties())
+        if (requiredExtensions.count(extension.extensionName))
+            requiredExtensions.erase(extension.extensionName);
+
+    return requiredExtensions.empty();
+}
+
 bool isDeviceSuitable(const vk::PhysicalDevice& device, const vk::SurfaceKHR &surface) {
     vk::PhysicalDeviceProperties deviceProperties = device.getProperties();
     vk::PhysicalDeviceFeatures deviceFeatures = device.getFeatures();
 
+    bool areRequiredExtensionsSupported = areRequiredDeviceExtensionsSupported(device);
+
+    bool isSwapchainAdequate = false;
+
+    if (areRequiredExtensionsSupported) {
+        SwapChainSupportDetails swapchainSupport = querySwapChainSupport(device, surface);
+        isSwapchainAdequate = !swapchainSupport.formats.empty() && !swapchainSupport.presentModes.empty();
+    }
+
     return deviceProperties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu && 
         deviceFeatures.geometryShader && 
-        findQueueFamilies(device, surface).isComplete();
+        findQueueFamilies(device, surface).isComplete() &&
+        areRequiredExtensionsSupported &&
+        isSwapchainAdequate;
+}
+
+vk::SurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats) {
+    for (const vk::SurfaceFormatKHR& format : availableFormats)
+        if (format.format == vk::Format::eB8G8R8A8Srgb && format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear)
+            return format;
+
+    return availableFormats[0];
+}
+
+vk::PresentModeKHR chooseSwapPresentMode(const std::vector<vk::PresentModeKHR>& availablePresentModes) {
+    for (const vk::PresentModeKHR presentMode : availablePresentModes)
+        if (presentMode == vk::PresentModeKHR::eMailbox)
+            return presentMode;
+    return vk::PresentModeKHR::eFifo;
+}
+
+vk::Extent2D chooseSwapExtent(const vk::SurfaceCapabilitiesKHR& capabilities, SDL_Window* window) {
+    if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
+        return capabilities.currentExtent;
+    } else {
+        // Vulkan framebuffers need the exact pixel size, which 
+        // is not often the screen size of the window on high DPI displays
+        int width, height;
+        SDL_GetWindowSizeInPixels(window, &width, &height);
+
+        vk::Extent2D windowExtent = {
+            static_cast<uint32_t>(width),
+            static_cast<uint32_t>(height),
+        };
+
+        windowExtent.width = std::clamp(windowExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+        windowExtent.height = std::clamp(windowExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
+
+        return windowExtent;
+    }
 }
 
 bool initializeLogger() {
@@ -199,8 +275,8 @@ std::optional<vk::Device> createDevice(const vk::PhysicalDevice& physicalDevice,
         queueCreateInfos.data(),
         enableValidationLayers ? static_cast<uint32_t>(validationLayers.size()) : 0,
         enableValidationLayers ? validationLayers.data() : nullptr,
-        0,
-        nullptr,
+        static_cast<uint32_t>(deviceExtensions.size()),
+        deviceExtensions.data(),
         &deviceFeatures
     );
 
@@ -217,9 +293,9 @@ std::optional<vk::Device> createDevice(const vk::PhysicalDevice& physicalDevice,
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugUtilsMessengerCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, 
-    VkDebugUtilsMessageTypeFlagsEXT messageType,
+    VkDebugUtilsMessageTypeFlagsEXT _messageType,
     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-    void* pUserData
+    void* _pUserData
 ) {
     switch (messageSeverity) {
         case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
@@ -327,13 +403,15 @@ int main() {
         surface = rawSurface;
     }
 
+    PLOG_INFO << "Surface created";
+
     const std::optional<vk::PhysicalDevice> suitablePhysicalDevice = getBestPhysicalDevice(instance, surface);
 
     if (!suitablePhysicalDevice)
         throw new SDLException("No suitable physical devices found");
 
     const vk::PhysicalDevice physicalDevice = suitablePhysicalDevice.value();
-    PLOG_INFO << "Physical device chosen: " << physicalDevice;
+    PLOG_INFO << "Physical device chosen: " << physicalDevice.getProperties().deviceName;
 
     const std::optional<vk::Device> device_opt = createDevice(physicalDevice, surface);
     if (!device_opt)
@@ -353,6 +431,48 @@ int main() {
     for (const auto& extension: vk::enumerateInstanceExtensionProperties())
         PLOG_INFO << "\t" << extension.extensionName;
 
+    // Creating swapchain
+    vk::SwapchainKHR swapchain;
+    {
+        const SwapChainSupportDetails swapchainSupport = querySwapChainSupport(physicalDevice, surface);
+
+        const vk::SurfaceFormatKHR surfaceFormat =  chooseSwapSurfaceFormat(swapchainSupport.formats);
+        const vk::PresentModeKHR presentMode = chooseSwapPresentMode(swapchainSupport.presentModes);
+        const vk::Extent2D extent = chooseSwapExtent(swapchainSupport.capabilities, window);
+
+        uint32_t imageCount = swapchainSupport.capabilities.minImageCount + 1;
+        if (swapchainSupport.capabilities.maxImageCount > 0)
+            imageCount = std::min(imageCount, swapchainSupport.capabilities.maxImageCount);
+        
+        const bool shouldUseExclusiveSharingMode = queueFamily.presentFamily.value() == queueFamily.graphicsFamily.value();
+        const uint32_t queueFamilyIndices[] = {queueFamily.presentFamily.value(), queueFamily.graphicsFamily.value()};
+
+        const vk::SharingMode sharingMode = shouldUseExclusiveSharingMode ? vk::SharingMode::eExclusive : vk::SharingMode::eConcurrent;
+
+        const vk::SwapchainCreateInfoKHR swapchainCreateInfo(
+            {},
+            surface,
+            imageCount,
+            surfaceFormat.format,
+            surfaceFormat.colorSpace,
+            extent,
+            1,
+            vk::ImageUsageFlagBits::eColorAttachment,
+            sharingMode,
+            shouldUseExclusiveSharingMode ? 0 : 2,
+            shouldUseExclusiveSharingMode ? nullptr : queueFamilyIndices,
+            swapchainSupport.capabilities.currentTransform,
+            vk::CompositeAlphaFlagBitsKHR::eOpaque,
+            presentMode,
+            true, // clipped
+            nullptr
+        );
+
+        swapchain = device.createSwapchainKHR(swapchainCreateInfo, nullptr);
+    }
+
+    std::vector<vk::Image> swapchainImages = device.getSwapchainImagesKHR(swapchain);
+
     while (true) {
         SDL_Event sdl_event;
         bool shouldQuitGame = false;
@@ -364,10 +484,11 @@ int main() {
         if (shouldQuitGame) break;
     }
 
+    device.destroySwapchainKHR(std::move(swapchain));
     device.destroy();
 
-    if (enableValidationLayers) instance.destroyDebugUtilsMessengerEXT(debugUtilsMessenger);
-    instance.destroySurfaceKHR(surface);
+    if (enableValidationLayers) instance.destroyDebugUtilsMessengerEXT(std::move(debugUtilsMessenger));
+    instance.destroySurfaceKHR(std::move(surface));
     instance.destroy();
 
     SDL_DestroyWindow(window);

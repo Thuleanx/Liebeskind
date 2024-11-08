@@ -49,7 +49,7 @@ struct QueueFamilyIndices {
     }
 };
 
-struct SwapChainSupportDetails {
+struct SwapchainSupportDetails {
     vk::SurfaceCapabilitiesKHR capabilities;
     std::vector<vk::SurfaceFormatKHR> formats;
     std::vector<vk::PresentModeKHR> presentModes;
@@ -159,7 +159,7 @@ QueueFamilyIndices findQueueFamilies(const vk::PhysicalDevice& device, const vk:
     return indices;
 }
 
-SwapChainSupportDetails querySwapChainSupport(const vk::PhysicalDevice& device, const vk::SurfaceKHR& surface) {
+SwapchainSupportDetails querySwapChainSupport(const vk::PhysicalDevice& device, const vk::SurfaceKHR& surface) {
     return {
         .capabilities = device.getSurfaceCapabilitiesKHR(surface),
         .formats = device.getSurfaceFormatsKHR(surface),
@@ -186,7 +186,7 @@ bool isDeviceSuitable(const vk::PhysicalDevice& device, const vk::SurfaceKHR &su
     bool isSwapchainAdequate = false;
 
     if (areRequiredExtensionsSupported) {
-        SwapChainSupportDetails swapchainSupport = querySwapChainSupport(device, surface);
+        SwapchainSupportDetails swapchainSupport = querySwapChainSupport(device, surface);
         isSwapchainAdequate = !swapchainSupport.formats.empty() && !swapchainSupport.presentModes.empty();
     }
 
@@ -434,7 +434,7 @@ int main() {
     // Creating swapchain
     vk::SwapchainKHR swapchain;
     {
-        const SwapChainSupportDetails swapchainSupport = querySwapChainSupport(physicalDevice, surface);
+        const SwapchainSupportDetails swapchainSupport = querySwapChainSupport(physicalDevice, surface);
 
         const vk::SurfaceFormatKHR surfaceFormat =  chooseSwapSurfaceFormat(swapchainSupport.formats);
         const vk::PresentModeKHR presentMode = chooseSwapPresentMode(swapchainSupport.presentModes);

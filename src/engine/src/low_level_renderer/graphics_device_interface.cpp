@@ -22,8 +22,8 @@ namespace {
 
         std::vector<const char*> instanceExtensions = GraphicsHelper::getInstanceExtensions();
 
-        ASSERT(instanceExtensions.size() == 0, "No supported extensions found");
-        ASSERT(Validation::shouldEnableValidationLayers && !Validation::areValidationLayersSupported(), "Validation layers enabled but not supported");
+        ASSERT(instanceExtensions.size(), "No supported extensions found");
+        ASSERT(!Validation::shouldEnableValidationLayers || Validation::areValidationLayersSupported(), "Validation layers enabled but not supported");
 
         const vk::InstanceCreateInfo instanceInfo(
             vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR,

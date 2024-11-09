@@ -10,3 +10,34 @@ target_link_libraries(engine INTERFACE low_level_renderer)
 target_include_directories(source PUBLIC "${PROJECT_SOURCE_DIR}/src/engine/include")
 target_include_directories(logger PUBLIC "${PROJECT_SOURCE_DIR}/src/engine/include")
 target_include_directories(low_level_renderer PUBLIC "${PROJECT_SOURCE_DIR}/src/engine/include")
+
+set(GLSL_SOURCE_FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/test_triangle.frag.glsl
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/test_triangle.vert.glsl
+)
+
+find_program(GLSL_VALIDATOR "glslangValidator")
+mark_as_advanced(FORCE GLSL_VALIDATOR)
+if(GLSL_VALIDATOR)
+    message(STATUS "glslangValidator found: ${GLSL_VALIDATOR}")
+else()
+    message(STATUS "glslangValidator not found!")
+endif()
+
+foreach(GLSL ${GLSL_SOURCE_FILES})
+    get_filename_component(FILE_NAME ${GLSL} NAME)
+    set(SPIRV "${PROJECT_BINARY_DIR}/shaders/${FILE_NAME}.spv")
+    add_custom_command(
+        OUTPUT ${SPIRV}
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${PROJECT_BINARY_DIR}/shaders/"
+        COMMAND ${GLSL_VALIDATOR} -V ${GLSL} -o ${SPIRV}
+        DEPENDS ${GLSL})
+    list(APPEND SPIRV_BINARY_FILES ${SPIRV})
+endforeach(GLSL)
+
+add_custom_target(
+    Shaders 
+    DEPENDS ${SPIRV_BINARY_FILES}
+)
+
+add_dependencies(source Shaders)

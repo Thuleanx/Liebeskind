@@ -102,7 +102,7 @@ namespace {
         return device;
     }
 
-    vk::SwapchainKHR init_createSwapchain(
+    std::tuple<vk::SwapchainKHR, vk::Format, vk::Extent2D> init_createSwapchain(
         SDL_Window* window,
         const vk::PhysicalDevice& physicalDevice,
         const vk::Device& device,
@@ -143,7 +143,36 @@ namespace {
             nullptr
         );
 
-        return device.createSwapchainKHR(swapchainCreateInfo, nullptr);
+        return std::make_tuple(device.createSwapchainKHR(swapchainCreateInfo, nullptr), surfaceFormat.format, extent);
+    }
+
+    std::vector<vk::ImageView> init_createImageViews(
+        const vk::Device& device,
+        const std::vector<vk::Image>& swapchainImages,
+        const vk::Format swapchainImageFormat
+    ) {
+        std::vector<vk::ImageView> swapchainImageViews(swapchainImages.size());
+        for (unsigned int i = 0; i < swapchainImages.size(); i++) {
+            vk::ImageSubresourceRange subResourceRange(
+                vk::ImageAspectFlagBits::eColor,
+                0, // base mip level
+                1, // mip level count
+                0, // base array layer (we only use one layer)
+                1 // layer count
+            );
+
+            vk::ImageViewCreateInfo createInfo(
+                {},
+                swapchainImages[i],
+                vk::ImageViewType::e2D,
+                swapchainImageFormat,
+                vk::ComponentMapping(),
+                subResourceRange
+            );
+
+            swapchainImageViews.push_back(device.createImageView(createInfo));
+        }
+        return swapchainImageViews;
     }
 }
 
@@ -182,11 +211,17 @@ GraphicsDeviceInterface::GraphicsDeviceInterface() {
     for (const auto& extension: vk::enumerateInstanceExtensionProperties())
         LLOG_INFO << "\t" << extension.extensionName;
 
-    swapchain = init_createSwapchain(
+    std::tie(swapchain, swapchainImageFormat, swapchainExtent) = init_createSwapchain(
             window, physicalDevice, device, surface, queueFamily);
+
+    swapchainImages = device.getSwapchainImagesKHR(swapchain);
+    swapchainImageViews = init_createImageViews(device, swapchainImages, swapchainImageFormat);
 }
 
 GraphicsDeviceInterface::~GraphicsDeviceInterface() {
+    for (const vk::ImageView& imageView : swapchainImageViews)
+        device.destroyImageView(imageView);
+
     device.destroySwapchainKHR(std::move(swapchain));
     device.destroy();
 

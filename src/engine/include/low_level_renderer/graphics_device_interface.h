@@ -1,6 +1,6 @@
 #pragma once
 
-#include <tuple>
+#include <vector>
 
 #include <vulkan/vulkan.hpp>
 #include <SDL3/SDL.H>
@@ -32,4 +32,8 @@ private:
     vk::Queue graphicsQueue, presentQueue;
 
     vk::SwapchainKHR swapchain;
+    std::vector<vk::Image> swapchainImages;
+    std::vector<vk::ImageView> swapchainImageViews;
+    vk::Format swapchainImageFormat;
+    vk::Extent2D swapchainExtent;
 };

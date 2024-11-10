@@ -1,1 +1,1 @@
-.\build\src\source.exe
+(cd ./build/src && .\source.exe)

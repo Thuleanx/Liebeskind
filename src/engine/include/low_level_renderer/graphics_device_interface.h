@@ -36,4 +36,10 @@ private:
     std::vector<vk::ImageView> swapchainImageViews;
     vk::Format swapchainImageFormat;
     vk::Extent2D swapchainExtent;
+
+    vk::RenderPass renderPass;
+    vk::PipelineLayout pipelineLayout;
+    vk::Pipeline pipeline;
+
+    std::vector<vk::ShaderModule> shaderModules;
 };

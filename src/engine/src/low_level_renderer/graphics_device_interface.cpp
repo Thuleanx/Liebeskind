@@ -187,7 +187,54 @@ namespace {
         return device.createShaderModule(createInfo);
     }
 
-    void init_createGraphicsPipeline(const vk::Device& device, vk::Extent2D swapchainExtent) {
+    vk::RenderPass init_createRenderPass(const vk::Device &device, vk::Format swapchainImageFormat) {
+        vk::AttachmentDescription colorAttachment(
+            {}, 
+            swapchainImageFormat, 
+            vk::SampleCountFlagBits::e1,
+            vk::AttachmentLoadOp::eClear,
+            vk::AttachmentStoreOp::eStore,
+            vk::AttachmentLoadOp::eClear,
+            vk::AttachmentStoreOp::eDontCare,
+            vk::ImageLayout::eUndefined,
+            vk::ImageLayout::ePresentSrcKHR
+        );
+
+        vk::AttachmentReference colorAttachmentReference(
+            0, // index of attachment
+            vk::ImageLayout::eColorAttachmentOptimal
+        );
+
+        vk::SubpassDescription subpassDescription(
+            {},
+            vk::PipelineBindPoint::eGraphics,
+            0,
+            nullptr,
+            1,
+            &colorAttachmentReference
+        );
+
+        vk::RenderPassCreateInfo renderPassInfo(
+            {},
+            1,
+            &colorAttachment,
+            1,
+            &subpassDescription
+        );
+
+        return device.createRenderPass(renderPassInfo);
+    }
+
+    vk::PipelineLayout init_createPipelineLayout(const vk::Device& device) {
+        // empty pipeline layout for now
+        const vk::PipelineLayoutCreateInfo pipelineLayoutInfo(
+            {}, 0, nullptr, 0, nullptr
+        );
+
+        return device.createPipelineLayout(pipelineLayoutInfo);
+    }
+
+    std::tuple<vk::Pipeline, std::vector<vk::ShaderModule>> init_createGraphicsPipeline(const vk::Device& device, vk::PipelineLayout layout, vk::RenderPass renderPass) {
         const std::optional<std::vector<char>> vertexShaderCode = FileUtilities::readFile("shaders/test_triangle.vert.glsl.spv");
         const std::optional<std::vector<char>> fragmentShaderCode = FileUtilities::readFile("shaders/test_triangle.frag.glsl.spv");
 
@@ -197,7 +244,9 @@ namespace {
         const vk::ShaderModule vertexShader = createShaderModule(device, vertexShaderCode.value());
         const vk::ShaderModule fragmentShader = createShaderModule(device, fragmentShaderCode.value());
 
-        return;
+        const std::vector<vk::ShaderModule> shaderModules = {
+            vertexShader, fragmentShader
+        };
 
         const vk::PipelineShaderStageCreateInfo vertexShaderStageInfo(
             {},
@@ -230,11 +279,18 @@ namespace {
             vk::False // primitive restart
         );
 
-        const vk::Viewport viewport(0, 0, (float) swapchainExtent.width, (float) swapchainExtent.height, 0.0f, 1.0f);
+        const std::vector<vk::DynamicState> dynamicStates = {
+            vk::DynamicState::eViewport,
+            vk::DynamicState::eScissor,
+        };
 
-        const vk::Rect2D scissor({0, 0}, swapchainExtent);
+        const vk::PipelineDynamicStateCreateInfo dynamicStateInfo(
+            {}, 
+            static_cast<uint32_t>(dynamicStates.size()),
+            dynamicStates.data()
+        );
 
-        const vk::PipelineViewportStateCreateInfo viewportState({}, 1, &viewport, 1, &scissor);
+        const vk::PipelineViewportStateCreateInfo viewportStateInfo({}, 1, nullptr, 1, nullptr);
 
         const vk::PipelineRasterizationStateCreateInfo rasterizerCreateInfo(
             {},
@@ -250,7 +306,7 @@ namespace {
             1.0f // line width
         );
 
-        const vk::PipelineMultisampleStateCreateInfo multisampling(
+        const vk::PipelineMultisampleStateCreateInfo multisamplingInfo(
             {},
             vk::SampleCountFlagBits::e1,
             vk::False,
@@ -272,7 +328,7 @@ namespace {
 
         const std::array<float, 4> colorBlendingConstants = {0.0f, 0.0f, 0.0f, 0.0f};
 
-        const vk::PipelineColorBlendStateCreateInfo colorBlending(
+        const vk::PipelineColorBlendStateCreateInfo colorBlendingInfo(
             {},
             vk::False,
             vk::LogicOp::eCopy,
@@ -281,12 +337,27 @@ namespace {
             colorBlendingConstants
         );
 
-        // empty pipeline layout for now
-        const vk::PipelineLayoutCreateInfo pipelineLayoutInfo(
-            {}, 0, nullptr, 0, nullptr
+        vk::GraphicsPipelineCreateInfo pipelineCreateInfo(
+            {},
+            2,
+            shaderStages,
+            &vertexInputStateInfo,
+            &inputAssemblyStateInfo,
+            nullptr, // no tesselation viewport
+            &viewportStateInfo,
+            &rasterizerCreateInfo,
+            &multisamplingInfo,
+            nullptr, // no depth stencil
+            &colorBlendingInfo,
+            &dynamicStateInfo,
+            layout,
+            renderPass,
+            0
         );
 
-        const vk::PipelineLayout pipelineLayout = device.createPipelineLayout(pipelineLayoutInfo);
+        vk::ResultValue<vk::Pipeline> pipeline = device.createGraphicsPipeline(nullptr, pipelineCreateInfo);
+        ASSERT(pipeline.result == vk::Result::eSuccess, "Can't create graphics pipeline");
+        return std::make_tuple(pipeline.value, shaderModules);
     }
 }
 
@@ -302,7 +373,7 @@ GraphicsDeviceInterface::GraphicsDeviceInterface() {
 
 
     const bool isVulkanLibraryLoadSuccessful = SDL_Vulkan_LoadLibrary(nullptr);
-    assert(isVulkanLibraryLoadSuccessful && "Vulkan library cannot be loaded");
+    ASSERT(isVulkanLibraryLoadSuccessful, "Vulkan library cannot be loaded");
     isConstructionSuccessful &= isVulkanLibraryLoadSuccessful;
     if (!isVulkanLibraryLoadSuccessful) return;
 
@@ -331,10 +402,21 @@ GraphicsDeviceInterface::GraphicsDeviceInterface() {
     swapchainImages = device.getSwapchainImagesKHR(swapchain);
     swapchainImageViews = init_createImageViews(device, swapchainImages, swapchainImageFormat);
 
-    /* init_createGraphicsPipeline(device, swapchainExtent); */
+    pipelineLayout = init_createPipelineLayout(device);
+    renderPass = init_createRenderPass(device, swapchainImageFormat);
+
+    std::tie(pipeline, shaderModules) = init_createGraphicsPipeline(device, pipelineLayout, renderPass);
 }
 
 GraphicsDeviceInterface::~GraphicsDeviceInterface() {
+    device.destroyPipelineLayout(pipelineLayout);
+    device.destroyRenderPass(renderPass);
+
+    for (const vk::ShaderModule& shaderModule : shaderModules)
+        device.destroyShaderModule(shaderModule);
+
+    device.destroyPipeline(pipeline);
+
     for (const vk::ImageView& imageView : swapchainImageViews)
         device.destroyImageView(imageView);
 

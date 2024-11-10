@@ -2,15 +2,13 @@ add_library(engine INTERFACE)
 
 add_subdirectory(src)
 
-target_link_libraries(engine INTERFACE logger)
-target_link_libraries(engine INTERFACE low_level_renderer)
-target_link_libraries(engine INTERFACE file_system)
+target_link_libraries(engine INTERFACE logger file_system low_level_renderer)
 
-# set(ENGINE_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/src/engine/include")
+set(ENGINE_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/src/engine/include")
 
+target_include_directories(file_system PUBLIC "${PROJECT_SOURCE_DIR}/src/engine/include")
 target_include_directories(source PUBLIC "${PROJECT_SOURCE_DIR}/src/engine/include")
 target_include_directories(logger PUBLIC "${PROJECT_SOURCE_DIR}/src/engine/include")
-target_include_directories(file_system PUBLIC "${PROJECT_SOURCE_DIR}/src/engine/include")
 target_include_directories(low_level_renderer PUBLIC "${PROJECT_SOURCE_DIR}/src/engine/include")
 
 set(GLSL_SOURCE_FILES

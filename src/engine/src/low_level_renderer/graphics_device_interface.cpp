@@ -2,6 +2,7 @@
 #include <set>
 
 #include "logger/assert.h"
+#include "file_system/file.h"
 #include "low_level_renderer/graphics_device_interface.h"
 
 #include "private/swapchain.h"
@@ -9,6 +10,7 @@
 #include "private/graphics_device_helper.h"
 #include "private/queue_family.h"
 #include "private/validation.h"
+#include "vulkan/vulkan_enums.hpp"
 
 namespace {
     std::tuple<vk::Instance, vk::DebugUtilsMessengerEXT> init_createInstance() {
@@ -174,6 +176,118 @@ namespace {
         }
         return swapchainImageViews;
     }
+
+    vk::ShaderModule createShaderModule(const vk::Device& device, const std::vector<char>& code) {
+        vk::ShaderModuleCreateInfo createInfo(
+            {},
+            code.size(),
+            reinterpret_cast<const uint32_t*>(code.data())
+        );
+
+        return device.createShaderModule(createInfo);
+    }
+
+    void init_createGraphicsPipeline(const vk::Device& device, vk::Extent2D swapchainExtent) {
+        const std::optional<std::vector<char>> vertexShaderCode = FileUtilities::readFile("shaders/test_triangle.vert.glsl.spv");
+        const std::optional<std::vector<char>> fragmentShaderCode = FileUtilities::readFile("shaders/test_triangle.frag.glsl.spv");
+
+        ASSERT(vertexShaderCode.has_value(), "Vertex shader can't be loaded");
+        ASSERT(fragmentShaderCode.has_value(), "Fragment shader can't be loaded");
+
+        const vk::ShaderModule vertexShader = createShaderModule(device, vertexShaderCode.value());
+        const vk::ShaderModule fragmentShader = createShaderModule(device, fragmentShaderCode.value());
+
+        return;
+
+        const vk::PipelineShaderStageCreateInfo vertexShaderStageInfo(
+            {},
+            vk::ShaderStageFlagBits::eVertex,
+            vertexShader,
+            "main"
+        );
+
+        const vk::PipelineShaderStageCreateInfo fragmentShaderStageInfo(
+            {},
+            vk::ShaderStageFlagBits::eFragment,
+            fragmentShader,
+            "main"
+        );
+
+        const vk::PipelineShaderStageCreateInfo shaderStages[] 
+            = {vertexShaderStageInfo, fragmentShaderStageInfo};
+
+        const vk::PipelineVertexInputStateCreateInfo vertexInputStateInfo(
+            {},
+            0,
+            nullptr,
+            0,
+            nullptr
+        );
+
+        const vk::PipelineInputAssemblyStateCreateInfo inputAssemblyStateInfo(
+            {},
+            vk::PrimitiveTopology::eTriangleList,
+            vk::False // primitive restart
+        );
+
+        const vk::Viewport viewport(0, 0, (float) swapchainExtent.width, (float) swapchainExtent.height, 0.0f, 1.0f);
+
+        const vk::Rect2D scissor({0, 0}, swapchainExtent);
+
+        const vk::PipelineViewportStateCreateInfo viewportState({}, 1, &viewport, 1, &scissor);
+
+        const vk::PipelineRasterizationStateCreateInfo rasterizerCreateInfo(
+            {},
+            vk::False, // depth clamp enable. only useful for shadow mapping
+            vk::False, // rasterizerDiscardEnable
+            vk::PolygonMode::eFill, // fill polygon with fragments
+            vk::CullModeFlagBits::eBack,
+            vk::FrontFace::eClockwise,
+            vk::False, // depth bias, probably useful for shadow mapping
+            0.0f,
+            0.0f,
+            0.0f,
+            1.0f // line width
+        );
+
+        const vk::PipelineMultisampleStateCreateInfo multisampling(
+            {},
+            vk::SampleCountFlagBits::e1,
+            vk::False,
+            1.0f,
+            nullptr,
+            vk::False,
+            vk::False
+        );
+
+        const vk::PipelineColorBlendAttachmentState colorBlendAttachment(
+            vk::True, // enable blend
+            vk::BlendFactor::eSrcAlpha,
+            vk::BlendFactor::eOneMinusSrcAlpha,
+            vk::BlendOp::eAdd,
+            vk::BlendFactor::eOne,
+            vk::BlendFactor::eZero,
+            vk::BlendOp::eAdd
+        );
+
+        const std::array<float, 4> colorBlendingConstants = {0.0f, 0.0f, 0.0f, 0.0f};
+
+        const vk::PipelineColorBlendStateCreateInfo colorBlending(
+            {},
+            vk::False,
+            vk::LogicOp::eCopy,
+            1,
+            &colorBlendAttachment,
+            colorBlendingConstants
+        );
+
+        // empty pipeline layout for now
+        const vk::PipelineLayoutCreateInfo pipelineLayoutInfo(
+            {}, 0, nullptr, 0, nullptr
+        );
+
+        const vk::PipelineLayout pipelineLayout = device.createPipelineLayout(pipelineLayoutInfo);
+    }
 }
 
 GraphicsDeviceInterface::GraphicsDeviceInterface() {
@@ -216,6 +330,8 @@ GraphicsDeviceInterface::GraphicsDeviceInterface() {
 
     swapchainImages = device.getSwapchainImagesKHR(swapchain);
     swapchainImageViews = init_createImageViews(device, swapchainImages, swapchainImageFormat);
+
+    /* init_createGraphicsPipeline(device, swapchainExtent); */
 }
 
 GraphicsDeviceInterface::~GraphicsDeviceInterface() {

@@ -13,6 +13,7 @@
 
 int main() {
     Logging::initializeLogger();
+
     GraphicsDeviceInterface GDI;
 
     while (true) {

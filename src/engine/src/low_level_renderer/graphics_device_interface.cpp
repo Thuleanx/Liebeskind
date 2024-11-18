@@ -377,6 +377,17 @@ std::vector<vk::Framebuffer> init_createFramebuffer(
 
 	return swapchainFramebuffers;
 }
+
+vk::CommandPool init_createCommandPool(const vk::Device& device,
+									   const QueueFamilyIndices queueFamilies) {
+	ASSERT(queueFamilies.graphicsFamily.has_value(),
+		   "Calling create command pool on incomplete family indices");
+	vk::CommandPoolCreateInfo poolInfo(
+		vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
+		queueFamilies.graphicsFamily.value()
+	);
+	return device.createCommandPool(poolInfo);
+}
 }
 
 GraphicsDeviceInterface::GraphicsDeviceInterface() {
@@ -423,9 +434,12 @@ GraphicsDeviceInterface::GraphicsDeviceInterface() {
 										pipelineLayout, renderPass);
 	swapchainFramebuffers = init_createFramebuffer(device, renderPass,
 							swapchainExtent, swapchainImageViews);
+	commandPool = init_createCommandPool(device, queueFamily);
 }
 
 GraphicsDeviceInterface::~GraphicsDeviceInterface() {
+	device.destroyCommandPool(commandPool);
+
 	for (const vk::Framebuffer& framebuffer : swapchainFramebuffers)
 		device.destroyFramebuffer(framebuffer);
 

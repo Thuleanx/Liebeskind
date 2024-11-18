@@ -11,35 +11,39 @@ constexpr char ENGINE_NAME[] = "Liebeskind";
 
 class GraphicsDeviceInterface {
 public:
-    explicit GraphicsDeviceInterface();
-    ~GraphicsDeviceInterface();
+	explicit GraphicsDeviceInterface();
+	~GraphicsDeviceInterface();
 
-    GraphicsDeviceInterface(const GraphicsDeviceInterface &) = delete;
-    const GraphicsDeviceInterface &operator=(const GraphicsDeviceInterface &) = delete;
+	GraphicsDeviceInterface(const GraphicsDeviceInterface&) = delete;
+	const GraphicsDeviceInterface& operator=(const GraphicsDeviceInterface&) =
+		delete;
 
 public:
-    bool isConstructionSuccessful;
+	bool isConstructionSuccessful;
 
-private: 
-    SDL_Window* window;
+private:
+	SDL_Window* window;
 
-    vk::Instance instance;
-    vk::DebugUtilsMessengerEXT debugUtilsMessenger;
-    vk::SurfaceKHR surface;
+	vk::Instance instance;
+	vk::DebugUtilsMessengerEXT debugUtilsMessenger;
+	vk::SurfaceKHR surface;
 
-    vk::Device device;
-    vk::PhysicalDevice physicalDevice;
-    vk::Queue graphicsQueue, presentQueue;
+	vk::Device device;
+	vk::PhysicalDevice physicalDevice;
+	vk::Queue graphicsQueue, presentQueue;
 
-    vk::SwapchainKHR swapchain;
-    std::vector<vk::Image> swapchainImages;
-    std::vector<vk::ImageView> swapchainImageViews;
-    vk::Format swapchainImageFormat;
-    vk::Extent2D swapchainExtent;
+	vk::SwapchainKHR swapchain;
+	std::vector<vk::Image> swapchainImages;
+	std::vector<vk::ImageView> swapchainImageViews;
+	vk::Format swapchainImageFormat;
+	vk::Extent2D swapchainExtent;
 
-    vk::RenderPass renderPass;
-    vk::PipelineLayout pipelineLayout;
-    vk::Pipeline pipeline;
+	vk::RenderPass renderPass;
+	vk::PipelineLayout pipelineLayout;
+	vk::Pipeline pipeline;
 
-    std::vector<vk::ShaderModule> shaderModules;
+	std::vector<vk::ShaderModule> shaderModules;
+	std::vector<vk::Framebuffer> swapchainFramebuffers;
+
+	vk::CommandPool commandPool;
 };

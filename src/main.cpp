@@ -12,22 +12,22 @@
 #pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
 
 int main() {
-    Logging::initializeLogger();
+	Logging::initializeLogger();
+	GraphicsDeviceInterface GDI;
 
-    GraphicsDeviceInterface GDI;
+	while (true) {
+		SDL_Event sdl_event;
+		bool shouldQuitGame = false;
 
-    while (true) {
-        SDL_Event sdl_event;
-        bool shouldQuitGame = false;
-        while (SDL_PollEvent(&sdl_event)) {
-            if (sdl_event.type == SDL_EVENT_QUIT) {
-                shouldQuitGame = true;
-            }
-        }
-        if (shouldQuitGame) break;
-    }
+		while (SDL_PollEvent(&sdl_event)) {
+			if (sdl_event.type == SDL_EVENT_QUIT)
+				shouldQuitGame = true;
+		}
 
-    return EXIT_SUCCESS;
+		if (shouldQuitGame) break;
+	}
+
+	return EXIT_SUCCESS;
 }
 
 #pragma GCC diagnostic pop

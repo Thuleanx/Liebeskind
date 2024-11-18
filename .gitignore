@@ -4,6 +4,7 @@
 .cache
 
 *.log
+*.org
 
 compile_commands.json
 

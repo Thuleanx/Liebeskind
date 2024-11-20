@@ -8,6 +8,7 @@
 
 constexpr char APP_SHORT_NAME[] = "Game";
 constexpr char ENGINE_NAME[] = "Liebeskind";
+const extern uint32_t MAX_FRAMES_IN_FLIGHT;
 
 class GraphicsDeviceInterface {
 public:
@@ -17,6 +18,8 @@ public:
 	GraphicsDeviceInterface(const GraphicsDeviceInterface&) = delete;
 	const GraphicsDeviceInterface& operator=(const GraphicsDeviceInterface&) =
 		delete;
+
+    bool drawFrame();
 
 public:
 	bool isConstructionSuccessful;
@@ -46,4 +49,14 @@ private:
 	std::vector<vk::Framebuffer> swapchainFramebuffers;
 
 	vk::CommandPool commandPool;
+    std::vector<vk::CommandBuffer> commandBuffers;
+
+    std::vector<vk::Semaphore> isImageAvailable;
+    std::vector<vk::Semaphore> isRenderingFinished;
+    std::vector<vk::Fence> isRenderingInFlight;
+
+    uint32_t currentFrame = 0;
+
+private:
+	void recordCommandBuffer(vk::CommandBuffer buffer, uint32_t imageIndex);
 };

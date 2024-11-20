@@ -1,5 +1,6 @@
 #include <vector>
 #include <set>
+#include <limits>
 
 #include "logger/assert.h"
 #include "file_system/file.h"
@@ -11,6 +12,8 @@
 #include "private/queue_family.h"
 #include "private/validation.h"
 #include "vulkan/vulkan_enums.hpp"
+
+const uint32_t MAX_FRAMES_IN_FLIGHT = 2;
 
 namespace {
 
@@ -46,7 +49,6 @@ std::tuple<vk::Instance, vk::DebugUtilsMessengerEXT> init_createInstance() {
 
 	return std::make_tuple(instance, debugUtilsMessenger);
 }
-
 
 vk::SurfaceKHR init_createSurface(
 	SDL_Window* window,
@@ -198,7 +200,7 @@ vk::ShaderModule createShaderModule(const vk::Device& device,
 
 vk::RenderPass init_createRenderPass(const vk::Device &device,
 									 vk::Format swapchainImageFormat) {
-	vk::AttachmentDescription colorAttachment(
+	const vk::AttachmentDescription colorAttachment(
 		{},
 		swapchainImageFormat,
 		vk::SampleCountFlagBits::e1,
@@ -209,11 +211,11 @@ vk::RenderPass init_createRenderPass(const vk::Device &device,
 		vk::ImageLayout::eUndefined,
 		vk::ImageLayout::ePresentSrcKHR
 	);
-	vk::AttachmentReference colorAttachmentReference(
+	const vk::AttachmentReference colorAttachmentReference(
 		0, // index of attachment
 		vk::ImageLayout::eColorAttachmentOptimal
 	);
-	vk::SubpassDescription subpassDescription(
+	const vk::SubpassDescription subpassDescription(
 		{},
 		vk::PipelineBindPoint::eGraphics,
 		0,
@@ -221,12 +223,22 @@ vk::RenderPass init_createRenderPass(const vk::Device &device,
 		1,
 		&colorAttachmentReference
 	);
-	vk::RenderPassCreateInfo renderPassInfo(
+	const vk::SubpassDependency dependency(
+		vk::SubpassExternal,
+		0,
+		vk::PipelineStageFlagBits::eColorAttachmentOutput,
+		vk::PipelineStageFlagBits::eColorAttachmentOutput,
+		{},
+		vk::AccessFlagBits::eColorAttachmentWrite
+	);
+	const vk::RenderPassCreateInfo renderPassInfo(
 		{},
 		1,
 		&colorAttachment,
 		1,
-		&subpassDescription
+		&subpassDescription,
+		1,
+		&dependency
 	);
 	return device.createRenderPass(renderPassInfo);
 }
@@ -242,7 +254,8 @@ vk::PipelineLayout init_createPipelineLayout(const vk::Device& device) {
 std::tuple<vk::Pipeline, std::vector<vk::ShaderModule >> init_createGraphicsPipeline(const vk::Device& device, vk::PipelineLayout layout, vk::RenderPass renderPass) {
 	const std::optional<std::vector<char >> vertexShaderCode =
 		FileUtilities::readFile("shaders/test_triangle.vert.glsl.spv");
-	const std::optional<std::vector<char >> fragmentShaderCode = FileUtilities::readFile("shaders/test_triangle.frag.glsl.spv");
+	const std::optional<std::vector<char >> fragmentShaderCode =
+		FileUtilities::readFile("shaders/test_triangle.frag.glsl.spv");
 	ASSERT(vertexShaderCode.has_value(), "Vertex shader can't be loaded");
 	ASSERT(fragmentShaderCode.has_value(), "Fragment shader can't be loaded");
 	const vk::ShaderModule vertexShader = createShaderModule(device, vertexShaderCode.value());
@@ -262,6 +275,15 @@ std::tuple<vk::Pipeline, std::vector<vk::ShaderModule >> init_createGraphicsPipe
 		fragmentShader,
 		"main"
 	);
+	const std::vector<vk::DynamicState> dynamicStates = {
+		vk::DynamicState::eViewport,
+		vk::DynamicState::eScissor,
+	};
+	const vk::PipelineDynamicStateCreateInfo dynamicStateInfo(
+		{},
+		static_cast<uint32_t>(dynamicStates.size()),
+		dynamicStates.data()
+	);
 	const vk::PipelineShaderStageCreateInfo shaderStages[]
 		= {vertexShaderStageInfo, fragmentShaderStageInfo};
 	const vk::PipelineVertexInputStateCreateInfo vertexInputStateInfo(
@@ -275,15 +297,6 @@ std::tuple<vk::Pipeline, std::vector<vk::ShaderModule >> init_createGraphicsPipe
 		{},
 		vk::PrimitiveTopology::eTriangleList,
 		vk::False // primitive restart
-	);
-	const std::vector<vk::DynamicState> dynamicStates = {
-		vk::DynamicState::eViewport,
-		vk::DynamicState::eScissor,
-	};
-	const vk::PipelineDynamicStateCreateInfo dynamicStateInfo(
-		{},
-		static_cast<uint32_t>(dynamicStates.size()),
-		dynamicStates.data()
 	);
 	const vk::PipelineViewportStateCreateInfo viewportStateInfo({}, 1, nullptr, 1,
 			nullptr);
@@ -316,7 +329,9 @@ std::tuple<vk::Pipeline, std::vector<vk::ShaderModule >> init_createGraphicsPipe
 		vk::BlendOp::eAdd,
 		vk::BlendFactor::eOne,
 		vk::BlendFactor::eZero,
-		vk::BlendOp::eAdd
+		vk::BlendOp::eAdd,
+		vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
+		vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA
 	);
 	const std::array<float, 4> colorBlendingConstants = {0.0f, 0.0f, 0.0f, 0.0f};
 	const vk::PipelineColorBlendStateCreateInfo colorBlendingInfo(
@@ -388,9 +403,45 @@ vk::CommandPool init_createCommandPool(const vk::Device& device,
 	);
 	return device.createCommandPool(poolInfo);
 }
+
+std::vector<vk::CommandBuffer> init_createCommandBuffers(
+	const vk::Device& device,
+	const vk::CommandPool& pool,
+	const uint32_t num_of_frames
+) {
+	vk::CommandBufferAllocateInfo allocateInfo(
+		pool,
+		vk::CommandBufferLevel::ePrimary,
+		num_of_frames
+	);
+	std::vector<vk::CommandBuffer> commandBuffers = device.allocateCommandBuffers(
+			allocateInfo);
+	ASSERT(commandBuffers.size() == MAX_FRAMES_IN_FLIGHT,
+		   "Created more command buffers than specified");
+	return commandBuffers;
+}
+
+std::tuple<std::vector<vk::Semaphore>, std::vector<vk::Semaphore>, std::vector<vk::Fence >> init_createSyncObjects(
+	const vk::Device& device, const uint32_t num_of_frames) {
+	std::vector<vk::Semaphore> isImageAvailable(num_of_frames);
+	std::vector<vk::Semaphore> isRenderingFinished(num_of_frames);
+	std::vector<vk::Fence> isRenderingInFlight(num_of_frames);
+	vk::SemaphoreCreateInfo semaphoreCreateInfo;
+	vk::FenceCreateInfo fenceCreateInfo(vk::FenceCreateFlagBits::eSignaled);
+
+	for (uint32_t i = 0; i < num_of_frames; i++) {
+		isImageAvailable[i] = device.createSemaphore(semaphoreCreateInfo);
+		isRenderingFinished[i] = device.createSemaphore(semaphoreCreateInfo);
+		isRenderingInFlight[i] = device.createFence(fenceCreateInfo);
+	}
+
+	return std::make_tuple(isImageAvailable, isRenderingFinished,
+						   isRenderingInFlight);
+}
 }
 
 GraphicsDeviceInterface::GraphicsDeviceInterface() {
+	currentFrame = 0;
 	isConstructionSuccessful = true;
 	const SDL_InitFlags initFlags = SDL_INIT_VIDEO | SDL_INIT_EVENTS;
 	const bool isSDLInitSuccessful = SDL_Init(initFlags);
@@ -435,9 +486,24 @@ GraphicsDeviceInterface::GraphicsDeviceInterface() {
 	swapchainFramebuffers = init_createFramebuffer(device, renderPass,
 							swapchainExtent, swapchainImageViews);
 	commandPool = init_createCommandPool(device, queueFamily);
+	commandBuffers = init_createCommandBuffers(device, commandPool,
+					 MAX_FRAMES_IN_FLIGHT);
+	std::tie(isImageAvailable, isRenderingFinished,
+			 isRenderingInFlight) = init_createSyncObjects(device, MAX_FRAMES_IN_FLIGHT);
 }
 
 GraphicsDeviceInterface::~GraphicsDeviceInterface() {
+	device.waitIdle();
+
+	for (const vk::Semaphore& semaphore : isImageAvailable)
+		device.destroySemaphore(semaphore);
+
+	for (const vk::Semaphore& semaphore : isRenderingFinished)
+		device.destroySemaphore(semaphore);
+
+	for (const vk::Fence& fence : isRenderingInFlight)
+		device.destroyFence(fence);
+
 	device.destroyCommandPool(commandPool);
 
 	for (const vk::Framebuffer& framebuffer : swapchainFramebuffers)
@@ -464,4 +530,75 @@ GraphicsDeviceInterface::~GraphicsDeviceInterface() {
 	instance.destroy();
 	SDL_DestroyWindow(window);
 	SDL_Quit();
+}
+
+void GraphicsDeviceInterface::recordCommandBuffer(
+	vk::CommandBuffer buffer,
+	uint32_t imageIndex
+) {
+	vk::CommandBufferBeginInfo beginInfo({}, nullptr);
+	buffer.begin(beginInfo);
+	vk::ClearValue clearColor(vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f));
+	vk::RenderPassBeginInfo renderPassInfo(
+		renderPass,
+		swapchainFramebuffers[imageIndex],
+		vk::Rect2D(vk::Offset2D {0, 0}, swapchainExtent),
+		1,
+		&clearColor
+	);
+	buffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
+	buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
+	vk::Viewport viewport(0.0f, 0.0f, static_cast<float>(swapchainExtent.width),
+						  static_cast<float>(swapchainExtent.height), 0.0f, 1.0f);
+	buffer.setViewport(0, 1, &viewport);
+	vk::Rect2D scissor(vk::Offset2D(0.0f, 0.0f), swapchainExtent);
+	buffer.setScissor(0, 1, &scissor);
+	buffer.draw(3, 1, 0, 0);
+	buffer.endRenderPass();
+	buffer.end();
+}
+
+bool GraphicsDeviceInterface::drawFrame() {
+	const uint64_t no_time_limit = std::numeric_limits<uint64_t>::max();
+	vk::Result result = device.waitForFences(1, &isRenderingInFlight[currentFrame],
+						vk::True,
+						no_time_limit);
+	ASSERT(result == vk::Result::eSuccess,
+		   "Can't wait for previous frame rendering");
+	result = device.resetFences(1, &isRenderingInFlight[currentFrame]);
+	ASSERT(result == vk::Result::eSuccess,
+		   "Can't reset fence after render");
+
+	if (result != vk::Result::eSuccess)
+		return false;
+
+	const vk::ResultValue<uint32_t> imageIndex = device.acquireNextImageKHR(
+			swapchain, no_time_limit, isImageAvailable[currentFrame], nullptr);
+	ASSERT(imageIndex.result == vk::Result::eSuccess,
+		   "Can't acquire next image in swapchain");
+	recordCommandBuffer(commandBuffers[currentFrame], imageIndex.value);
+	const vk::PipelineStageFlags waitStage =
+		vk::PipelineStageFlagBits::eColorAttachmentOutput;
+	const vk::SubmitInfo submitInfo(1, &isImageAvailable[currentFrame],
+									&waitStage, 1, &commandBuffers[currentFrame], 1,
+									&isRenderingFinished[currentFrame]);
+	result = graphicsQueue.submit(1, &submitInfo,
+								  isRenderingInFlight[currentFrame]);
+	ASSERT(result == vk::Result::eSuccess,
+		   "Can't submit graphics queue");
+
+	if (result != vk::Result::eSuccess)
+		return false;
+
+	vk::PresentInfoKHR presentInfo(1, &isRenderingFinished[currentFrame], 1,
+								   &swapchain, &imageIndex.value, nullptr);
+	result = presentQueue.presentKHR(presentInfo);
+	ASSERT(result == vk::Result::eSuccess,
+		   "Can't present image");
+
+	if (result != vk::Result::eSuccess)
+		return false;
+
+	currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+	return true;
 }

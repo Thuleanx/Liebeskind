@@ -24,6 +24,8 @@ int main() {
 				shouldQuitGame = true;
 		}
 
+		GDI.drawFrame();
+
 		if (shouldQuitGame) break;
 	}
 

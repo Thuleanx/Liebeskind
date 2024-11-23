@@ -603,22 +603,15 @@ void GraphicsDeviceInterface::recordCommandBuffer(
 
 bool GraphicsDeviceInterface::drawFrame() {
 	const uint64_t no_time_limit = std::numeric_limits<uint64_t>::max();
-	vk::Result result = device.waitForFences(1, &isRenderingInFlight[currentFrame],
-						vk::True, no_time_limit);
-	ASSERT(result == vk::Result::eSuccess,
-		   "Can't wait for previous frame rendering");
-
-	if (result != vk::Result::eSuccess) return false;
-
-	if (didFramebufferResized) LLOG_INFO << "Waited for fence";
-
+	VULKAN_ENSURE_SUCCESS_EXPR( device.waitForFences(1,
+								&isRenderingInFlight[currentFrame], vk::True, no_time_limit),
+								"Can't wait for previous frame rendering:");
 	const vk::ResultValue<uint32_t> imageIndex = device.acquireNextImageKHR(
 			swapchain, no_time_limit, isImageAvailable[currentFrame], nullptr);
 
-	if (didFramebufferResized) LLOG_INFO << "Acquired next image";
-
 	switch (imageIndex.result) {
 	case vk::Result::eErrorOutOfDateKHR:
+		LLOG_INFO << "Out of date KHR";
 		recreateSwapchain();
 		return true;
 
@@ -630,55 +623,30 @@ bool GraphicsDeviceInterface::drawFrame() {
 		return false;
 	}
 
-	result = device.resetFences(1, &isRenderingInFlight[currentFrame]);
-	ASSERT(result == vk::Result::eSuccess,
-		   "Can't reset fence render");
-
-	if (result != vk::Result::eSuccess) return false;
-
-	if (didFramebufferResized) LLOG_INFO << "Reset fences";
-
+	VULKAN_ENSURE_SUCCESS_EXPR(device.resetFences(1,
+							   &isRenderingInFlight[currentFrame]), "Can't reset fence for render:");
 	commandBuffers[currentFrame].reset();
 	recordCommandBuffer(commandBuffers[currentFrame], imageIndex.value);
-
-	if (didFramebufferResized) LLOG_INFO << "Recorded command buffer";
-
 	const vk::PipelineStageFlags waitStage =
 		vk::PipelineStageFlagBits::eColorAttachmentOutput;
 	const vk::SubmitInfo submitInfo(1, &isImageAvailable[currentFrame],
 									&waitStage, 1, &commandBuffers[currentFrame], 1,
 									&isRenderingFinished[currentFrame]);
-	result = graphicsQueue.submit(1, &submitInfo,
-								  isRenderingInFlight[currentFrame]);
-	ASSERT(result == vk::Result::eSuccess,
-		   "Can't submit graphics queue");
-
-	if (didFramebufferResized) LLOG_INFO << "Submitted graphics queue";
-
-	if (result != vk::Result::eSuccess) return false;
-
+	VULKAN_ENSURE_SUCCESS_EXPR(graphicsQueue.submit(1, &submitInfo,
+							   isRenderingInFlight[currentFrame]), "Can't submit graphics queue:");
 	vk::PresentInfoKHR presentInfo(1, &isRenderingFinished[currentFrame], 1,
 								   &swapchain, &imageIndex.value, nullptr);
-	result = presentQueue.presentKHR(presentInfo);
-	bool shouldRecreateSwapchain = didFramebufferResized;
 
-	if (didFramebufferResized) LLOG_INFO << "Presented present queue";
-
-	switch (result) {
+	switch (presentQueue.presentKHR(presentInfo)) {
 	case vk::Result::eErrorOutOfDateKHR:
 	case vk::Result::eSuboptimalKHR:
-		shouldRecreateSwapchain = true;
+		recreateSwapchain();
 
 	case vk::Result::eSuccess:
 		break;
 
 	default:
 		return false;
-	}
-
-	if (shouldRecreateSwapchain) {
-		didFramebufferResized = false;
-		recreateSwapchain();
 	}
 
 	currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
@@ -709,7 +677,7 @@ void GraphicsDeviceInterface::recreateSwapchain() {
 						  swapchainImageFormat);
 	swapchainFramebuffers = init_createFramebuffer(device, renderPass,
 							swapchainExtent, swapchainImageViews);
-	LLOG_INFO << "Recreated swapchain";
+	LLOG_INFO << "Swapchain recreated";
 }
 
 void GraphicsDeviceInterface::cleanupSwapchain() {
@@ -723,8 +691,8 @@ void GraphicsDeviceInterface::cleanupSwapchain() {
 }
 
 void GraphicsDeviceInterface::handleWindowResize(
-    [[maybe_unused]] int _width, 
-    [[maybe_unused]] int _height
+	[[maybe_unused]] int _width,
+	[[maybe_unused]] int _height
 ) {
-	didFramebufferResized = true;
+	recreateSwapchain();
 }

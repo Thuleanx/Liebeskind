@@ -57,7 +57,6 @@ private:
     std::vector<vk::Fence> isRenderingInFlight;
 
     uint32_t currentFrame = 0;
-    bool didFramebufferResized;
 
 private:
 	void recordCommandBuffer(vk::CommandBuffer buffer, uint32_t imageIndex);

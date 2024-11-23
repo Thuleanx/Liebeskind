@@ -1,0 +1,2 @@
+CompileFlags:
+  Add: [-DVULKAN_HPP_NO_EXCEPTIONS]

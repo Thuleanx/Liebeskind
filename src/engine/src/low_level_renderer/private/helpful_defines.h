@@ -1,7 +1,7 @@
 #pragma once
 
 #pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-includes"
+#pragma GCC diagnostic ignored "-Wunused"
 #include "logger/assert.h"
 #pragma GCC diagnostic pop
 

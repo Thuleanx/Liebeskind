@@ -1,10 +1,6 @@
 add_executable(source main.cpp)
 
-target_compile_features(source PRIVATE cxx_std_23)
 set_target_properties(source PROPERTIES CXX_EXTENSIONS off CXX_STD_REQUIRED on)
-add_compile_definitions(DEBUG)
-
-target_compile_features(source PUBLIC cxx_std_17)
 
 if (MSVC)
     # Warning all, sdl = security, extern = ignore external headers warnings for angle brackets includes
@@ -13,6 +9,7 @@ else ()
     target_compile_options(source PRIVATE -Wall -Wextra -Wpedantic)
 endif ()
 
+set(CMAKE_CXX_STANDARD 17)
 add_subdirectory(engine)
 add_subdirectory(game)
 

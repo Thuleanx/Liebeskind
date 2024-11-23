@@ -1,4 +1,5 @@
 #include "queue_family.h"
+#include "helpful_defines.h"
 
 bool QueueFamilyIndices::isComplete() {
     return this->graphicsFamily.has_value() && this->presentFamily.has_value();
@@ -13,7 +14,9 @@ QueueFamilyIndices QueueFamilyIndices::findQueueFamilies(const vk::PhysicalDevic
         const vk::QueueFamilyProperties& queueFamily = queueFamilies[i];
         if (queueFamily.queueCount > 0 && (queueFamily.queueFlags & vk::QueueFlagBits::eGraphics))
             indices.graphicsFamily = i;
-        if (device.getSurfaceSupportKHR(i, surface))
+        const vk::ResultValue<vk::Bool32> doesSurfaceSupportDevice = device.getSurfaceSupportKHR(i, surface);
+        VULKAN_ENSURE_SUCCESS(doesSurfaceSupportDevice.result, "Can't retrieve surface support:");
+        if (doesSurfaceSupportDevice.value)
             indices.presentFamily = i;
     }
 

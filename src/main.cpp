@@ -16,15 +16,19 @@ int main() {
 	GraphicsDeviceInterface GDI;
 
 	while (true) {
-		SDL_Event sdl_event;
+		SDL_Event sdlEvent;
 		bool shouldQuitGame = false;
 
-		while (SDL_PollEvent(&sdl_event)) {
-			if (sdl_event.type == SDL_EVENT_QUIT)
-				shouldQuitGame = true;
+		while (SDL_PollEvent(&sdlEvent)) {
+            switch (sdlEvent.type) {
+                case SDL_EVENT_QUIT:
+                    shouldQuitGame = true;
+                    break;
+            }
+            GDI.handleEvent(sdlEvent);
 		}
 
-		GDI.drawFrame();
+		if (!GDI.drawFrame()) break;
 
 		if (shouldQuitGame) break;
 	}

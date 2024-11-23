@@ -11,7 +11,7 @@
 #include "private/graphics_device_helper.h"
 #include "private/queue_family.h"
 #include "private/validation.h"
-#include "vulkan/vulkan_enums.hpp"
+#include "private/helpful_defines.h"
 
 const uint32_t MAX_FRAMES_IN_FLIGHT = 2;
 
@@ -41,7 +41,10 @@ std::tuple<vk::Instance, vk::DebugUtilsMessengerEXT> init_createInstance() {
 		instanceExtensions.size(),
 		instanceExtensions.data()
 	);
-	vk::Instance instance = vk::createInstance(instanceInfo, nullptr);
+	const vk::ResultValue<vk::Instance> instanceCreationResult = vk::createInstance(
+			instanceInfo, nullptr);
+	VULKAN_ENSURE_SUCCESS(instanceCreationResult.result, "Can't create instance:");
+	const vk::Instance instance = instanceCreationResult.value;
 	vk::DebugUtilsMessengerEXT debugUtilsMessenger;
 
 	if (Validation::shouldEnableValidationLayers)
@@ -107,8 +110,7 @@ vk::Device init_createLogicalDevice(
 	vk::Device device;
 	vk::Result result = physicalDevice.createDevice(&deviceCreateInfo, nullptr,
 						&device);
-	ASSERT(result == vk::Result::eSuccess,
-		   "Failed to create device with result: " << result);
+	VULKAN_ENSURE_SUCCESS(result, "Failed to create device:");
 	return device;
 }
 
@@ -155,7 +157,10 @@ std::tuple<vk::SwapchainKHR, vk::Format, vk::Extent2D> init_createSwapchain(
 		true, // clipped
 		nullptr
 	);
-	return std::make_tuple(device.createSwapchainKHR(swapchainCreateInfo, nullptr),
+	const vk::ResultValue<vk::SwapchainKHR> swapchainCreateResult =
+		device.createSwapchainKHR(swapchainCreateInfo, nullptr);
+	VULKAN_ENSURE_SUCCESS(swapchainCreateResult.result, "Can't create swapchain:");
+	return std::make_tuple(swapchainCreateResult.value,
 						   surfaceFormat.format, extent);
 }
 
@@ -182,7 +187,11 @@ std::vector<vk::ImageView> init_createImageViews(
 			vk::ComponentMapping(),
 			subResourceRange
 		);
-		swapchainImageViews[i] = device.createImageView(createInfo);
+		const vk::ResultValue<vk::ImageView> swapchainImageCreateResult =
+			device.createImageView(createInfo);
+		VULKAN_ENSURE_SUCCESS(swapchainImageCreateResult.result,
+							  "Can't create swapchain image view:");
+		swapchainImageViews[i] = swapchainImageCreateResult.value;
 	}
 
 	return swapchainImageViews;
@@ -195,7 +204,10 @@ vk::ShaderModule createShaderModule(const vk::Device& device,
 		code.size(),
 		reinterpret_cast<const uint32_t*>(code.data())
 	);
-	return device.createShaderModule(createInfo);
+	vk::ResultValue<vk::ShaderModule> shaderModule = device.createShaderModule(
+			createInfo);
+	VULKAN_ENSURE_SUCCESS(shaderModule.result, "Can't create shader");
+	return shaderModule.value;
 }
 
 vk::RenderPass init_createRenderPass(const vk::Device &device,
@@ -240,7 +252,11 @@ vk::RenderPass init_createRenderPass(const vk::Device &device,
 		1,
 		&dependency
 	);
-	return device.createRenderPass(renderPassInfo);
+	const vk::ResultValue<vk::RenderPass> renderPassCreation =
+		device.createRenderPass(
+			renderPassInfo);
+	VULKAN_ENSURE_SUCCESS(renderPassCreation.result, "Can't create renderpass:");
+	return renderPassCreation.value;
 }
 
 vk::PipelineLayout init_createPipelineLayout(const vk::Device& device) {
@@ -248,7 +264,11 @@ vk::PipelineLayout init_createPipelineLayout(const vk::Device& device) {
 	const vk::PipelineLayoutCreateInfo pipelineLayoutInfo(
 		{}, 0, nullptr, 0, nullptr
 	);
-	return device.createPipelineLayout(pipelineLayoutInfo);
+	const vk::ResultValue<vk::PipelineLayout> pipelineLayoutCreation =
+		device.createPipelineLayout(pipelineLayoutInfo);
+	VULKAN_ENSURE_SUCCESS(pipelineLayoutCreation.result,
+						  "Can't create pipeline layout:");
+	return pipelineLayoutCreation.value;
 }
 
 std::tuple<vk::Pipeline, std::vector<vk::ShaderModule >> init_createGraphicsPipeline(const vk::Device& device, vk::PipelineLayout layout, vk::RenderPass renderPass) {
@@ -359,11 +379,12 @@ std::tuple<vk::Pipeline, std::vector<vk::ShaderModule >> init_createGraphicsPipe
 		renderPass,
 		0
 	);
-	vk::ResultValue<vk::Pipeline> pipeline = device.createGraphicsPipeline(nullptr,
-		pipelineCreateInfo);
-	ASSERT(pipeline.result == vk::Result::eSuccess,
-		   "Can't create graphics pipeline");
-	return std::make_tuple(pipeline.value, shaderModules);
+	const vk::ResultValue<vk::Pipeline> pipelineCreation =
+		device.createGraphicsPipeline(nullptr,
+									  pipelineCreateInfo);
+	VULKAN_ENSURE_SUCCESS(pipelineCreation.result,
+						  "Can't create graphics pipeline:");
+	return std::make_tuple(pipelineCreation.value, shaderModules);
 }
 
 std::vector<vk::Framebuffer> init_createFramebuffer(
@@ -377,8 +398,8 @@ std::vector<vk::Framebuffer> init_createFramebuffer(
 	for (size_t i = 0; i < swapchainImageViews.size(); i++) {
 		ASSERT(swapchainImageViews[i],
 			   "Swapchain image at location " << i << " is null");
-		vk::ImageView attachments[] = {swapchainImageViews[i]};
-		vk::FramebufferCreateInfo framebufferCreateInfo(
+		const vk::ImageView attachments[] = {swapchainImageViews[i]};
+		const vk::FramebufferCreateInfo framebufferCreateInfo(
 			{},
 			renderPass,
 			1,
@@ -387,7 +408,10 @@ std::vector<vk::Framebuffer> init_createFramebuffer(
 			swapchainExtent.height,
 			1
 		);
-		swapchainFramebuffers[i] = device.createFramebuffer(framebufferCreateInfo);
+		const vk::ResultValue<vk::Framebuffer> framebufferCreation =
+			device.createFramebuffer(framebufferCreateInfo);
+		VULKAN_ENSURE_SUCCESS(framebufferCreation.result, "Can't create framebuffer:");
+		swapchainFramebuffers[i] = framebufferCreation.value;
 	}
 
 	return swapchainFramebuffers;
@@ -401,7 +425,10 @@ vk::CommandPool init_createCommandPool(const vk::Device& device,
 		vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
 		queueFamilies.graphicsFamily.value()
 	);
-	return device.createCommandPool(poolInfo);
+	const vk::ResultValue<vk::CommandPool> commandPoolCreation =
+		device.createCommandPool(poolInfo);
+	VULKAN_ENSURE_SUCCESS(commandPoolCreation.result, "Can't create command pool:");
+	return commandPoolCreation.value;
 }
 
 std::vector<vk::CommandBuffer> init_createCommandBuffers(
@@ -409,20 +436,23 @@ std::vector<vk::CommandBuffer> init_createCommandBuffers(
 	const vk::CommandPool& pool,
 	const uint32_t num_of_frames
 ) {
-	vk::CommandBufferAllocateInfo allocateInfo(
+	const vk::CommandBufferAllocateInfo allocateInfo(
 		pool,
 		vk::CommandBufferLevel::ePrimary,
 		num_of_frames
 	);
-	std::vector<vk::CommandBuffer> commandBuffers = device.allocateCommandBuffers(
-			allocateInfo);
-	ASSERT(commandBuffers.size() == MAX_FRAMES_IN_FLIGHT,
-		   "Created more command buffers than specified");
-	return commandBuffers;
+	const vk::ResultValue<std::vector<vk::CommandBuffer >> commandBuffersAllocation =
+		device.allocateCommandBuffers(allocateInfo);
+	VULKAN_ENSURE_SUCCESS(commandBuffersAllocation.result, "Can't allocate command buffers:");
+	ASSERT(commandBuffersAllocation.value.size() == MAX_FRAMES_IN_FLIGHT,
+		   "Allocated " << commandBuffersAllocation.value.size() <<
+		   " command buffers when requesting " << MAX_FRAMES_IN_FLIGHT);
+	return commandBuffersAllocation.value;
 }
 
-std::tuple<std::vector<vk::Semaphore>, std::vector<vk::Semaphore>, std::vector<vk::Fence >> init_createSyncObjects(
-	const vk::Device& device, const uint32_t num_of_frames) {
+std::tuple<std::vector<vk::Semaphore>, std::vector<vk::Semaphore>,
+	std::vector<vk::Fence >> init_createSyncObjects(
+const vk::Device& device, const uint32_t num_of_frames) {
 	std::vector<vk::Semaphore> isImageAvailable(num_of_frames);
 	std::vector<vk::Semaphore> isRenderingFinished(num_of_frames);
 	std::vector<vk::Fence> isRenderingInFlight(num_of_frames);
@@ -430,9 +460,21 @@ std::tuple<std::vector<vk::Semaphore>, std::vector<vk::Semaphore>, std::vector<v
 	vk::FenceCreateInfo fenceCreateInfo(vk::FenceCreateFlagBits::eSignaled);
 
 	for (uint32_t i = 0; i < num_of_frames; i++) {
-		isImageAvailable[i] = device.createSemaphore(semaphoreCreateInfo);
-		isRenderingFinished[i] = device.createSemaphore(semaphoreCreateInfo);
-		isRenderingInFlight[i] = device.createFence(fenceCreateInfo);
+		const vk::ResultValue<vk::Semaphore> isImageAvailableCreation =
+			device.createSemaphore(semaphoreCreateInfo);
+		const vk::ResultValue<vk::Semaphore> isRenderingFinishedCreation =
+			device.createSemaphore(semaphoreCreateInfo);
+		const vk::ResultValue<vk::Fence> isRenderingInFlightCreation =
+			device.createFence(fenceCreateInfo);
+		VULKAN_ENSURE_SUCCESS(isImageAvailableCreation.result,
+							  "Can't create semaphore:");
+		VULKAN_ENSURE_SUCCESS(isRenderingFinishedCreation.result,
+							  "Can't create semaphore:");
+		VULKAN_ENSURE_SUCCESS(isRenderingInFlightCreation.result,
+							  "Can't create fence:");
+		isImageAvailable[i] = isImageAvailableCreation.value;
+		isRenderingFinished[i] = isRenderingFinishedCreation.value;
+		isRenderingInFlight[i] = isRenderingInFlightCreation.value;
 	}
 
 	return std::make_tuple(isImageAvailable, isRenderingFinished,
@@ -458,7 +500,8 @@ GraphicsDeviceInterface::GraphicsDeviceInterface() {
 
 	if (!isVulkanLibraryLoadSuccessful) return;
 
-	window = SDL_CreateWindow("Liebeskind", 1024, 768, SDL_WINDOW_VULKAN);
+	window = SDL_CreateWindow("Liebeskind", 1024, 768,
+							  SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
 	std::tie(instance, debugUtilsMessenger) = init_createInstance();
 	surface = init_createSurface(window, instance);
 	physicalDevice = init_createPhysicalDevice(instance, surface);
@@ -467,16 +510,23 @@ GraphicsDeviceInterface::GraphicsDeviceInterface() {
 	device = init_createLogicalDevice(physicalDevice, queueFamily);
 	graphicsQueue = device.getQueue(queueFamily.graphicsFamily.value(), 0);
 	presentQueue = device.getQueue(queueFamily.presentFamily.value(), 0);
-	LLOG_INFO << "Available Extensions:";
+	{
+		LLOG_INFO << "Available Extensions:";
+		const auto instanceExtensionProps = vk::enumerateInstanceExtensionProperties();
+		VULKAN_ENSURE_SUCCESS(instanceExtensionProps.result,
+							  "Can't get instance extension properties");
 
-	for (const auto& extension : vk::enumerateInstanceExtensionProperties())
-		LLOG_INFO << "\t" << extension.extensionName;
+		for (const auto& extension : instanceExtensionProps.value)
+			LLOG_INFO << "\t" << extension.extensionName;
+	}
 
 	std::tie(swapchain, swapchainImageFormat,
 			 swapchainExtent) = init_createSwapchain(
 									window, physicalDevice, device, surface,
 									queueFamily);
-	swapchainImages = device.getSwapchainImagesKHR(swapchain);
+	const auto swapchainImagesGet = device.getSwapchainImagesKHR(swapchain);
+	VULKAN_ENSURE_SUCCESS(swapchainImagesGet.result, "Can't get swapchain images:");
+	swapchainImages = swapchainImagesGet.value;
 	swapchainImageViews = init_createImageViews(device, swapchainImages,
 						  swapchainImageFormat);
 	pipelineLayout = init_createPipelineLayout(device);
@@ -493,7 +543,7 @@ GraphicsDeviceInterface::GraphicsDeviceInterface() {
 }
 
 GraphicsDeviceInterface::~GraphicsDeviceInterface() {
-	device.waitIdle();
+	VULKAN_ENSURE_SUCCESS_EXPR(device.waitIdle(), "Can't wait for device idle:");
 
 	for (const vk::Semaphore& semaphore : isImageAvailable)
 		device.destroySemaphore(semaphore);
@@ -504,11 +554,8 @@ GraphicsDeviceInterface::~GraphicsDeviceInterface() {
 	for (const vk::Fence& fence : isRenderingInFlight)
 		device.destroyFence(fence);
 
+	cleanupSwapchain();
 	device.destroyCommandPool(commandPool);
-
-	for (const vk::Framebuffer& framebuffer : swapchainFramebuffers)
-		device.destroyFramebuffer(framebuffer);
-
 	device.destroyPipelineLayout(pipelineLayout);
 	device.destroyRenderPass(renderPass);
 
@@ -516,11 +563,6 @@ GraphicsDeviceInterface::~GraphicsDeviceInterface() {
 		device.destroyShaderModule(shaderModule);
 
 	device.destroyPipeline(pipeline);
-
-	for (const vk::ImageView& imageView : swapchainImageViews)
-		device.destroyImageView(imageView);
-
-	device.destroySwapchainKHR(std::move(swapchain));
 	device.destroy();
 
 	if (Validation::shouldEnableValidationLayers)
@@ -537,7 +579,8 @@ void GraphicsDeviceInterface::recordCommandBuffer(
 	uint32_t imageIndex
 ) {
 	vk::CommandBufferBeginInfo beginInfo({}, nullptr);
-	buffer.begin(beginInfo);
+	VULKAN_ENSURE_SUCCESS_EXPR(buffer.begin(beginInfo),
+							   "Can't begin recording command buffer:");
 	vk::ClearValue clearColor(vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f));
 	vk::RenderPassBeginInfo renderPassInfo(
 		renderPass,
@@ -555,28 +598,51 @@ void GraphicsDeviceInterface::recordCommandBuffer(
 	buffer.setScissor(0, 1, &scissor);
 	buffer.draw(3, 1, 0, 0);
 	buffer.endRenderPass();
-	buffer.end();
+	VULKAN_ENSURE_SUCCESS_EXPR(buffer.end(), "Can't end recording command buffer:");
 }
 
 bool GraphicsDeviceInterface::drawFrame() {
 	const uint64_t no_time_limit = std::numeric_limits<uint64_t>::max();
 	vk::Result result = device.waitForFences(1, &isRenderingInFlight[currentFrame],
-						vk::True,
-						no_time_limit);
+						vk::True, no_time_limit);
 	ASSERT(result == vk::Result::eSuccess,
 		   "Can't wait for previous frame rendering");
-	result = device.resetFences(1, &isRenderingInFlight[currentFrame]);
-	ASSERT(result == vk::Result::eSuccess,
-		   "Can't reset fence after render");
 
-	if (result != vk::Result::eSuccess)
-		return false;
+	if (result != vk::Result::eSuccess) return false;
+
+	if (didFramebufferResized) LLOG_INFO << "Waited for fence";
 
 	const vk::ResultValue<uint32_t> imageIndex = device.acquireNextImageKHR(
 			swapchain, no_time_limit, isImageAvailable[currentFrame], nullptr);
-	ASSERT(imageIndex.result == vk::Result::eSuccess,
-		   "Can't acquire next image in swapchain");
+
+	if (didFramebufferResized) LLOG_INFO << "Acquired next image";
+
+	switch (imageIndex.result) {
+	case vk::Result::eErrorOutOfDateKHR:
+		recreateSwapchain();
+		return true;
+
+	case vk::Result::eSuccess:
+	case vk::Result::eSuboptimalKHR:
+		break;
+
+	default:
+		return false;
+	}
+
+	result = device.resetFences(1, &isRenderingInFlight[currentFrame]);
+	ASSERT(result == vk::Result::eSuccess,
+		   "Can't reset fence render");
+
+	if (result != vk::Result::eSuccess) return false;
+
+	if (didFramebufferResized) LLOG_INFO << "Reset fences";
+
+	commandBuffers[currentFrame].reset();
 	recordCommandBuffer(commandBuffers[currentFrame], imageIndex.value);
+
+	if (didFramebufferResized) LLOG_INFO << "Recorded command buffer";
+
 	const vk::PipelineStageFlags waitStage =
 		vk::PipelineStageFlagBits::eColorAttachmentOutput;
 	const vk::SubmitInfo submitInfo(1, &isImageAvailable[currentFrame],
@@ -587,18 +653,78 @@ bool GraphicsDeviceInterface::drawFrame() {
 	ASSERT(result == vk::Result::eSuccess,
 		   "Can't submit graphics queue");
 
-	if (result != vk::Result::eSuccess)
-		return false;
+	if (didFramebufferResized) LLOG_INFO << "Submitted graphics queue";
+
+	if (result != vk::Result::eSuccess) return false;
 
 	vk::PresentInfoKHR presentInfo(1, &isRenderingFinished[currentFrame], 1,
 								   &swapchain, &imageIndex.value, nullptr);
 	result = presentQueue.presentKHR(presentInfo);
-	ASSERT(result == vk::Result::eSuccess,
-		   "Can't present image");
+	bool shouldRecreateSwapchain = didFramebufferResized;
 
-	if (result != vk::Result::eSuccess)
+	if (didFramebufferResized) LLOG_INFO << "Presented present queue";
+
+	switch (result) {
+	case vk::Result::eErrorOutOfDateKHR:
+	case vk::Result::eSuboptimalKHR:
+		shouldRecreateSwapchain = true;
+
+	case vk::Result::eSuccess:
+		break;
+
+	default:
 		return false;
+	}
+
+	if (shouldRecreateSwapchain) {
+		didFramebufferResized = false;
+		recreateSwapchain();
+	}
 
 	currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 	return true;
+}
+
+void GraphicsDeviceInterface::handleEvent(const SDL_Event& event) {
+	switch (event.type) {
+	case SDL_EVENT_WINDOW_RESIZED:
+		handleWindowResize(event.window.data1, event.window.data2);
+		break;
+	}
+}
+
+void GraphicsDeviceInterface::recreateSwapchain() {
+	VULKAN_ENSURE_SUCCESS_EXPR(device.waitIdle(), "Can't wait for device to idle:");
+	cleanupSwapchain();
+	QueueFamilyIndices queueFamily = QueueFamilyIndices::findQueueFamilies(
+										 physicalDevice, surface);
+	std::tie(swapchain, swapchainImageFormat,
+			 swapchainExtent) = init_createSwapchain(
+									window, physicalDevice, device, surface,
+									queueFamily);
+	const auto swapchainImagesGet = device.getSwapchainImagesKHR(swapchain);
+	VULKAN_ENSURE_SUCCESS(swapchainImagesGet.result, "Can't get swapchain images:");
+	swapchainImages = swapchainImagesGet.value;
+	swapchainImageViews = init_createImageViews(device, swapchainImages,
+						  swapchainImageFormat);
+	swapchainFramebuffers = init_createFramebuffer(device, renderPass,
+							swapchainExtent, swapchainImageViews);
+	LLOG_INFO << "Recreated swapchain";
+}
+
+void GraphicsDeviceInterface::cleanupSwapchain() {
+	for (const vk::Framebuffer& framebuffer : swapchainFramebuffers)
+		device.destroyFramebuffer(framebuffer);
+
+	for (const vk::ImageView& imageView : swapchainImageViews)
+		device.destroyImageView(imageView);
+
+	device.destroySwapchainKHR(std::move(swapchain));
+}
+
+void GraphicsDeviceInterface::handleWindowResize(
+    [[maybe_unused]] int _width, 
+    [[maybe_unused]] int _height
+) {
+	didFramebufferResized = true;
 }

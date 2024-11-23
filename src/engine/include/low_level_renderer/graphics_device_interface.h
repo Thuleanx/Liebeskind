@@ -20,6 +20,7 @@ public:
 		delete;
 
     bool drawFrame();
+    void handleEvent(const SDL_Event& sdlEvent);
 
 public:
 	bool isConstructionSuccessful;
@@ -56,7 +57,11 @@ private:
     std::vector<vk::Fence> isRenderingInFlight;
 
     uint32_t currentFrame = 0;
+    bool didFramebufferResized;
 
 private:
 	void recordCommandBuffer(vk::CommandBuffer buffer, uint32_t imageIndex);
+    void recreateSwapchain();
+    void cleanupSwapchain();
+    void handleWindowResize(int width, int height);
 };

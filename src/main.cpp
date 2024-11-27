@@ -13,7 +13,7 @@
 
 int main() {
 	Logging::initializeLogger();
-	GraphicsDeviceInterface GDI;
+	GraphicsDeviceInterface GDI = GraphicsDeviceInterface::createGraphicsDevice();
 
 	while (true) {
 		SDL_Event sdlEvent;

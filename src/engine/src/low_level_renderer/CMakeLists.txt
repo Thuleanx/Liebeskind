@@ -1,5 +1,6 @@
 set(SRC 
     graphics_device_interface.cpp 
+    vertex_buffer.cpp
     private/graphics_device_helper.h
     private/graphics_device_helper.cpp
     private/queue_family.h

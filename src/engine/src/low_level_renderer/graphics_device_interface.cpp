@@ -5,6 +5,7 @@
 #include "logger/assert.h"
 #include "file_system/file.h"
 #include "low_level_renderer/graphics_device_interface.h"
+#include "low_level_renderer/vertex_buffer.h"
 
 #include "private/swapchain.h"
 #include "private/queue_family.h"
@@ -306,12 +307,14 @@ std::tuple<vk::Pipeline, std::vector<vk::ShaderModule >> init_createGraphicsPipe
 	);
 	const vk::PipelineShaderStageCreateInfo shaderStages[]
 		= {vertexShaderStageInfo, fragmentShaderStageInfo};
+	const auto bindingDescription = Vertex::getBindingDescription();
+	const auto attributeDescription = Vertex::getAttributeDescriptions();
 	const vk::PipelineVertexInputStateCreateInfo vertexInputStateInfo(
 		{},
-		0,
-		nullptr,
-		0,
-		nullptr
+		1,
+		&bindingDescription,
+		static_cast<uint32_t>(attributeDescription.size()),
+		attributeDescription.data()
 	);
 	const vk::PipelineInputAssemblyStateCreateInfo inputAssemblyStateInfo(
 		{},
@@ -482,34 +485,76 @@ const vk::Device& device, const uint32_t num_of_frames) {
 }
 }
 
-GraphicsDeviceInterface::GraphicsDeviceInterface() {
-	currentFrame = 0;
-	isConstructionSuccessful = true;
+GraphicsDeviceInterface::GraphicsDeviceInterface(
+	SDL_Window* window,
+	vk::Instance instance,
+	vk::DebugUtilsMessengerEXT debugUtilsMessenger,
+	vk::SurfaceKHR surface,
+	vk::Device device,
+	vk::PhysicalDevice physicalDevice,
+	vk::Queue graphicsQueue,
+	vk::Queue presentQueue,
+	vk::SwapchainKHR swapchain,
+	std::vector<vk::Image> swapchainImages,
+	std::vector<vk::ImageView> swapchainImageViews,
+	vk::Format swapchainImageFormat,
+	vk::Extent2D swapchainExtent,
+	vk::RenderPass renderPass,
+	vk::PipelineLayout pipelineLayout,
+	vk::Pipeline pipeline,
+	std::vector<vk::ShaderModule> shaderModules,
+	std::vector<vk::Framebuffer> swapchainFramebuffers,
+	vk::CommandPool commandPool,
+	std::vector<vk::CommandBuffer> commandBuffers,
+	std::vector<vk::Semaphore> isImageAvailable,
+	std::vector<vk::Semaphore> isRenderingFinished,
+	std::vector<vk::Fence> isRenderingInFlight,
+	VertexBuffer vertexBuffer
+) : window(window), instance(instance),
+	debugUtilsMessenger(debugUtilsMessenger),
+	surface(surface), device(device), physicalDevice(physicalDevice),
+	graphicsQueue(graphicsQueue),
+	presentQueue(presentQueue), swapchain(swapchain),
+	swapchainImages(swapchainImages),
+	swapchainImageViews(swapchainImageViews),
+	swapchainImageFormat(swapchainImageFormat),
+	swapchainExtent(swapchainExtent),
+	renderPass(renderPass),
+	pipelineLayout(pipelineLayout),
+	pipeline(pipeline),
+	shaderModules(shaderModules),
+	swapchainFramebuffers(swapchainFramebuffers),
+	commandPool(commandPool),
+	commandBuffers(commandBuffers),
+	isImageAvailable(isImageAvailable),
+	isRenderingFinished(isRenderingFinished),
+	isRenderingInFlight(isRenderingInFlight),
+	vertexBuffer(vertexBuffer),
+	currentFrame(0) {
+}
+
+GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
 	const SDL_InitFlags initFlags = SDL_INIT_VIDEO | SDL_INIT_EVENTS;
 	const bool isSDLInitSuccessful = SDL_Init(initFlags);
 	ASSERT(isSDLInitSuccessful,
 		   "SDL cannot be initialized with flag " << initFlags << " error: " <<
 		   SDL_GetError());
-	isConstructionSuccessful &= isSDLInitSuccessful;
-
-	if (!isSDLInitSuccessful) return;
-
 	const bool isVulkanLibraryLoadSuccessful = SDL_Vulkan_LoadLibrary(nullptr);
 	ASSERT(isVulkanLibraryLoadSuccessful, "Vulkan library cannot be loaded");
-	isConstructionSuccessful &= isVulkanLibraryLoadSuccessful;
-
-	if (!isVulkanLibraryLoadSuccessful) return;
-
-	window = SDL_CreateWindow("Liebeskind", 1024, 768,
-							  SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
+	SDL_Window* window = SDL_CreateWindow("Liebeskind", 1024, 768,
+										  SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
+	vk::Instance instance;
+	vk::DebugUtilsMessengerEXT debugUtilsMessenger;
 	std::tie(instance, debugUtilsMessenger) = init_createInstance();
-	surface = init_createSurface(window, instance);
-	physicalDevice = init_createPhysicalDevice(instance, surface);
+	vk::SurfaceKHR surface = init_createSurface(window, instance);
+	vk::PhysicalDevice physicalDevice = init_createPhysicalDevice(instance,
+										surface);
 	QueueFamilyIndices queueFamily = QueueFamilyIndices::findQueueFamilies(
 										 physicalDevice, surface);
-	device = init_createLogicalDevice(physicalDevice, queueFamily);
-	graphicsQueue = device.getQueue(queueFamily.graphicsFamily.value(), 0);
-	presentQueue = device.getQueue(queueFamily.presentFamily.value(), 0);
+	vk::Device device = init_createLogicalDevice(physicalDevice, queueFamily);
+	vk::Queue graphicsQueue = device.getQueue(queueFamily.graphicsFamily.value(),
+							  0);
+	vk::Queue presentQueue = device.getQueue(queueFamily.presentFamily.value(), 0);
 	{
 		LLOG_INFO << "Available Extensions:";
 		const auto instanceExtensionProps = vk::enumerateInstanceExtensionProperties();
@@ -520,26 +565,64 @@ GraphicsDeviceInterface::GraphicsDeviceInterface() {
 			LLOG_INFO << "\t" << extension.extensionName;
 	}
 
+	vk::SwapchainKHR swapchain;
+	vk::Format swapchainImageFormat;
+	vk::Extent2D swapchainExtent;
 	std::tie(swapchain, swapchainImageFormat,
 			 swapchainExtent) = init_createSwapchain(
 									window, physicalDevice, device, surface,
 									queueFamily);
 	const auto swapchainImagesGet = device.getSwapchainImagesKHR(swapchain);
 	VULKAN_ENSURE_SUCCESS(swapchainImagesGet.result, "Can't get swapchain images:");
-	swapchainImages = swapchainImagesGet.value;
-	swapchainImageViews = init_createImageViews(device, swapchainImages,
-						  swapchainImageFormat);
-	pipelineLayout = init_createPipelineLayout(device);
-	renderPass = init_createRenderPass(device, swapchainImageFormat);
+	std::vector<vk::Image> swapchainImages = swapchainImagesGet.value;
+	std::vector<vk::ImageView> swapchainImageViews = init_createImageViews(device,
+		swapchainImages,
+		swapchainImageFormat);
+	vk::PipelineLayout pipelineLayout = init_createPipelineLayout(device);
+	vk::RenderPass renderPass = init_createRenderPass(device, swapchainImageFormat);
+	vk::Pipeline pipeline;
+	std::vector<vk::ShaderModule> shaderModules;
 	std::tie(pipeline, shaderModules) = init_createGraphicsPipeline(device,
 										pipelineLayout, renderPass);
-	swapchainFramebuffers = init_createFramebuffer(device, renderPass,
-							swapchainExtent, swapchainImageViews);
-	commandPool = init_createCommandPool(device, queueFamily);
-	commandBuffers = init_createCommandBuffers(device, commandPool,
-					 MAX_FRAMES_IN_FLIGHT);
+	std::vector<vk::Framebuffer> swapchainFramebuffers = init_createFramebuffer(
+			device, renderPass,
+			swapchainExtent, swapchainImageViews);
+	vk::CommandPool commandPool = init_createCommandPool(device, queueFamily);
+	VertexBuffer vertexBuffer = VertexBuffer::create(device, physicalDevice);
+	std::vector<vk::CommandBuffer> commandBuffers = init_createCommandBuffers(
+			device, commandPool,
+			MAX_FRAMES_IN_FLIGHT);
+	std::vector<vk::Semaphore> isImageAvailable;
+	std::vector<vk::Semaphore> isRenderingFinished;
+	std::vector<vk::Fence> isRenderingInFlight;
 	std::tie(isImageAvailable, isRenderingFinished,
 			 isRenderingInFlight) = init_createSyncObjects(device, MAX_FRAMES_IN_FLIGHT);
+	return GraphicsDeviceInterface(
+        window,
+        instance,
+        debugUtilsMessenger,
+        surface,
+        device,
+        physicalDevice,
+        graphicsQueue,
+        presentQueue,
+        swapchain,
+        swapchainImages,
+        swapchainImageViews,
+        swapchainImageFormat,
+        swapchainExtent,
+        renderPass,
+        pipelineLayout,
+        pipeline,
+        shaderModules,
+        swapchainFramebuffers,
+        commandPool,
+        commandBuffers,
+        isImageAvailable,
+        isRenderingFinished,
+        isRenderingInFlight,
+        vertexBuffer
+    );
 }
 
 GraphicsDeviceInterface::~GraphicsDeviceInterface() {
@@ -555,6 +638,7 @@ GraphicsDeviceInterface::~GraphicsDeviceInterface() {
 		device.destroyFence(fence);
 
 	cleanupSwapchain();
+	vertexBuffer.destroyBy(device);
 	device.destroyCommandPool(commandPool);
 	device.destroyPipelineLayout(pipelineLayout);
 	device.destroyRenderPass(renderPass);
@@ -591,12 +675,13 @@ void GraphicsDeviceInterface::recordCommandBuffer(
 	);
 	buffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
 	buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
+	vertexBuffer.bind(buffer);
 	vk::Viewport viewport(0.0f, 0.0f, static_cast<float>(swapchainExtent.width),
 						  static_cast<float>(swapchainExtent.height), 0.0f, 1.0f);
 	buffer.setViewport(0, 1, &viewport);
 	vk::Rect2D scissor(vk::Offset2D(0.0f, 0.0f), swapchainExtent);
 	buffer.setScissor(0, 1, &scissor);
-	buffer.draw(3, 1, 0, 0);
+	buffer.draw(vertexBuffer.getNumberOfVertices(), 1, 0, 0);
 	buffer.endRenderPass();
 	VULKAN_ENSURE_SUCCESS_EXPR(buffer.end(), "Can't end recording command buffer:");
 }

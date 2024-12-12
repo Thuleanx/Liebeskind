@@ -2,38 +2,31 @@
 #include "logger/logger.h"
 #include "low_level_renderer/graphics_device_interface.h"
 
-#include <cstdlib>
-
-#include <vulkan/vulkan.hpp>
-#include <SDL3/SDL.H>
-#include <SDL3/SDL_vulkan.h>
-
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
 
 int main() {
-	Logging::initializeLogger();
-	GraphicsDeviceInterface GDI = GraphicsDeviceInterface::createGraphicsDevice();
+    Logging::initializeLogger();
+    GraphicsDeviceInterface GDI =
+        GraphicsDeviceInterface::createGraphicsDevice();
 
-	while (true) {
-		SDL_Event sdlEvent;
-		bool shouldQuitGame = false;
+    while (true) {
+        SDL_Event sdlEvent;
+        bool shouldQuitGame = false;
 
-		while (SDL_PollEvent(&sdlEvent)) {
+        while (SDL_PollEvent(&sdlEvent)) {
             switch (sdlEvent.type) {
-                case SDL_EVENT_QUIT:
-                    shouldQuitGame = true;
-                    break;
+                case SDL_EVENT_QUIT: shouldQuitGame = true; break;
             }
             GDI.handleEvent(sdlEvent);
-		}
+        }
 
-		if (!GDI.drawFrame()) break;
+        if (!GDI.drawFrame()) break;
 
-		if (shouldQuitGame) break;
-	}
+        if (shouldQuitGame) break;
+    }
 
-	return EXIT_SUCCESS;
+    return EXIT_SUCCESS;
 }
 
 #pragma GCC diagnostic pop

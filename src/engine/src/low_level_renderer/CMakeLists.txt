@@ -9,6 +9,8 @@ set(SRC
     private/validation.cpp
     private/swapchain.h
     private/swapchain.cpp
+    private/buffer.h
+    private/buffer.cpp
 )
 
 add_library(low_level_renderer ${SRC})

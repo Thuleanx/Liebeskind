@@ -13,8 +13,6 @@
 #include "private/swapchain.h"
 #include "private/validation.h"
 
-const uint32_t MAX_FRAMES_IN_FLIGHT = 2;
-
 namespace {
 
 std::tuple<vk::Instance, vk::DebugUtilsMessengerEXT> init_createInstance() {
@@ -269,10 +267,12 @@ vk::RenderPass init_createRenderPass(
     return renderPassCreation.value;
 }
 
-vk::PipelineLayout init_createPipelineLayout(const vk::Device& device) {
+vk::PipelineLayout init_createPipelineLayout(
+    const vk::Device& device, const vk::DescriptorSetLayout& descriptorSetLayout
+) {
     // empty pipeline layout for now
     const vk::PipelineLayoutCreateInfo pipelineLayoutInfo(
-        {}, 0, nullptr, 0, nullptr
+        {}, 1, &descriptorSetLayout, 0, nullptr
     );
     const vk::ResultValue<vk::PipelineLayout> pipelineLayoutCreation =
         device.createPipelineLayout(pipelineLayoutInfo);
@@ -515,6 +515,29 @@ init_createSyncObjects(const vk::Device& device, const uint32_t num_of_frames) {
         isImageAvailable, isRenderingFinished, isRenderingInFlight
     );
 }
+
+vk::DescriptorSetLayout init_createDescriptorSetLayout(const vk::Device& device
+) {
+    const vk::DescriptorSetLayoutBinding uboLayoutBinding(
+        0,  // binding
+        vk::DescriptorType::eUniformBuffer,
+        1,  // descriptor count
+        vk::ShaderStageFlagBits::eVertex,
+        nullptr  // immutable sampler pointer
+    );
+    const vk::DescriptorSetLayoutCreateInfo layoutInfo(
+        {},
+        1,  // binding count
+        &uboLayoutBinding
+    );
+    vk::ResultValue<vk::DescriptorSetLayout> descriptorSetLayout =
+        device.createDescriptorSetLayout(layoutInfo);
+    VULKAN_ENSURE_SUCCESS(
+        descriptorSetLayout.result, "Can't create descriptor set layout:"
+    );
+    return descriptorSetLayout.value;
+}
+
 }  // namespace
 
 GraphicsDeviceInterface::GraphicsDeviceInterface(
@@ -532,6 +555,7 @@ GraphicsDeviceInterface::GraphicsDeviceInterface(
     vk::Format swapchainImageFormat,
     vk::Extent2D swapchainExtent,
     vk::RenderPass renderPass,
+    vk::DescriptorSetLayout descriptorSetLayout,
     vk::PipelineLayout pipelineLayout,
     vk::Pipeline pipeline,
     std::vector<vk::ShaderModule> shaderModules,
@@ -542,32 +566,33 @@ GraphicsDeviceInterface::GraphicsDeviceInterface(
     std::vector<vk::Semaphore> isRenderingFinished,
     std::vector<vk::Fence> isRenderingInFlight,
     VertexBuffer vertexBuffer
-)
-    : window(window),
-      instance(instance),
-      debugUtilsMessenger(debugUtilsMessenger),
-      surface(surface),
-      device(device),
-      physicalDevice(physicalDevice),
-      graphicsQueue(graphicsQueue),
-      presentQueue(presentQueue),
-      swapchain(swapchain),
-      swapchainImages(swapchainImages),
-      swapchainImageViews(swapchainImageViews),
-      swapchainImageFormat(swapchainImageFormat),
-      swapchainExtent(swapchainExtent),
-      renderPass(renderPass),
-      pipelineLayout(pipelineLayout),
-      pipeline(pipeline),
-      shaderModules(shaderModules),
-      swapchainFramebuffers(swapchainFramebuffers),
-      commandPool(commandPool),
-      commandBuffers(commandBuffers),
-      isImageAvailable(isImageAvailable),
-      isRenderingFinished(isRenderingFinished),
-      isRenderingInFlight(isRenderingInFlight),
-      vertexBuffer(vertexBuffer),
-      currentFrame(0) {}
+) :
+    window(window),
+    instance(instance),
+    debugUtilsMessenger(debugUtilsMessenger),
+    surface(surface),
+    device(device),
+    physicalDevice(physicalDevice),
+    graphicsQueue(graphicsQueue),
+    presentQueue(presentQueue),
+    swapchain(swapchain),
+    swapchainImages(swapchainImages),
+    swapchainImageViews(swapchainImageViews),
+    swapchainImageFormat(swapchainImageFormat),
+    swapchainExtent(swapchainExtent),
+    renderPass(renderPass),
+    descriptorSetLayout(descriptorSetLayout),
+    pipelineLayout(pipelineLayout),
+    pipeline(pipeline),
+    shaderModules(shaderModules),
+    swapchainFramebuffers(swapchainFramebuffers),
+    commandPool(commandPool),
+    commandBuffers(commandBuffers),
+    isImageAvailable(isImageAvailable),
+    isRenderingFinished(isRenderingFinished),
+    isRenderingInFlight(isRenderingInFlight),
+    vertexBuffer(vertexBuffer),
+    currentFrame(0) {}
 
 GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
     const SDL_InitFlags initFlags = SDL_INIT_VIDEO | SDL_INIT_EVENTS;
@@ -622,7 +647,10 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
     std::vector<vk::Image> swapchainImages = swapchainImagesGet.value;
     std::vector<vk::ImageView> swapchainImageViews =
         init_createImageViews(device, swapchainImages, swapchainImageFormat);
-    vk::PipelineLayout pipelineLayout = init_createPipelineLayout(device);
+    vk::DescriptorSetLayout descriptorSetLayout =
+        init_createDescriptorSetLayout(device);
+    vk::PipelineLayout pipelineLayout =
+        init_createPipelineLayout(device, descriptorSetLayout);
     vk::RenderPass renderPass =
         init_createRenderPass(device, swapchainImageFormat);
     vk::Pipeline pipeline;
@@ -633,7 +661,9 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
         device, renderPass, swapchainExtent, swapchainImageViews
     );
     vk::CommandPool commandPool = init_createCommandPool(device, queueFamily);
-    VertexBuffer vertexBuffer = VertexBuffer::create(device, physicalDevice);
+    VertexBuffer vertexBuffer = VertexBuffer::create(
+        device, physicalDevice, commandPool, graphicsQueue
+    );
     std::vector<vk::CommandBuffer> commandBuffers =
         init_createCommandBuffers(device, commandPool, MAX_FRAMES_IN_FLIGHT);
     std::vector<vk::Semaphore> isImageAvailable;
@@ -656,6 +686,7 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
         swapchainImageFormat,
         swapchainExtent,
         renderPass,
+        descriptorSetLayout,
         pipelineLayout,
         pipeline,
         shaderModules,
@@ -686,6 +717,7 @@ GraphicsDeviceInterface::~GraphicsDeviceInterface() {
     cleanupSwapchain();
     vertexBuffer.destroyBy(device);
     device.destroyCommandPool(commandPool);
+    device.destroyDescriptorSetLayout(descriptorSetLayout);
     device.destroyPipelineLayout(pipelineLayout);
     device.destroyRenderPass(renderPass);
 
@@ -759,11 +791,9 @@ bool GraphicsDeviceInterface::drawFrame() {
             return true;
 
         case vk::Result::eSuccess:
-        case vk::Result::eSuboptimalKHR:
-            break;
+        case vk::Result::eSuboptimalKHR: break;
 
-        default:
-            return false;
+        default: return false;
     }
 
     VULKAN_ENSURE_SUCCESS_EXPR(
@@ -798,14 +828,11 @@ bool GraphicsDeviceInterface::drawFrame() {
 
     switch (presentQueue.presentKHR(presentInfo)) {
         case vk::Result::eErrorOutOfDateKHR:
-        case vk::Result::eSuboptimalKHR:
-            recreateSwapchain();
+        case vk::Result::eSuboptimalKHR:     recreateSwapchain();
 
-        case vk::Result::eSuccess:
-            break;
+        case vk::Result::eSuccess: break;
 
-        default:
-            return false;
+        default: return false;
     }
 
     currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;

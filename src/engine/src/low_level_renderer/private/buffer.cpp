@@ -115,4 +115,6 @@ void copyBuffer(
 
     device.freeCommandBuffers(commandPool, 1, &commandBuffer);
 }
+
 }  // namespace Buffer
+

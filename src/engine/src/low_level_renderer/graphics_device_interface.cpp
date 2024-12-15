@@ -765,7 +765,7 @@ void GraphicsDeviceInterface::recordCommandBuffer(
     buffer.setViewport(0, 1, &viewport);
     vk::Rect2D scissor(vk::Offset2D(0.0f, 0.0f), swapchainExtent);
     buffer.setScissor(0, 1, &scissor);
-    buffer.draw(vertexBuffer.getNumberOfVertices(), 1, 0, 0);
+    vertexBuffer.draw(buffer);
     buffer.endRenderPass();
     VULKAN_ENSURE_SUCCESS_EXPR(
         buffer.end(), "Can't end recording command buffer:"

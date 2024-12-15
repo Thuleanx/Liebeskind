@@ -6,11 +6,14 @@
 #include "private/buffer.h"
 #include "private/helpful_defines.h"
 
-const std::vector<Vertex> triangleVertices = {
-    {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-    {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-    {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+const std::vector<Vertex> quadVertices = {
+    {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+    {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+    {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+    {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}
 };
+
+const std::vector<uint16_t> quadIndices = {0, 1, 2, 2, 3, 0};
 
 std::array<vk::VertexInputAttributeDescription, 2>
 Vertex::getAttributeDescriptions() {
@@ -39,8 +42,16 @@ vk::VertexInputBindingDescription Vertex::getBindingDescription() {
     return bindingDescription;
 }
 
-VertexBuffer::VertexBuffer(vk::Buffer buffer, vk::DeviceMemory memory) :
-    buffer(buffer), memory(memory) {}
+VertexBuffer::VertexBuffer(
+    vk::Buffer vertexBuffer,
+    vk::DeviceMemory vertexMemory,
+    vk::Buffer indexBuffer,
+    vk::DeviceMemory indexMemory
+) :
+    vertexBuffer(vertexBuffer),
+    vertexMemory(vertexMemory),
+    indexBuffer(indexBuffer),
+    indexMemory(indexMemory) {}
 
 VertexBuffer VertexBuffer::create(
     const vk::Device& device,
@@ -48,66 +59,50 @@ VertexBuffer VertexBuffer::create(
     const vk::CommandPool& commandPool,
     const vk::Queue& graphicsQueue
 ) {
-    const uint32_t bufferSize =
-        sizeof(triangleVertices[0]) * triangleVertices.size();
-
-    const auto [stagingBuffer, stagingBufferMemory] = Buffer::create(
+    auto [vertexBuffer, deviceMemory] = Buffer::loadToBuffer(
         device,
         physicalDevice,
-        bufferSize,
-        vk::BufferUsageFlagBits::eTransferSrc,
-        vk::MemoryPropertyFlagBits::eHostVisible |
-            vk::MemoryPropertyFlagBits::eHostCoherent
-    );
-
-    {  // memcpy the vertex data onto staging buffer
-        const vk::ResultValue<void*> mappedMemory =
-            device.mapMemory(stagingBufferMemory, 0, bufferSize, {});
-        VULKAN_ENSURE_SUCCESS(
-            mappedMemory.result, "Can't map staging buffer memory"
-        );
-        memcpy(
-            mappedMemory.value,
-            triangleVertices.data(),
-            static_cast<size_t>(bufferSize)
-        );
-        device.unmapMemory(stagingBufferMemory);
-    }
-
-    const auto [vertexBuffer, deviceMemory] = Buffer::create(
-        device,
-        physicalDevice,
-        bufferSize,
-        vk::BufferUsageFlagBits::eVertexBuffer |
-            vk::BufferUsageFlagBits::eTransferDst,
-        vk::MemoryPropertyFlagBits::eDeviceLocal
-    );
-
-    Buffer::copyBuffer(
-        device,
         commandPool,
         graphicsQueue,
-        stagingBuffer,
-        vertexBuffer,
-        bufferSize
+        quadVertices,
+        vk::BufferUsageFlagBits::eVertexBuffer
     );
 
-    device.destroyBuffer(stagingBuffer);
-    device.freeMemory(stagingBufferMemory);
+    auto [indexBuffer, indexDeviceMemory] = Buffer::loadToBuffer(
+        device,
+        physicalDevice,
+        commandPool,
+        graphicsQueue,
+        quadIndices,
+        vk::BufferUsageFlagBits::eIndexBuffer
+    );
 
-    return VertexBuffer(vertexBuffer, deviceMemory);
+    return VertexBuffer(
+        vertexBuffer, deviceMemory, indexBuffer, indexDeviceMemory
+    );
 }
 
 void VertexBuffer::destroyBy(const vk::Device& device) {
-    device.destroyBuffer(buffer);
-    device.freeMemory(memory);
+    device.destroyBuffer(vertexBuffer);
+    device.freeMemory(vertexMemory);
+    device.destroyBuffer(indexBuffer);
+    device.freeMemory(indexMemory);
 }
 
 void VertexBuffer::bind(const vk::CommandBuffer& commandBuffer) const {
     vk::DeviceSize offsets[] = {0};
-    commandBuffer.bindVertexBuffers(0, 1, &buffer, offsets);
+    commandBuffer.bindVertexBuffers(0, 1, &vertexBuffer, offsets);
+    commandBuffer.bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint16);
+}
+
+void VertexBuffer::draw(const vk::CommandBuffer& commandBuffer) const {
+    commandBuffer.drawIndexed(getNumberOfIndices(), 1, 0, 0, 0);
 }
 
 uint32_t VertexBuffer::getNumberOfVertices() const {
-    return static_cast<uint32_t>(triangleVertices.size());
+    return static_cast<uint32_t>(quadVertices.size());
+}
+
+uint32_t VertexBuffer::getNumberOfIndices() const {
+    return static_cast<uint32_t>(quadIndices.size());
 }

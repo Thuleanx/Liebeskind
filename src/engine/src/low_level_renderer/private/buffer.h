@@ -1,7 +1,8 @@
 #pragma once
 
-#include <vulkan/vulkan.hpp>
 #include <optional>
+#include <vector>
+#include <vulkan/vulkan.hpp>
 
 namespace Buffer {
 std::tuple<vk::Buffer, vk::DeviceMemory> create(
@@ -26,4 +27,15 @@ void copyBuffer(
     const vk::Buffer dstBuffer,
     const vk::DeviceSize size
 );
+
+template <typename T>
+std::tuple<vk::Buffer, vk::DeviceMemory> loadToBuffer(
+    const vk::Device& device,
+    const vk::PhysicalDevice& physicalDevice,
+    const vk::CommandPool& commandPool,
+    const vk::Queue& graphicsQueue,
+    const std::vector<T>& data
+);
 }  // namespace Buffer
+
+#include "buffer_templated.cpp"

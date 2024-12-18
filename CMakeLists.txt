@@ -4,6 +4,7 @@ project(star_judgement)
 
 add_compile_definitions(VULKAN_HPP_NO_EXCEPTIONS)
 add_compile_definitions(DEBUG)
+add_compile_definitions(GLM_FORCE_RADIANS)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 17)

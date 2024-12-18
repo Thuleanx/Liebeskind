@@ -5,6 +5,8 @@
 #include <SDL3/SDL_vulkan.h>
 #include <vector>
 
+#include "low_level_renderer/transformation.h"
+#include "low_level_renderer/uniform_buffer.h"
 #include "low_level_renderer/vertex_buffer.h"
 
 constexpr char APP_SHORT_NAME[] = "Game";
@@ -43,6 +45,8 @@ class GraphicsDeviceInterface {
 
     vk::RenderPass renderPass;
     vk::DescriptorSetLayout descriptorSetLayout;
+    vk::DescriptorPool descriptorPool;
+    std::vector<vk::DescriptorSet> descriptorSets;
     vk::PipelineLayout pipelineLayout;
     vk::Pipeline pipeline;
 
@@ -55,6 +59,8 @@ class GraphicsDeviceInterface {
     std::vector<vk::Semaphore> isImageAvailable;
     std::vector<vk::Semaphore> isRenderingFinished;
     std::vector<vk::Fence> isRenderingInFlight;
+
+    std::vector<UniformBuffer<ModelViewProjection>> uniformBuffers;
 
     VertexBuffer vertexBuffer;
 
@@ -77,6 +83,8 @@ class GraphicsDeviceInterface {
         vk::Extent2D swapchainExtent,
         vk::RenderPass renderPass,
         vk::DescriptorSetLayout descriptorSetLayout,
+        vk::DescriptorPool descriptorPool,
+        std::vector<vk::DescriptorSet> descriptorSets,
         vk::PipelineLayout pipelineLayout,
         vk::Pipeline pipeline,
         std::vector<vk::ShaderModule> shaderModules,
@@ -86,6 +94,7 @@ class GraphicsDeviceInterface {
         std::vector<vk::Semaphore> isImageAvailable,
         std::vector<vk::Semaphore> isRenderingFinished,
         std::vector<vk::Fence> isRenderingInFlight,
+        std::vector<UniformBuffer<ModelViewProjection>> uniformBuffers,
         VertexBuffer vertexBuffer
     );
 
@@ -93,4 +102,5 @@ class GraphicsDeviceInterface {
     void recreateSwapchain();
     void cleanupSwapchain();
     void handleWindowResize(int width, int height);
+    ModelViewProjection getCurrentFrameMVP() const;
 };

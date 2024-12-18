@@ -1,5 +1,8 @@
 #include "low_level_renderer/graphics_device_interface.h"
 
+#include <chrono>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <limits>
 #include <set>
 #include <vector>
@@ -340,7 +343,7 @@ init_createGraphicsPipeline(
         vk::False,  // rasterizerDiscardEnable
         vk::PolygonMode::eFill,  // fill polygon with fragments
         vk::CullModeFlagBits::eBack,
-        vk::FrontFace::eClockwise,
+        vk::FrontFace::eCounterClockwise,
         vk::False,  // depth bias, probably useful for shadow mapping
         0.0f,
         0.0f,
@@ -538,6 +541,76 @@ vk::DescriptorSetLayout init_createDescriptorSetLayout(const vk::Device& device
     return descriptorSetLayout.value;
 }
 
+std::vector<UniformBuffer<ModelViewProjection>> init_createUniformBuffers(
+    const vk::Device& device,
+    const vk::PhysicalDevice& physicalDevice,
+    const uint32_t numberOfFrames
+) {
+    std::vector<UniformBuffer<ModelViewProjection>> result;
+    result.reserve(MAX_FRAMES_IN_FLIGHT);
+
+    for (uint32_t _ = 0; _ < numberOfFrames; _++) {
+        result.push_back(
+            UniformBuffer<ModelViewProjection>::create(device, physicalDevice)
+        );
+    }
+
+    return result;
+}
+
+vk::DescriptorPool init_createDescriptorPool(const vk::Device& device) {
+    const vk::DescriptorPoolSize poolSize(
+        vk::DescriptorType::eUniformBuffer,
+        static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT)
+    );
+    const vk::DescriptorPoolCreateInfo poolInfo(
+        {}, static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT), 1, &poolSize
+    );
+    const vk::ResultValue<vk::DescriptorPool> descriptorPoolCreation =
+        device.createDescriptorPool(poolInfo);
+    VULKAN_ENSURE_SUCCESS(
+        descriptorPoolCreation.result, "Can't create descriptor pool:"
+    );
+    return descriptorPoolCreation.value;
+}
+
+std::vector<vk::DescriptorSet> init_createDescriptorSets(
+    const vk::Device& device,
+    const vk::DescriptorPool& descriptorPool,
+    const vk::DescriptorSetLayout& setLayout,
+    const std::vector<UniformBuffer<ModelViewProjection>>& uniformBuffers,
+    uint32_t numberOfSets
+) {
+    const std::vector<vk::DescriptorSetLayout> setLayouts(
+        MAX_FRAMES_IN_FLIGHT, setLayout
+    );
+    const vk::DescriptorSetAllocateInfo allocateInfo(
+        descriptorPool, numberOfSets, setLayouts.data()
+    );
+    const vk::ResultValue<std::vector<vk::DescriptorSet>>
+        descriptorSetCreation = device.allocateDescriptorSets(allocateInfo);
+    VULKAN_ENSURE_SUCCESS(
+        descriptorSetCreation.result, "Can't create descriptor sets"
+    );
+    std::vector<vk::DescriptorSet> descriptorSets = descriptorSetCreation.value;
+    for (size_t i = 0; i < numberOfSets; i++) {
+        const vk::DescriptorBufferInfo bufferInfo =
+            uniformBuffers[i].getDescriptorBufferInfo();
+        const vk::WriteDescriptorSet write(
+            descriptorSets[i],
+            0,
+            0,
+            1,
+            vk::DescriptorType::eUniformBuffer,
+            nullptr,
+            &bufferInfo,
+            nullptr
+        );
+        device.updateDescriptorSets(1, &write, 0, nullptr);
+    }
+    return descriptorSetCreation.value;
+}
+
 }  // namespace
 
 GraphicsDeviceInterface::GraphicsDeviceInterface(
@@ -556,6 +629,8 @@ GraphicsDeviceInterface::GraphicsDeviceInterface(
     vk::Extent2D swapchainExtent,
     vk::RenderPass renderPass,
     vk::DescriptorSetLayout descriptorSetLayout,
+    vk::DescriptorPool descriptorPool,
+    std::vector<vk::DescriptorSet> descriptorSets,
     vk::PipelineLayout pipelineLayout,
     vk::Pipeline pipeline,
     std::vector<vk::ShaderModule> shaderModules,
@@ -565,6 +640,7 @@ GraphicsDeviceInterface::GraphicsDeviceInterface(
     std::vector<vk::Semaphore> isImageAvailable,
     std::vector<vk::Semaphore> isRenderingFinished,
     std::vector<vk::Fence> isRenderingInFlight,
+    std::vector<UniformBuffer<ModelViewProjection>> uniformBuffers,
     VertexBuffer vertexBuffer
 ) :
     window(window),
@@ -582,6 +658,8 @@ GraphicsDeviceInterface::GraphicsDeviceInterface(
     swapchainExtent(swapchainExtent),
     renderPass(renderPass),
     descriptorSetLayout(descriptorSetLayout),
+    descriptorPool(descriptorPool),
+    descriptorSets(descriptorSets),
     pipelineLayout(pipelineLayout),
     pipeline(pipeline),
     shaderModules(shaderModules),
@@ -591,6 +669,7 @@ GraphicsDeviceInterface::GraphicsDeviceInterface(
     isImageAvailable(isImageAvailable),
     isRenderingFinished(isRenderingFinished),
     isRenderingInFlight(isRenderingInFlight),
+    uniformBuffers(uniformBuffers),
     vertexBuffer(vertexBuffer),
     currentFrame(0) {}
 
@@ -640,6 +719,9 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
         init_createSwapchain(
             window, physicalDevice, device, surface, queueFamily
         );
+    LLOG_INFO << "Swapchain created with format "
+              << to_string(swapchainImageFormat) << " and extent "
+              << swapchainExtent.width << " x " << swapchainExtent.height;
     const auto swapchainImagesGet = device.getSwapchainImagesKHR(swapchain);
     VULKAN_ENSURE_SUCCESS(
         swapchainImagesGet.result, "Can't get swapchain images:"
@@ -649,6 +731,16 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
         init_createImageViews(device, swapchainImages, swapchainImageFormat);
     vk::DescriptorSetLayout descriptorSetLayout =
         init_createDescriptorSetLayout(device);
+    std::vector<UniformBuffer<ModelViewProjection>> uniformBuffers =
+        init_createUniformBuffers(device, physicalDevice, MAX_FRAMES_IN_FLIGHT);
+    vk::DescriptorPool descriptorPool = init_createDescriptorPool(device);
+    std::vector<vk::DescriptorSet> descriptorSets = init_createDescriptorSets(
+        device,
+        descriptorPool,
+        descriptorSetLayout,
+        uniformBuffers,
+        MAX_FRAMES_IN_FLIGHT
+    );
     vk::PipelineLayout pipelineLayout =
         init_createPipelineLayout(device, descriptorSetLayout);
     vk::RenderPass renderPass =
@@ -687,6 +779,8 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
         swapchainExtent,
         renderPass,
         descriptorSetLayout,
+        descriptorPool,
+        descriptorSets,
         pipelineLayout,
         pipeline,
         shaderModules,
@@ -696,6 +790,7 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
         isImageAvailable,
         isRenderingFinished,
         isRenderingInFlight,
+        uniformBuffers,
         vertexBuffer
     );
 }
@@ -718,8 +813,12 @@ GraphicsDeviceInterface::~GraphicsDeviceInterface() {
     vertexBuffer.destroyBy(device);
     device.destroyCommandPool(commandPool);
     device.destroyDescriptorSetLayout(descriptorSetLayout);
+    device.destroyDescriptorPool(descriptorPool);
     device.destroyPipelineLayout(pipelineLayout);
     device.destroyRenderPass(renderPass);
+
+    for (UniformBuffer<ModelViewProjection>& uniformBuffer : uniformBuffers)
+        uniformBuffer.destroyBy(device);
 
     for (const vk::ShaderModule& shaderModule : shaderModules)
         device.destroyShaderModule(shaderModule);
@@ -762,6 +861,15 @@ void GraphicsDeviceInterface::recordCommandBuffer(
         0.0f,
         1.0f
     );
+    buffer.bindDescriptorSets(
+        vk::PipelineBindPoint::eGraphics,
+        pipelineLayout,
+        0,
+        1,
+        &descriptorSets[currentFrame],
+        0,
+        nullptr
+    );
     buffer.setViewport(0, 1, &viewport);
     vk::Rect2D scissor(vk::Offset2D(0.0f, 0.0f), swapchainExtent);
     buffer.setScissor(0, 1, &scissor);
@@ -801,6 +909,7 @@ bool GraphicsDeviceInterface::drawFrame() {
         "Can't reset fence for render:"
     );
     commandBuffers[currentFrame].reset();
+    uniformBuffers[currentFrame].update(getCurrentFrameMVP());
     recordCommandBuffer(commandBuffers[currentFrame], imageIndex.value);
     const vk::PipelineStageFlags waitStage =
         vk::PipelineStageFlagBits::eColorAttachmentOutput;
@@ -845,6 +954,39 @@ void GraphicsDeviceInterface::handleEvent(const SDL_Event& event) {
             handleWindowResize(event.window.data1, event.window.data2);
             break;
     }
+}
+
+ModelViewProjection GraphicsDeviceInterface::getCurrentFrameMVP() const {
+    static auto startTime = std::chrono::high_resolution_clock::now();
+
+    auto currentTime = std::chrono::high_resolution_clock::now();
+    float time = std::chrono::duration<float, std::chrono::seconds::period>(
+                     currentTime - startTime
+    )
+                     .count();
+
+    ModelViewProjection mvp{
+        .model = glm::rotate(
+            glm::mat4(1.0f),
+            time * glm::radians(90.0f),
+            glm::vec3(0.0f, 0.0f, 1.0f)
+        ),
+        .view = glm::lookAt(
+            glm::vec3(2.0f, 2.0f, 2.0f),
+            glm::vec3(0.0f, 0.0f, 0.0f),
+            glm::vec3(0.0f, 0.0f, 1.0f)
+        ),
+        .proj = glm::perspective(
+            glm::radians(45.0f),
+            swapchainExtent.width / (float)swapchainExtent.height,
+            0.1f,
+            10.0f
+        )
+    };
+    // accounts for difference between openGL and Vulkan clip space
+    mvp.proj[1][1] *= -1;
+
+    return mvp;
 }
 
 void GraphicsDeviceInterface::recreateSwapchain() {

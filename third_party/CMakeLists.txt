@@ -10,7 +10,6 @@ set(SDL_STATIC ON CACHE INTERNAL "")
 add_subdirectory(Vulkan-Headers)
 add_subdirectory(SDL)
 add_subdirectory(plog)
-add_subdirectory(stb)
 
 include(FindVulkan)
 if(NOT VULKAN_FOUND)

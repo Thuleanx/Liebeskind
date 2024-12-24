@@ -40,4 +40,15 @@ add_custom_target(
     DEPENDS ${SPIRV_BINARY_FILES}
 )
 
+add_custom_target(Textures)
+
+# Copy over files under textures
+add_custom_command(
+         TARGET Textures POST_BUILD
+         COMMAND ${CMAKE_COMMAND} -E copy_directory              
+         "${CMAKE_CURRENT_SOURCE_DIR}/textures" "${PROJECT_BINARY_DIR}/textures"
+         COMMENT "Copying textures" VERBATIM
+         )
+
 add_dependencies(source Shaders)
+add_dependencies(source Textures)

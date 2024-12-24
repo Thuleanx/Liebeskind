@@ -7,3 +7,6 @@
 [submodule "third_party/plog"]
 	path = third_party/plog
 	url = https://github.com/SergiusTheBest/plog
+[submodule "third_party/stb"]
+	path = third_party/stb
+	url = https://github.com/nothings/stb

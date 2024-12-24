@@ -7,6 +7,7 @@
 #include <set>
 #include <vector>
 
+#include "stb_image.h"
 #include "file_system/file.h"
 #include "logger/assert.h"
 #include "low_level_renderer/vertex_buffer.h"
@@ -611,6 +612,14 @@ std::vector<vk::DescriptorSet> init_createDescriptorSets(
     return descriptorSetCreation.value;
 }
 
+void init_createTexture() {
+    int width, height, channels;
+    stbi_uc* pixels = stbi_load("textures/textures.jpg", &width, &height, &channels, STBI_rgb_alpha);
+    vk::DeviceSize size(width * height * 4);
+
+    ASSERT(pixels, "Can't load texture");
+}
+
 }  // namespace
 
 GraphicsDeviceInterface::GraphicsDeviceInterface(
@@ -729,6 +738,7 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
     std::vector<vk::Image> swapchainImages = swapchainImagesGet.value;
     std::vector<vk::ImageView> swapchainImageViews =
         init_createImageViews(device, swapchainImages, swapchainImageFormat);
+    LLOG_INFO << "Created swapchain images and image views";
     vk::DescriptorSetLayout descriptorSetLayout =
         init_createDescriptorSetLayout(device);
     std::vector<UniformBuffer<ModelViewProjection>> uniformBuffers =
@@ -741,6 +751,7 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
         uniformBuffers,
         MAX_FRAMES_IN_FLIGHT
     );
+    LLOG_INFO << "Created descriptor pool and sets";
     vk::PipelineLayout pipelineLayout =
         init_createPipelineLayout(device, descriptorSetLayout);
     vk::RenderPass renderPass =
@@ -749,20 +760,24 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
     std::vector<vk::ShaderModule> shaderModules;
     std::tie(pipeline, shaderModules) =
         init_createGraphicsPipeline(device, pipelineLayout, renderPass);
+    LLOG_INFO << "Created pipeline layout, renderpass, and pipeline";
     std::vector<vk::Framebuffer> swapchainFramebuffers = init_createFramebuffer(
         device, renderPass, swapchainExtent, swapchainImageViews
     );
+    LLOG_INFO << "Created framebuffer";
     vk::CommandPool commandPool = init_createCommandPool(device, queueFamily);
     VertexBuffer vertexBuffer = VertexBuffer::create(
         device, physicalDevice, commandPool, graphicsQueue
     );
     std::vector<vk::CommandBuffer> commandBuffers =
         init_createCommandBuffers(device, commandPool, MAX_FRAMES_IN_FLIGHT);
+    LLOG_INFO << "Created command pool and buffers";
     std::vector<vk::Semaphore> isImageAvailable;
     std::vector<vk::Semaphore> isRenderingFinished;
     std::vector<vk::Fence> isRenderingInFlight;
     std::tie(isImageAvailable, isRenderingFinished, isRenderingInFlight) =
         init_createSyncObjects(device, MAX_FRAMES_IN_FLIGHT);
+    LLOG_INFO << "Created semaphore and fences";
     return GraphicsDeviceInterface(
         window,
         instance,
@@ -808,12 +823,16 @@ GraphicsDeviceInterface::~GraphicsDeviceInterface() {
 
     for (const vk::Fence& fence : isRenderingInFlight)
         device.destroyFence(fence);
+    LLOG_INFO << "Destroyed semaphore and fences";
 
     cleanupSwapchain();
+    LLOG_INFO << "Destroyed swapchain";
     vertexBuffer.destroyBy(device);
     device.destroyCommandPool(commandPool);
+    LLOG_INFO << "Destroyed command pool";
     device.destroyDescriptorSetLayout(descriptorSetLayout);
     device.destroyDescriptorPool(descriptorPool);
+    LLOG_INFO << "Destroyed descriptor pool";
     device.destroyPipelineLayout(pipelineLayout);
     device.destroyRenderPass(renderPass);
 
@@ -822,9 +841,13 @@ GraphicsDeviceInterface::~GraphicsDeviceInterface() {
 
     for (const vk::ShaderModule& shaderModule : shaderModules)
         device.destroyShaderModule(shaderModule);
+    LLOG_INFO << "Destroyed shaders";
 
     device.destroyPipeline(pipeline);
+    LLOG_INFO << "Destroyed pipeline";
+
     device.destroy();
+    LLOG_INFO << "Destroyed device";
 
     if (Validation::shouldEnableValidationLayers)
         instance.destroyDebugUtilsMessengerEXT(debugUtilsMessenger);
@@ -832,6 +855,7 @@ GraphicsDeviceInterface::~GraphicsDeviceInterface() {
     instance.destroySurfaceKHR(surface);
     instance.destroy();
     SDL_DestroyWindow(window);
+    LLOG_INFO << "Destroyed window";
     SDL_Quit();
 }
 

@@ -1,0 +1,1 @@
+file( COPY "${CMAKE_CURRENT_SOURCE_DIR}/textures" DESTINATION "${PROJECT_BINARY_DIR}/textures" )

@@ -16,9 +16,10 @@ class Texture {
     void destroyBy(const vk::Device& device);
 
    private:
-    Texture(vk::Image image, vk::DeviceMemory deviceMemory);
+    Texture(vk::Image image, vk::DeviceMemory deviceMemory, vk::ImageView imageView);
 
    private:
     vk::Image image;
+    vk::ImageView imageView;
     vk::DeviceMemory memory;
 };

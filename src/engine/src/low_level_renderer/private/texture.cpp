@@ -77,13 +77,19 @@ Texture Texture::load(
     device.destroyBuffer(stagingBuffer);
     device.freeMemory(stagingBufferMemory);
 
-    return Texture(textureImage, textureMemory);
+    const vk::ImageView imageView =
+        Image::createImageView(device, textureImage, vk::Format::eR8G8B8A8Srgb);
+
+    return Texture(textureImage, textureMemory, imageView);
 }
 
-Texture::Texture(vk::Image image, vk::DeviceMemory deviceMemory) :
-    image(image), memory(deviceMemory) {}
+Texture::Texture(
+    vk::Image image, vk::DeviceMemory deviceMemory, vk::ImageView imageView
+) :
+    image(image), imageView(imageView), memory(deviceMemory) {}
 
 void Texture::destroyBy(const vk::Device& device) {
+    device.destroyImageView(imageView);
     device.destroyImage(image);
     device.freeMemory(memory);
 }

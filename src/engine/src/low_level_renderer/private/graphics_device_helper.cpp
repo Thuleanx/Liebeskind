@@ -55,18 +55,19 @@ std::optional<vk::PhysicalDevice> GraphicsHelper::getBestPhysicalDevice(
 bool GraphicsHelper::isDeviceSuitable(const vk::PhysicalDevice& device, const vk::SurfaceKHR &surface) {
 	vk::PhysicalDeviceProperties deviceProperties = device.getProperties();
 	vk::PhysicalDeviceFeatures deviceFeatures = device.getFeatures();
-	bool areRequiredExtensionsSupported = areRequiredDeviceExtensionsSupported(device);
+	const bool areRequiredExtensionsSupported = areRequiredDeviceExtensionsSupported(device);
 	bool isSwapchainAdequate = false;
 	if (areRequiredExtensionsSupported) {
 		SwapchainSupportDetails swapchainSupport = Swapchain::querySwapChainSupport(device, surface);
 		isSwapchainAdequate = !swapchainSupport.formats.empty() && !swapchainSupport.presentModes.empty();
 	}
+    const bool isAnisotropicFilteringSupported = deviceFeatures.samplerAnisotropy == vk::True;
 
 	return deviceProperties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu &&
 										  deviceFeatures.geometryShader &&
 										  QueueFamilyIndices::findQueueFamilies(device, surface).isComplete() &&
 										  areRequiredExtensionsSupported &&
-										  isSwapchainAdequate;
+										  isSwapchainAdequate && isAnisotropicFilteringSupported;
 }
 
 bool GraphicsHelper::areRequiredDeviceExtensionsSupported(const vk::PhysicalDevice& device) {

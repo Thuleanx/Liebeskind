@@ -31,4 +31,9 @@ void transitionImageLayout(
     vk::ImageLayout oldLayout,
     vk::ImageLayout newLayout
 );
+vk::ImageView createImageView(
+    const vk::Device& device,
+    const vk::Image& image,
+    vk::Format imageFormat
+);
 }  // namespace Image

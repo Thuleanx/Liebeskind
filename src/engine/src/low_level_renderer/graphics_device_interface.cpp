@@ -9,10 +9,12 @@
 
 #include "file_system/file.h"
 #include "logger/assert.h"
+#include "low_level_renderer/sampler.h"
 #include "low_level_renderer/texture.h"
 #include "low_level_renderer/vertex_buffer.h"
 #include "private/graphics_device_helper.h"
 #include "private/helpful_defines.h"
+#include "private/image.h"
 #include "private/queue_family.h"
 #include "private/swapchain.h"
 #include "private/validation.h"
@@ -100,7 +102,8 @@ vk::Device init_createLogicalDevice(
         queueCreateInfos.push_back(deviceQueueCreateInfo);
     }
 
-    const vk::PhysicalDeviceFeatures deviceFeatures;
+    vk::PhysicalDeviceFeatures deviceFeatures;
+    deviceFeatures.samplerAnisotropy = vk::True;
     const vk::DeviceCreateInfo deviceCreateInfo(
         {},
         queueCreateInfos.size(),
@@ -187,28 +190,9 @@ std::vector<vk::ImageView> init_createImageViews(
     std::vector<vk::ImageView> swapchainImageViews(swapchainImages.size());
 
     for (unsigned int i = 0; i < swapchainImages.size(); i++) {
-        vk::ImageSubresourceRange subResourceRange(
-            vk::ImageAspectFlagBits::eColor,
-            0,  // base mip level
-            1,  // mip level count
-            0,  // base array layer (we only use one layer)
-            1   // layer count
+        swapchainImageViews[i] = Image::createImageView(
+            device, swapchainImages[i], swapchainImageFormat
         );
-        vk::ImageViewCreateInfo createInfo(
-            {},
-            swapchainImages[i],
-            vk::ImageViewType::e2D,
-            swapchainImageFormat,
-            vk::ComponentMapping(),
-            subResourceRange
-        );
-        const vk::ResultValue<vk::ImageView> swapchainImageCreateResult =
-            device.createImageView(createInfo);
-        VULKAN_ENSURE_SUCCESS(
-            swapchainImageCreateResult.result,
-            "Can't create swapchain image view:"
-        );
-        swapchainImageViews[i] = swapchainImageCreateResult.value;
     }
 
     return swapchainImageViews;
@@ -778,7 +762,9 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
         commandPool,
         graphicsQueue
     );
+    Sampler sampler = Sampler::create(device, physicalDevice);
 
+    sampler.destroyBy(device);
     texture.destroyBy(device);
 
     return GraphicsDeviceInterface(

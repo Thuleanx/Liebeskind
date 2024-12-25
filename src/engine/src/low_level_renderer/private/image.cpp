@@ -82,12 +82,14 @@ void Image::transitionImageLayout(
     vk::PipelineStageFlags sourceStage;
     vk::PipelineStageFlags destinationStage;
 
-    if (oldLayout == vk::ImageLayout::eUndefined && newLayout == vk::ImageLayout::eTransferDstOptimal) {
+    if (oldLayout == vk::ImageLayout::eUndefined &&
+        newLayout == vk::ImageLayout::eTransferDstOptimal) {
         sourceAccessMask = {};
         destinationAccessMask = vk::AccessFlagBits::eTransferWrite;
         sourceStage = vk::PipelineStageFlagBits::eTopOfPipe;
         destinationStage = vk::PipelineStageFlagBits::eTransfer;
-    } else if (oldLayout == vk::ImageLayout::eTransferDstOptimal && newLayout == vk::ImageLayout::eShaderReadOnlyOptimal) {
+    } else if (oldLayout == vk::ImageLayout::eTransferDstOptimal &&
+               newLayout == vk::ImageLayout::eShaderReadOnlyOptimal) {
         sourceAccessMask = vk::AccessFlagBits::eTransferWrite;
         destinationAccessMask = vk::AccessFlagBits::eShaderRead;
         sourceStage = vk::PipelineStageFlagBits::eTransfer;
@@ -151,4 +153,21 @@ void Image::copyBufferToImage(
     Command::submitSingleCommand(
         device, graphicsQueue, commandPool, commandBuffer
     );
+}
+
+vk::ImageView Image::createImageView(
+    const vk::Device &device, const vk::Image &image, vk::Format imageFormat
+) {
+    const vk::ImageViewCreateInfo imageViewInfo(
+        {},
+        image,
+        vk::ImageViewType::e2D,
+        imageFormat,
+        {},
+        vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1)
+    );
+    const vk::ResultValue<vk::ImageView> imageViewCreation =
+        device.createImageView(imageViewInfo);
+    VULKAN_ENSURE_SUCCESS(imageViewCreation.result, "Can't create image view");
+    return imageViewCreation.value;
 }

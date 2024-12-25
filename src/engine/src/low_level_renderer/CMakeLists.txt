@@ -2,6 +2,7 @@ set(SRC
     graphics_device_interface.cpp 
     vertex_buffer.cpp
     uniform_buffer.cpp
+    private/sampler.cpp
     private/command.cpp
     private/command.h
     private/image.cpp

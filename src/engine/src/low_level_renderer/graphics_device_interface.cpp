@@ -9,8 +9,6 @@
 
 #include "file_system/file.h"
 #include "logger/assert.h"
-#include "low_level_renderer/sampler.h"
-#include "low_level_renderer/texture.h"
 #include "low_level_renderer/vertex_buffer.h"
 #include "private/graphics_device_helper.h"
 #include "private/helpful_defines.h"
@@ -513,10 +511,20 @@ vk::DescriptorSetLayout init_createDescriptorSetLayout(const vk::Device& device
         vk::ShaderStageFlagBits::eVertex,
         nullptr  // immutable sampler pointer
     );
+    const vk::DescriptorSetLayoutBinding textureSamplerBinding(
+        1,  // binding
+        vk::DescriptorType::eCombinedImageSampler,
+        1,  // descriptor count
+        vk::ShaderStageFlagBits::eFragment,
+        nullptr  // immutable sampler pointer
+    );
+    const std::array<vk::DescriptorSetLayoutBinding, 2> bindings = {
+        uboLayoutBinding, textureSamplerBinding
+    };
     const vk::DescriptorSetLayoutCreateInfo layoutInfo(
         {},
-        1,  // binding count
-        &uboLayoutBinding
+        static_cast<uint32_t>(bindings.size()),  // binding count
+        bindings.data()
     );
     vk::ResultValue<vk::DescriptorSetLayout> descriptorSetLayout =
         device.createDescriptorSetLayout(layoutInfo);
@@ -544,12 +552,21 @@ std::vector<UniformBuffer<ModelViewProjection>> init_createUniformBuffers(
 }
 
 vk::DescriptorPool init_createDescriptorPool(const vk::Device& device) {
-    const vk::DescriptorPoolSize poolSize(
-        vk::DescriptorType::eUniformBuffer,
-        static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT)
-    );
+    const std::array<vk::DescriptorPoolSize, 2> poolSizes = {
+        vk::DescriptorPoolSize(
+            vk::DescriptorType::eUniformBuffer,
+            static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT)
+        ),
+        vk::DescriptorPoolSize(
+            vk::DescriptorType::eCombinedImageSampler,
+            static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT)
+        ),
+    };
     const vk::DescriptorPoolCreateInfo poolInfo(
-        {}, static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT), 1, &poolSize
+        {},
+        static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT),
+        static_cast<uint32_t>(poolSizes.size()),
+        poolSizes.data()
     );
     const vk::ResultValue<vk::DescriptorPool> descriptorPoolCreation =
         device.createDescriptorPool(poolInfo);
@@ -564,7 +581,9 @@ std::vector<vk::DescriptorSet> init_createDescriptorSets(
     const vk::DescriptorPool& descriptorPool,
     const vk::DescriptorSetLayout& setLayout,
     const std::vector<UniformBuffer<ModelViewProjection>>& uniformBuffers,
-    uint32_t numberOfSets
+    uint32_t numberOfSets,
+    const Texture& texture,
+    const Sampler& sampler
 ) {
     const std::vector<vk::DescriptorSetLayout> setLayouts(
         MAX_FRAMES_IN_FLIGHT, setLayout
@@ -581,17 +600,33 @@ std::vector<vk::DescriptorSet> init_createDescriptorSets(
     for (size_t i = 0; i < numberOfSets; i++) {
         const vk::DescriptorBufferInfo bufferInfo =
             uniformBuffers[i].getDescriptorBufferInfo();
-        const vk::WriteDescriptorSet write(
-            descriptorSets[i],
-            0,
-            0,
-            1,
-            vk::DescriptorType::eUniformBuffer,
-            nullptr,
-            &bufferInfo,
-            nullptr
+        const vk::DescriptorImageInfo imageInfo =
+            texture.getDescriptorImageInfo(sampler);
+        const std::array<vk::WriteDescriptorSet, 2> writes = {
+            vk::WriteDescriptorSet(
+                descriptorSets[i],
+                0,
+                0,
+                1,
+                vk::DescriptorType::eUniformBuffer,
+                nullptr,
+                &bufferInfo,
+                nullptr
+            ),
+            vk::WriteDescriptorSet(
+                descriptorSets[i],
+                1,
+                0,
+                1,
+                vk::DescriptorType::eCombinedImageSampler,
+                &imageInfo,
+                nullptr,
+                nullptr
+            ),
+        };
+        device.updateDescriptorSets(
+            static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr
         );
-        device.updateDescriptorSets(1, &write, 0, nullptr);
     }
     return descriptorSetCreation.value;
 }
@@ -626,7 +661,9 @@ GraphicsDeviceInterface::GraphicsDeviceInterface(
     std::vector<vk::Semaphore> isRenderingFinished,
     std::vector<vk::Fence> isRenderingInFlight,
     std::vector<UniformBuffer<ModelViewProjection>> uniformBuffers,
-    VertexBuffer vertexBuffer
+    VertexBuffer vertexBuffer,
+    Texture texture,
+    Sampler sampler
 ) :
     window(window),
     instance(instance),
@@ -655,6 +692,8 @@ GraphicsDeviceInterface::GraphicsDeviceInterface(
     isRenderingFinished(isRenderingFinished),
     isRenderingInFlight(isRenderingInFlight),
     uniformBuffers(uniformBuffers),
+    texture(texture),
+    sampler(sampler),
     vertexBuffer(vertexBuffer),
     currentFrame(0) {}
 
@@ -720,13 +759,31 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
     std::vector<UniformBuffer<ModelViewProjection>> uniformBuffers =
         init_createUniformBuffers(device, physicalDevice, MAX_FRAMES_IN_FLIGHT);
     vk::DescriptorPool descriptorPool = init_createDescriptorPool(device);
-    std::vector<vk::DescriptorSet> descriptorSets = init_createDescriptorSets(
-        device,
-        descriptorPool,
-        descriptorSetLayout,
-        uniformBuffers,
-        MAX_FRAMES_IN_FLIGHT
+    vk::CommandPool commandPool = init_createCommandPool(device, queueFamily);
+    VertexBuffer vertexBuffer = VertexBuffer::create(
+        device, physicalDevice, commandPool, graphicsQueue
     );
+    std::vector<vk::CommandBuffer> commandBuffers =
+        init_createCommandBuffers(device, commandPool, MAX_FRAMES_IN_FLIGHT);
+    LLOG_INFO << "Created command pool and buffers";
+    const Texture texture = Texture::load(
+        "textures/texture.jpg",
+        device,
+        physicalDevice,
+        commandPool,
+        graphicsQueue
+    );
+    const Sampler sampler = Sampler::create(device, physicalDevice);
+    const std::vector<vk::DescriptorSet> descriptorSets =
+        init_createDescriptorSets(
+            device,
+            descriptorPool,
+            descriptorSetLayout,
+            uniformBuffers,
+            MAX_FRAMES_IN_FLIGHT,
+            texture,
+            sampler
+        );
     LLOG_INFO << "Created descriptor pool and sets";
     vk::PipelineLayout pipelineLayout =
         init_createPipelineLayout(device, descriptorSetLayout);
@@ -741,31 +798,12 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
         device, renderPass, swapchainExtent, swapchainImageViews
     );
     LLOG_INFO << "Created framebuffer";
-    vk::CommandPool commandPool = init_createCommandPool(device, queueFamily);
-    VertexBuffer vertexBuffer = VertexBuffer::create(
-        device, physicalDevice, commandPool, graphicsQueue
-    );
-    std::vector<vk::CommandBuffer> commandBuffers =
-        init_createCommandBuffers(device, commandPool, MAX_FRAMES_IN_FLIGHT);
-    LLOG_INFO << "Created command pool and buffers";
     std::vector<vk::Semaphore> isImageAvailable;
     std::vector<vk::Semaphore> isRenderingFinished;
     std::vector<vk::Fence> isRenderingInFlight;
     std::tie(isImageAvailable, isRenderingFinished, isRenderingInFlight) =
         init_createSyncObjects(device, MAX_FRAMES_IN_FLIGHT);
     LLOG_INFO << "Created semaphore and fences";
-
-    Texture texture = Texture::load(
-        "textures/texture.jpg",
-        device,
-        physicalDevice,
-        commandPool,
-        graphicsQueue
-    );
-    Sampler sampler = Sampler::create(device, physicalDevice);
-
-    sampler.destroyBy(device);
-    texture.destroyBy(device);
 
     return GraphicsDeviceInterface(
         window,
@@ -795,7 +833,9 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
         isRenderingFinished,
         isRenderingInFlight,
         uniformBuffers,
-        vertexBuffer
+        vertexBuffer,
+        texture,
+        sampler
     );
 }
 
@@ -816,6 +856,10 @@ GraphicsDeviceInterface::~GraphicsDeviceInterface() {
 
     cleanupSwapchain();
     LLOG_INFO << "Destroyed swapchain";
+    sampler.destroyBy(device);
+    LLOG_INFO << "Destroyed sampler";
+    texture.destroyBy(device);
+    LLOG_INFO << "Destroyed texture";
     vertexBuffer.destroyBy(device);
     device.destroyCommandPool(commandPool);
     LLOG_INFO << "Destroyed command pool";

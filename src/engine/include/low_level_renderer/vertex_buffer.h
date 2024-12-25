@@ -9,9 +9,10 @@
 struct Vertex {
     glm::vec2 position;
     glm::vec3 color;
+    glm::vec2 texCoord;
 
     static vk::VertexInputBindingDescription getBindingDescription();
-    static std::array<vk::VertexInputAttributeDescription, 2>
+    static std::array<vk::VertexInputAttributeDescription, 3>
     getAttributeDescriptions();
 };
 
@@ -28,7 +29,12 @@ class VertexBuffer {
     void destroyBy(const vk::Device& device);
 
    private:
-    VertexBuffer(vk::Buffer buffer, vk::DeviceMemory memory, vk::Buffer indexBuffer, vk::DeviceMemory indexMemory);
+    VertexBuffer(
+        vk::Buffer buffer,
+        vk::DeviceMemory memory,
+        vk::Buffer indexBuffer,
+        vk::DeviceMemory indexMemory
+    );
     uint32_t getNumberOfVertices() const;
     uint32_t getNumberOfIndices() const;
 

@@ -5,6 +5,8 @@
 #include <SDL3/SDL_vulkan.h>
 #include <vector>
 
+#include "low_level_renderer/texture.h"
+#include "low_level_renderer/sampler.h"
 #include "low_level_renderer/transformation.h"
 #include "low_level_renderer/uniform_buffer.h"
 #include "low_level_renderer/vertex_buffer.h"
@@ -61,6 +63,8 @@ class GraphicsDeviceInterface {
     std::vector<vk::Fence> isRenderingInFlight;
 
     std::vector<UniformBuffer<ModelViewProjection>> uniformBuffers;
+    Texture texture;
+    Sampler sampler;
 
     VertexBuffer vertexBuffer;
 
@@ -95,7 +99,9 @@ class GraphicsDeviceInterface {
         std::vector<vk::Semaphore> isRenderingFinished,
         std::vector<vk::Fence> isRenderingInFlight,
         std::vector<UniformBuffer<ModelViewProjection>> uniformBuffers,
-        VertexBuffer vertexBuffer
+        VertexBuffer vertexBuffer,
+        Texture texture,
+        Sampler sampler
     );
 
     void recordCommandBuffer(vk::CommandBuffer buffer, uint32_t imageIndex);

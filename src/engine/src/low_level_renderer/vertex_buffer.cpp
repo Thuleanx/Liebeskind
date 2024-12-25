@@ -1,23 +1,21 @@
 #include "low_level_renderer/vertex_buffer.h"
 
-#include <cstddef>
-#include <cstring>
-
 #include "private/buffer.h"
-#include "private/helpful_defines.h"
+
+#include <cstddef>
 
 const std::vector<Vertex> quadVertices = {
-    {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-    {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-    {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
-    {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}
+    {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+    {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+    {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+    {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}
 };
 
 const std::vector<uint16_t> quadIndices = {0, 1, 2, 2, 3, 0};
 
-std::array<vk::VertexInputAttributeDescription, 2>
+std::array<vk::VertexInputAttributeDescription, 3>
 Vertex::getAttributeDescriptions() {
-    static std::array<vk::VertexInputAttributeDescription, 2>
+    static std::array<vk::VertexInputAttributeDescription, 3>
         attributeDescriptions = {
             vk::VertexInputAttributeDescription(
                 0,  // location
@@ -30,6 +28,12 @@ Vertex::getAttributeDescriptions() {
                 0,  // binding
                 vk::Format::eR32G32B32Sfloat,
                 offsetof(Vertex, color)
+            ),
+            vk::VertexInputAttributeDescription(
+                2,  // location
+                0,  // binding
+                vk::Format::eR32G32Sfloat,
+                offsetof(Vertex, texCoord)
             )
         };
     return attributeDescriptions;

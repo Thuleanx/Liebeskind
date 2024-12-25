@@ -35,6 +35,10 @@ Sampler Sampler::create(
     return Sampler(samplerCreation.value);
 }
 
+vk::Sampler Sampler::getSampler() const {
+    return sampler;
+}
+
 void Sampler::destroyBy(const vk::Device &device) {
     device.destroySampler(sampler);
 }

@@ -9,6 +9,7 @@ class Sampler {
         const vk::Device& device, const vk::PhysicalDevice& physicalDevice
     );
 
+    vk::Sampler getSampler() const;
     void destroyBy(const vk::Device& device);
 
    private:

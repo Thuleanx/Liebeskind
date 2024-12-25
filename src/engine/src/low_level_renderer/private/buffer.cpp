@@ -1,5 +1,6 @@
 #include "buffer.h"
 
+#include "command.h"
 #include "helpful_defines.h"
 
 namespace Buffer {
@@ -66,26 +67,8 @@ void copyBuffer(
     const vk::Buffer dstBuffer,
     const vk::DeviceSize size
 ) {
-    const vk::CommandBufferAllocateInfo allocInfo(
-        commandPool,
-        vk::CommandBufferLevel::ePrimary,
-        1  // buffer count
-    );
-    vk::ResultValue<std::vector<vk::CommandBuffer>> commandBufferAllocation =
-        device.allocateCommandBuffers(allocInfo);
-    VULKAN_ENSURE_SUCCESS(
-        commandBufferAllocation.result,
-        "Can't allocate command buffer to copy buffer"
-    );
-    vk::CommandBuffer commandBuffer = commandBufferAllocation.value.at(0);
-
-    vk::CommandBufferBeginInfo beginInfo(
-        vk::CommandBufferUsageFlagBits::eOneTimeSubmit
-    );
-
-    VULKAN_ENSURE_SUCCESS_EXPR(
-        commandBuffer.begin(beginInfo), "Can't start command buffer recording"
-    );
+    const vk::CommandBuffer commandBuffer =
+        Command::beginSingleCommand(device, commandPool);
 
     vk::BufferCopy copyRegion(
         0,    // srcOffset
@@ -95,26 +78,9 @@ void copyBuffer(
 
     commandBuffer.copyBuffer(srcBuffer, dstBuffer, 1, &copyRegion);
 
-    VULKAN_ENSURE_SUCCESS_EXPR(
-        commandBuffer.end(),
-        "Can't end command buffer recording, likely something wrong happened "
-        "during recording"
+    Command::submitSingleCommand(
+        device, submitQueue, commandPool, commandBuffer
     );
-
-    vk::SubmitInfo submitInfo(
-        0, nullptr, nullptr, 1, &commandBuffer, 0, nullptr
-    );
-
-    VULKAN_ENSURE_SUCCESS_EXPR(
-        submitQueue.submit(1, &submitInfo, nullptr),
-        "Error when submitting queue"
-    );
-    VULKAN_ENSURE_SUCCESS_EXPR(
-        submitQueue.waitIdle(), "Error waiting for submit queue to be idle"
-    );
-
-    device.freeCommandBuffers(commandPool, 1, &commandBuffer);
 }
 
 }  // namespace Buffer
-

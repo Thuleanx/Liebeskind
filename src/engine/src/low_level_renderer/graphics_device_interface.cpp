@@ -7,9 +7,9 @@
 #include <set>
 #include <vector>
 
-#include "stb_image.h"
 #include "file_system/file.h"
 #include "logger/assert.h"
+#include "low_level_renderer/texture.h"
 #include "low_level_renderer/vertex_buffer.h"
 #include "private/graphics_device_helper.h"
 #include "private/helpful_defines.h"
@@ -612,14 +612,6 @@ std::vector<vk::DescriptorSet> init_createDescriptorSets(
     return descriptorSetCreation.value;
 }
 
-void init_createTexture() {
-    int width, height, channels;
-    stbi_uc* pixels = stbi_load("textures/textures.jpg", &width, &height, &channels, STBI_rgb_alpha);
-    vk::DeviceSize size(width * height * 4);
-
-    ASSERT(pixels, "Can't load texture");
-}
-
 }  // namespace
 
 GraphicsDeviceInterface::GraphicsDeviceInterface(
@@ -778,6 +770,17 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
     std::tie(isImageAvailable, isRenderingFinished, isRenderingInFlight) =
         init_createSyncObjects(device, MAX_FRAMES_IN_FLIGHT);
     LLOG_INFO << "Created semaphore and fences";
+
+    Texture texture = Texture::load(
+        "textures/texture.jpg",
+        device,
+        physicalDevice,
+        commandPool,
+        graphicsQueue
+    );
+
+    texture.destroyBy(device);
+
     return GraphicsDeviceInterface(
         window,
         instance,

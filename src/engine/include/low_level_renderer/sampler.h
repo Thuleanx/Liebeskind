@@ -17,4 +17,6 @@ class Sampler {
 
    private:
     vk::Sampler sampler;
+
+    friend class GraphicsDeviceInterface;
 };

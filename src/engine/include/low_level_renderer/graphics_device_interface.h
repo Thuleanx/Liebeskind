@@ -17,6 +17,10 @@ constexpr uint32_t MAX_FRAMES_IN_FLIGHT = 2;
 
 class GraphicsDeviceInterface {
    public:
+       [[nodiscard]]
+       Sampler create();
+
+   public:
     static GraphicsDeviceInterface createGraphicsDevice();
     ~GraphicsDeviceInterface();
 
@@ -63,11 +67,10 @@ class GraphicsDeviceInterface {
     std::vector<vk::Fence> isRenderingInFlight;
 
     std::vector<UniformBuffer<ModelViewProjection>> uniformBuffers;
+    VertexBuffer vertexBuffer;
     Texture texture;
     Sampler sampler;
-
-    VertexBuffer vertexBuffer;
-
+    Texture depthTexture;
     uint32_t currentFrame = 0;
 
    private:
@@ -101,7 +104,8 @@ class GraphicsDeviceInterface {
         std::vector<UniformBuffer<ModelViewProjection>> uniformBuffers,
         VertexBuffer vertexBuffer,
         Texture texture,
-        Sampler sampler
+        Sampler sampler,
+        Texture depthTexture
     );
 
     void recordCommandBuffer(vk::CommandBuffer buffer, uint32_t imageIndex);

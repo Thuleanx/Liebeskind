@@ -71,14 +71,15 @@ void Image::transitionImageLayout(
     const vk::CommandPool &commandPool,
     const vk::Queue &graphicsQueue,
     const vk::Image &image,
+    vk::Format format,
     vk::ImageLayout oldLayout,
     vk::ImageLayout newLayout
 ) {
     const vk::CommandBuffer commandBuffer =
         Command::beginSingleCommand(device, commandPool);
 
-    vk::AccessFlagBits sourceAccessMask;
-    vk::AccessFlagBits destinationAccessMask;
+    vk::AccessFlags sourceAccessMask;
+    vk::AccessFlags destinationAccessMask;
     vk::PipelineStageFlags sourceStage;
     vk::PipelineStageFlags destinationStage;
 
@@ -94,9 +95,26 @@ void Image::transitionImageLayout(
         destinationAccessMask = vk::AccessFlagBits::eShaderRead;
         sourceStage = vk::PipelineStageFlagBits::eTransfer;
         destinationStage = vk::PipelineStageFlagBits::eFragmentShader;
+    } else if (oldLayout == vk::ImageLayout::eUndefined &&
+               newLayout == vk::ImageLayout::eDepthStencilAttachmentOptimal) {
+        sourceAccessMask = {};
+        destinationAccessMask =
+            vk::AccessFlagBits::eDepthStencilAttachmentRead |
+            vk::AccessFlagBits::eDepthStencilAttachmentWrite;
+        sourceStage = vk::PipelineStageFlagBits::eTopOfPipe;
+        destinationStage = vk::PipelineStageFlagBits::eEarlyFragmentTests;
     } else {
         ASSERT(false, "Unsupported layout transition");
         return;
+    }
+
+    vk::ImageAspectFlags imageAspect;
+    if (newLayout == vk::ImageLayout::eDepthStencilAttachmentOptimal) {
+        imageAspect = vk::ImageAspectFlagBits::eDepth;
+        if (Image::hasStencilComponent(format))
+            imageAspect |= vk::ImageAspectFlagBits::eStencil;
+    } else {
+        imageAspect = vk::ImageAspectFlagBits::eColor;
     }
 
     const vk::ImageMemoryBarrier barrier(
@@ -107,7 +125,7 @@ void Image::transitionImageLayout(
         vk::QueueFamilyIgnored,
         vk::QueueFamilyIgnored,
         image,
-        vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1)
+        vk::ImageSubresourceRange(imageAspect, 0, 1, 0, 1)
     );
 
     commandBuffer.pipelineBarrier(
@@ -156,7 +174,10 @@ void Image::copyBufferToImage(
 }
 
 vk::ImageView Image::createImageView(
-    const vk::Device &device, const vk::Image &image, vk::Format imageFormat
+    const vk::Device &device,
+    const vk::Image &image,
+    vk::Format imageFormat,
+    vk::ImageAspectFlags imageAspect
 ) {
     const vk::ImageViewCreateInfo imageViewInfo(
         {},
@@ -164,10 +185,32 @@ vk::ImageView Image::createImageView(
         vk::ImageViewType::e2D,
         imageFormat,
         {},
-        vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1)
+        vk::ImageSubresourceRange(imageAspect, 0, 1, 0, 1)
     );
     const vk::ResultValue<vk::ImageView> imageViewCreation =
         device.createImageView(imageViewInfo);
     VULKAN_ENSURE_SUCCESS(imageViewCreation.result, "Can't create image view");
     return imageViewCreation.value;
+}
+std::optional<vk::Format> Image::findSupportedFormat(
+    const vk::PhysicalDevice &physicalDevice,
+    const std::vector<vk::Format> &candidates,
+    vk::ImageTiling imageTiling,
+    vk::FormatFeatureFlags features
+) {
+    for (vk::Format format : candidates) {
+        vk::FormatProperties props = physicalDevice.getFormatProperties(format);
+        if (imageTiling == vk::ImageTiling::eLinear &&
+            (props.linearTilingFeatures & features) == features)
+            return format;
+        if (imageTiling == vk::ImageTiling::eOptimal &&
+            (props.optimalTilingFeatures & features) == features)
+            return format;
+    }
+    return std::nullopt;
+}
+
+bool Image::hasStencilComponent(vk::Format format) {
+    return format == vk::Format::eD32SfloatS8Uint ||
+           format == vk::Format::eD24UnormS8Uint;
 }

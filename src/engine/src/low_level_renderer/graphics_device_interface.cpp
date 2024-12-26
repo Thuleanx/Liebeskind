@@ -189,7 +189,10 @@ std::vector<vk::ImageView> init_createImageViews(
 
     for (unsigned int i = 0; i < swapchainImages.size(); i++) {
         swapchainImageViews[i] = Image::createImageView(
-            device, swapchainImages[i], swapchainImageFormat
+            device,
+            swapchainImages[i],
+            swapchainImageFormat,
+            vk::ImageAspectFlagBits::eColor
         );
     }
 
@@ -209,7 +212,9 @@ vk::ShaderModule createShaderModule(
 }
 
 vk::RenderPass init_createRenderPass(
-    const vk::Device& device, vk::Format swapchainImageFormat
+    const vk::Device& device,
+    vk::Format swapchainImageFormat,
+    Texture depthTexture
 ) {
     const vk::AttachmentDescription colorAttachment(
         {},
@@ -222,9 +227,24 @@ vk::RenderPass init_createRenderPass(
         vk::ImageLayout::eUndefined,
         vk::ImageLayout::ePresentSrcKHR
     );
+    const vk::AttachmentDescription depthAttachment(
+        {},
+        depthTexture.getFormat(),
+        vk::SampleCountFlagBits::e1,
+        vk::AttachmentLoadOp::eClear,
+        vk::AttachmentStoreOp::eDontCare,
+        vk::AttachmentLoadOp::eClear,
+        vk::AttachmentStoreOp::eDontCare,
+        vk::ImageLayout::eUndefined,
+        vk::ImageLayout::eDepthStencilAttachmentOptimal
+    );
     const vk::AttachmentReference colorAttachmentReference(
         0,  // index of attachment
         vk::ImageLayout::eColorAttachmentOptimal
+    );
+    const vk::AttachmentReference depthAttachmentReference(
+        1,  // index of attachment
+        vk::ImageLayout::eDepthStencilAttachmentOptimal
     );
     const vk::SubpassDescription subpassDescription(
         {},
@@ -232,18 +252,32 @@ vk::RenderPass init_createRenderPass(
         0,
         nullptr,
         1,
-        &colorAttachmentReference
+        &colorAttachmentReference,
+        nullptr,
+        &depthAttachmentReference
     );
     const vk::SubpassDependency dependency(
         vk::SubpassExternal,
         0,
-        vk::PipelineStageFlagBits::eColorAttachmentOutput,
-        vk::PipelineStageFlagBits::eColorAttachmentOutput,
+        vk::PipelineStageFlagBits::eColorAttachmentOutput |
+            vk::PipelineStageFlagBits::eEarlyFragmentTests,
+        vk::PipelineStageFlagBits::eColorAttachmentOutput |
+            vk::PipelineStageFlagBits::eEarlyFragmentTests,
         {},
-        vk::AccessFlagBits::eColorAttachmentWrite
+        vk::AccessFlagBits::eColorAttachmentWrite |
+            vk::AccessFlagBits::eDepthStencilAttachmentWrite
     );
+    const std::array<vk::AttachmentDescription, 2> attachments = {
+        colorAttachment, depthAttachment
+    };
     const vk::RenderPassCreateInfo renderPassInfo(
-        {}, 1, &colorAttachment, 1, &subpassDescription, 1, &dependency
+        {},
+        static_cast<uint32_t>(attachments.size()),
+        attachments.data(),
+        1,
+        &subpassDescription,
+        1,
+        &dependency
     );
     const vk::ResultValue<vk::RenderPass> renderPassCreation =
         device.createRenderPass(renderPassInfo);
@@ -364,6 +398,18 @@ init_createGraphicsPipeline(
         &colorBlendAttachment,
         colorBlendingConstants
     );
+    const vk::PipelineDepthStencilStateCreateInfo depthStencilState(
+        {},
+        vk::True,  // enable depth test
+        vk::True,  // enable depth write
+        vk::CompareOp::eLess,
+        vk::False,  // disable depth bounds test
+        vk::False,  // disable stencil test
+        {},         // stencil front op state
+        {},         // stencil back op state
+        {},         // min depth bound
+        {}          // max depth bound
+    );
     vk::GraphicsPipelineCreateInfo pipelineCreateInfo(
         {},
         2,
@@ -374,7 +420,7 @@ init_createGraphicsPipeline(
         &viewportStateInfo,
         &rasterizerCreateInfo,
         &multisamplingInfo,
-        nullptr,  // no depth stencil
+        &depthStencilState,
         &colorBlendingInfo,
         &dynamicStateInfo,
         layout,
@@ -393,7 +439,8 @@ std::vector<vk::Framebuffer> init_createFramebuffer(
     const vk::Device& device,
     const vk::RenderPass& renderPass,
     const vk::Extent2D& swapchainExtent,
-    const std::vector<vk::ImageView>& swapchainImageViews
+    const std::vector<vk::ImageView>& swapchainImageViews,
+    const vk::ImageView& depthImageView
 ) {
     std::vector<vk::Framebuffer> swapchainFramebuffers(swapchainImageViews.size(
     ));
@@ -403,12 +450,14 @@ std::vector<vk::Framebuffer> init_createFramebuffer(
             swapchainImageViews[i],
             "Swapchain image at location " << i << " is null"
         );
-        const vk::ImageView attachments[] = {swapchainImageViews[i]};
+        const std::array<vk::ImageView, 2> attachments = {
+            swapchainImageViews[i], depthImageView
+        };
         const vk::FramebufferCreateInfo framebufferCreateInfo(
             {},
             renderPass,
-            1,
-            attachments,
+            static_cast<uint32_t>(attachments.size()),
+            attachments.data(),
             swapchainExtent.width,
             swapchainExtent.height,
             1
@@ -631,6 +680,45 @@ std::vector<vk::DescriptorSet> init_createDescriptorSets(
     return descriptorSetCreation.value;
 }
 
+Texture init_createDepthTexture(
+    const vk::Device& device,
+    const vk::PhysicalDevice& physicalDevice,
+    vk::CommandPool& commandPool,
+    vk::Queue& graphicsQueue,
+    vk::Extent2D swapchainExtent
+) {
+    std::optional<vk::Format> suitableFormat = Image::findSupportedFormat(
+        physicalDevice,
+        {vk::Format::eD32Sfloat,
+         vk::Format::eD32SfloatS8Uint,
+         vk::Format::eD24UnormS8Uint},
+        vk::ImageTiling::eOptimal,
+        vk::FormatFeatureFlagBits::eDepthStencilAttachment
+    );
+    ASSERT(
+        suitableFormat.has_value(),
+        "Can't find suitable format for depth buffer"
+    );
+    Texture depthTexture = Texture::create(
+        device,
+        physicalDevice,
+        suitableFormat.value(),
+        swapchainExtent.width,
+        swapchainExtent.height,
+        vk::ImageTiling::eOptimal,
+        vk::ImageUsageFlagBits::eDepthStencilAttachment,
+        vk::ImageAspectFlagBits::eDepth
+    );
+    depthTexture.transitionLayout(
+        device,
+        commandPool,
+        graphicsQueue,
+        vk::ImageLayout::eUndefined,
+        vk::ImageLayout::eDepthStencilAttachmentOptimal
+    );
+    return depthTexture;
+}
+
 }  // namespace
 
 GraphicsDeviceInterface::GraphicsDeviceInterface(
@@ -663,7 +751,8 @@ GraphicsDeviceInterface::GraphicsDeviceInterface(
     std::vector<UniformBuffer<ModelViewProjection>> uniformBuffers,
     VertexBuffer vertexBuffer,
     Texture texture,
-    Sampler sampler
+    Sampler sampler,
+    Texture depthTexture
 ) :
     window(window),
     instance(instance),
@@ -692,9 +781,10 @@ GraphicsDeviceInterface::GraphicsDeviceInterface(
     isRenderingFinished(isRenderingFinished),
     isRenderingInFlight(isRenderingInFlight),
     uniformBuffers(uniformBuffers),
+    vertexBuffer(vertexBuffer),
     texture(texture),
     sampler(sampler),
-    vertexBuffer(vertexBuffer),
+    depthTexture(depthTexture),
     currentFrame(0) {}
 
 GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
@@ -754,12 +844,16 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
     std::vector<vk::ImageView> swapchainImageViews =
         init_createImageViews(device, swapchainImages, swapchainImageFormat);
     LLOG_INFO << "Created swapchain images and image views";
+    vk::CommandPool commandPool = init_createCommandPool(device, queueFamily);
+    const Texture depthTexture = init_createDepthTexture(
+        device, physicalDevice, commandPool, graphicsQueue, swapchainExtent
+    );
+
     vk::DescriptorSetLayout descriptorSetLayout =
         init_createDescriptorSetLayout(device);
     std::vector<UniformBuffer<ModelViewProjection>> uniformBuffers =
         init_createUniformBuffers(device, physicalDevice, MAX_FRAMES_IN_FLIGHT);
     vk::DescriptorPool descriptorPool = init_createDescriptorPool(device);
-    vk::CommandPool commandPool = init_createCommandPool(device, queueFamily);
     VertexBuffer vertexBuffer = VertexBuffer::create(
         device, physicalDevice, commandPool, graphicsQueue
     );
@@ -788,14 +882,18 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
     vk::PipelineLayout pipelineLayout =
         init_createPipelineLayout(device, descriptorSetLayout);
     vk::RenderPass renderPass =
-        init_createRenderPass(device, swapchainImageFormat);
+        init_createRenderPass(device, swapchainImageFormat, depthTexture);
     vk::Pipeline pipeline;
     std::vector<vk::ShaderModule> shaderModules;
     std::tie(pipeline, shaderModules) =
         init_createGraphicsPipeline(device, pipelineLayout, renderPass);
     LLOG_INFO << "Created pipeline layout, renderpass, and pipeline";
     std::vector<vk::Framebuffer> swapchainFramebuffers = init_createFramebuffer(
-        device, renderPass, swapchainExtent, swapchainImageViews
+        device,
+        renderPass,
+        swapchainExtent,
+        swapchainImageViews,
+        depthTexture.imageView
     );
     LLOG_INFO << "Created framebuffer";
     std::vector<vk::Semaphore> isImageAvailable;
@@ -835,7 +933,8 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
         uniformBuffers,
         vertexBuffer,
         texture,
-        sampler
+        sampler,
+        depthTexture
     );
 }
 
@@ -899,13 +998,16 @@ void GraphicsDeviceInterface::recordCommandBuffer(
     VULKAN_ENSURE_SUCCESS_EXPR(
         buffer.begin(beginInfo), "Can't begin recording command buffer:"
     );
-    vk::ClearValue clearColor(vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f));
+    const std::array<vk::ClearValue, 2> clearColors{
+        vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f),
+        vk::ClearColorValue(1.0f, 0.0f, 0.0f, 0.0f)
+    };
     vk::RenderPassBeginInfo renderPassInfo(
         renderPass,
         swapchainFramebuffers[imageIndex],
         vk::Rect2D(vk::Offset2D{0, 0}, swapchainExtent),
-        1,
-        &clearColor
+        static_cast<uint32_t>(clearColors.size()),
+        clearColors.data()
     );
     buffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
     buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
@@ -1064,8 +1166,15 @@ void GraphicsDeviceInterface::recreateSwapchain() {
     swapchainImages = swapchainImagesGet.value;
     swapchainImageViews =
         init_createImageViews(device, swapchainImages, swapchainImageFormat);
+    depthTexture = init_createDepthTexture(
+        device, physicalDevice, commandPool, graphicsQueue, swapchainExtent
+    );
     swapchainFramebuffers = init_createFramebuffer(
-        device, renderPass, swapchainExtent, swapchainImageViews
+        device,
+        renderPass,
+        swapchainExtent,
+        swapchainImageViews,
+        depthTexture.imageView
     );
     LLOG_INFO << "Swapchain recreated";
 }
@@ -1078,6 +1187,7 @@ void GraphicsDeviceInterface::cleanupSwapchain() {
         device.destroyImageView(imageView);
 
     device.destroySwapchainKHR(std::move(swapchain));
+    depthTexture.destroyBy(device);
 }
 
 void GraphicsDeviceInterface::handleWindowResize(

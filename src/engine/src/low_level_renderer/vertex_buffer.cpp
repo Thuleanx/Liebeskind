@@ -1,17 +1,22 @@
 #include "low_level_renderer/vertex_buffer.h"
 
-#include "private/buffer.h"
-
 #include <cstddef>
 
+#include "private/buffer.h"
+
 const std::vector<Vertex> quadVertices = {
-    {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-    {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-    {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-    {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}
+    {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+    {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+    {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+    {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
+
+    {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+    {{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+    {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+    {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}
 };
 
-const std::vector<uint16_t> quadIndices = {0, 1, 2, 2, 3, 0};
+const std::vector<uint16_t> quadIndices = {0, 1, 2, 2, 3, 0, 4, 5, 6, 6, 7, 4};
 
 std::array<vk::VertexInputAttributeDescription, 3>
 Vertex::getAttributeDescriptions() {
@@ -20,7 +25,7 @@ Vertex::getAttributeDescriptions() {
             vk::VertexInputAttributeDescription(
                 0,  // location
                 0,  // binding
-                vk::Format::eR32G32Sfloat,
+                vk::Format::eR32G32B32Sfloat,
                 offsetof(Vertex, position)
             ),
             vk::VertexInputAttributeDescription(

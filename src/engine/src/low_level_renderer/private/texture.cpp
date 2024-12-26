@@ -35,12 +35,14 @@ Texture Texture::load(
 
     stbi_image_free(pixels);
 
+    vk::Format imageFormat = vk::Format::eR8G8B8A8Srgb;
+
     const auto [textureImage, textureMemory] = Image::createImage(
         device,
         physicalDevice,
         width,
         height,
-        vk::Format::eR8G8B8A8Srgb,
+        imageFormat,
         vk::ImageTiling::eOptimal,
         vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
         vk::MemoryPropertyFlagBits::eDeviceLocal
@@ -51,6 +53,7 @@ Texture Texture::load(
         commandPool,
         graphicsQueue,
         textureImage,
+        imageFormat,
         vk::ImageLayout::eUndefined,
         vk::ImageLayout::eTransferDstOptimal
     );
@@ -70,6 +73,7 @@ Texture Texture::load(
         commandPool,
         graphicsQueue,
         textureImage,
+        imageFormat,
         vk::ImageLayout::eTransferDstOptimal,
         vk::ImageLayout::eShaderReadOnlyOptimal
     );
@@ -77,16 +81,45 @@ Texture Texture::load(
     device.destroyBuffer(stagingBuffer);
     device.freeMemory(stagingBufferMemory);
 
-    const vk::ImageView imageView =
-        Image::createImageView(device, textureImage, vk::Format::eR8G8B8A8Srgb);
+    const vk::ImageView imageView = Image::createImageView(
+        device, textureImage, imageFormat, vk::ImageAspectFlagBits::eColor
+    );
 
-    return Texture(textureImage, textureMemory, imageView);
+    return Texture(textureImage, textureMemory, imageView, imageFormat);
+}
+
+Texture Texture::create(
+    const vk::Device& device,
+    const vk::PhysicalDevice& physicalDevice,
+    vk::Format format,
+    uint32_t width,
+    uint32_t height,
+    vk::ImageTiling tiling,
+    vk::ImageUsageFlags usage,
+    vk::ImageAspectFlags aspect
+) {
+    const auto [image, memory] = Image::createImage(
+        device,
+        physicalDevice,
+        width,
+        height,
+        format,
+        tiling,
+        usage,
+        vk::MemoryPropertyFlagBits::eDeviceLocal
+    );
+    const vk::ImageView imageView =
+        Image::createImageView(device, image, format, aspect);
+    return Texture(image, memory, imageView, format);
 }
 
 Texture::Texture(
-    vk::Image image, vk::DeviceMemory deviceMemory, vk::ImageView imageView
+    vk::Image image,
+    vk::DeviceMemory deviceMemory,
+    vk::ImageView imageView,
+    vk::Format format
 ) :
-    image(image), imageView(imageView), memory(deviceMemory) {}
+    image(image), imageView(imageView), memory(deviceMemory), format(format) {}
 
 void Texture::destroyBy(const vk::Device& device) {
     device.destroyImageView(imageView);
@@ -98,5 +131,19 @@ vk::DescriptorImageInfo Texture::getDescriptorImageInfo(const Sampler& sampler
 ) const {
     return vk::DescriptorImageInfo(
         sampler.getSampler(), imageView, vk::ImageLayout::eShaderReadOnlyOptimal
+    );
+}
+
+vk::Format Texture::getFormat() const { return format; }
+
+void Texture::transitionLayout(
+    const vk::Device& device,
+    vk::CommandPool& commandPool,
+    vk::Queue& graphicsQueue,
+    vk::ImageLayout oldLayout,
+    vk::ImageLayout newLayout
+) {
+    Image::transitionImageLayout(
+        device, commandPool, graphicsQueue, image, format, oldLayout, newLayout
     );
 }

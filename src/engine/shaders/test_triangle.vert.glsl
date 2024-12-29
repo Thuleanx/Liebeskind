@@ -13,8 +13,14 @@ layout(binding = 0) uniform MVP {
     mat4 projection;
 } mvp;
 
+layout(push_constant) uniform PMVP {
+    mat4 model;
+    mat4 view;
+    mat4 projection;
+} transform;
+
 void main() {
-    gl_Position = mvp.projection * mvp.view * mvp.model * vec4(inPosition, 1.0);
+    gl_Position = transform.projection * transform.view * transform.model * vec4(inPosition, 1.0);
     fragColor = inColor;
     fragTexCoord = inTexCoord;
 }

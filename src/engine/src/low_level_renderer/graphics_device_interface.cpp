@@ -213,9 +213,12 @@ vk::RenderPass init_createRenderPass(
 vk::PipelineLayout init_createPipelineLayout(
     const vk::Device& device, const vk::DescriptorSetLayout& descriptorSetLayout
 ) {
-    // empty pipeline layout for now
+    // We're pushing the transform to the vertex shader
+    const vk::PushConstantRange pushConstantRange(
+        vk::ShaderStageFlagBits::eVertex, 0, sizeof(ModelViewProjection)
+    );
     const vk::PipelineLayoutCreateInfo pipelineLayoutInfo(
-        {}, 1, &descriptorSetLayout, 0, nullptr
+        {}, 1, &descriptorSetLayout, 1, &pushConstantRange
     );
     const vk::ResultValue<vk::PipelineLayout> pipelineLayoutCreation =
         device.createPipelineLayout(pipelineLayoutInfo);
@@ -793,6 +796,14 @@ void GraphicsDeviceInterface::recordCommandBuffer(
     );
     buffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
     buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
+    ModelViewProjection mvp = getCurrentFrameMVP();
+    buffer.pushConstants(
+        pipelineLayout,
+        vk::ShaderStageFlagBits::eVertex,
+        0,
+        sizeof(ModelViewProjection),
+        &mvp
+    );
     mesh.bind(buffer);
     vk::Viewport viewport(
         0.0f,

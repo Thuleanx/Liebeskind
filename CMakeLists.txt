@@ -5,6 +5,7 @@ project(star_judgement)
 add_compile_definitions(VULKAN_HPP_NO_EXCEPTIONS)
 add_compile_definitions(DEBUG)
 add_compile_definitions(GLM_FORCE_RADIANS)
+add_compile_definitions(GLM_ENABLE_EXPERIMENTAL)
 
 # glm uses depth -1 to 1 by default, which is in line with
 # openGL. Since we are using Vulkan we want it to be 0-1

@@ -1,5 +1,7 @@
 set(SRC 
     graphics_device_interface.cpp 
+    mesh.cpp
+    swapchain_data.cpp
     vertex_buffer.cpp
     uniform_buffer.cpp
     private/sampler.cpp

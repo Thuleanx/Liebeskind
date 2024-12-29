@@ -1,22 +1,28 @@
 #include "low_level_renderer/vertex_buffer.h"
 
+#include <tiny_obj_loader.h>
+
 #include <cstddef>
+#include <glm/gtx/hash.hpp>
 
 #include "private/buffer.h"
 
-const std::vector<Vertex> quadVertices = {
-    {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-    {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-    {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-    {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
-
-    {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-    {{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-    {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-    {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}
+namespace std {
+template <>
+struct hash<Vertex> {
+    size_t operator()(Vertex const& vertex) const {
+        return ((hash<glm::vec3>()(vertex.position) ^
+                 (hash<glm::vec3>()(vertex.color) << 1)) >>
+                1) ^
+               (hash<glm::vec2>()(vertex.texCoord) << 1);
+    }
 };
+}  // namespace std
 
-const std::vector<uint16_t> quadIndices = {0, 1, 2, 2, 3, 0, 4, 5, 6, 6, 7, 4};
+bool Vertex::operator==(const Vertex& other) const {
+    return position == other.position && color == other.color &&
+           texCoord == other.texCoord;
+}
 
 std::array<vk::VertexInputAttributeDescription, 3>
 Vertex::getAttributeDescriptions() {
@@ -55,25 +61,75 @@ VertexBuffer::VertexBuffer(
     vk::Buffer vertexBuffer,
     vk::DeviceMemory vertexMemory,
     vk::Buffer indexBuffer,
-    vk::DeviceMemory indexMemory
+    vk::DeviceMemory indexMemory,
+    uint32_t numberOfVertices,
+    uint32_t numberOfIndices
 ) :
     vertexBuffer(vertexBuffer),
     vertexMemory(vertexMemory),
     indexBuffer(indexBuffer),
-    indexMemory(indexMemory) {}
+    indexMemory(indexMemory),
+    numberOfVertices(numberOfVertices),
+    numberOfIndices(numberOfIndices) {}
 
 VertexBuffer VertexBuffer::create(
+    const char* filePath,
     const vk::Device& device,
     const vk::PhysicalDevice& physicalDevice,
     const vk::CommandPool& commandPool,
     const vk::Queue& graphicsQueue
 ) {
+    tinyobj::attrib_t attrib;
+    std::vector<tinyobj::shape_t> shapes;
+    std::vector<tinyobj::material_t> materials;
+    std::string warn, err;
+
+    bool successfullyLoadedModel =
+        tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filePath);
+    ASSERT(
+        successfullyLoadedModel,
+        "Can't load model at " << filePath << " " << warn << " " << err
+    );
+
+    std::vector<Vertex> vertices;
+    std::vector<uint32_t> indices;
+
+    {  // populate vertices and indices arrays
+        std::unordered_map<Vertex, uint32_t> unique_vertices;
+        for (const auto& shape : shapes) {
+            for (const auto& index : shape.mesh.indices) {
+                const Vertex vertex{
+                    glm::vec3{
+                        attrib.vertices[3 * index.vertex_index + 0],
+                        attrib.vertices[3 * index.vertex_index + 1],
+                        attrib.vertices[3 * index.vertex_index + 2]
+                    },
+                    glm::vec3{1.0, 1.0, 1.0},
+                    // obj format coordinate system makes 0 the bottom of the
+                    // image, which is different from vulkan which considers it
+                    // the top
+                    glm::vec2{
+                        attrib.texcoords[2 * index.texcoord_index],
+                        1.0 - attrib.texcoords[2 * index.texcoord_index + 1]
+                    }
+                };
+
+                if (!unique_vertices.count(vertex)) {
+                    unique_vertices[vertex] =
+                        static_cast<uint32_t>(unique_vertices.size());
+                    vertices.push_back(vertex);
+                }
+                indices.push_back(unique_vertices[vertex]);
+            }
+        }
+    }
+
     auto [vertexBuffer, deviceMemory] = Buffer::loadToBuffer(
         device,
         physicalDevice,
         commandPool,
         graphicsQueue,
-        quadVertices,
+        vertices,
         vk::BufferUsageFlagBits::eVertexBuffer
     );
 
@@ -82,12 +138,17 @@ VertexBuffer VertexBuffer::create(
         physicalDevice,
         commandPool,
         graphicsQueue,
-        quadIndices,
+        indices,
         vk::BufferUsageFlagBits::eIndexBuffer
     );
 
     return VertexBuffer(
-        vertexBuffer, deviceMemory, indexBuffer, indexDeviceMemory
+        vertexBuffer,
+        deviceMemory,
+        indexBuffer,
+        indexDeviceMemory,
+        vertices.size(),
+        indices.size()
     );
 }
 
@@ -101,7 +162,7 @@ void VertexBuffer::destroyBy(const vk::Device& device) {
 void VertexBuffer::bind(const vk::CommandBuffer& commandBuffer) const {
     vk::DeviceSize offsets[] = {0};
     commandBuffer.bindVertexBuffers(0, 1, &vertexBuffer, offsets);
-    commandBuffer.bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint16);
+    commandBuffer.bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint32);
 }
 
 void VertexBuffer::draw(const vk::CommandBuffer& commandBuffer) const {
@@ -109,9 +170,9 @@ void VertexBuffer::draw(const vk::CommandBuffer& commandBuffer) const {
 }
 
 uint32_t VertexBuffer::getNumberOfVertices() const {
-    return static_cast<uint32_t>(quadVertices.size());
+    return static_cast<uint32_t>(numberOfVertices);
 }
 
 uint32_t VertexBuffer::getNumberOfIndices() const {
-    return static_cast<uint32_t>(quadIndices.size());
+    return static_cast<uint32_t>(numberOfIndices);
 }

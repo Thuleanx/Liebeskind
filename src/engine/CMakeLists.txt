@@ -62,5 +62,21 @@ add_custom_command(
     "$<TARGET_FILE_DIR:source>/textures"
 )
 
+add_custom_target(Models)
+
+# Copy over files under models
+add_custom_command(
+    TARGET Textures POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${PROJECT_BINARY_DIR}/models/"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory              
+    "${CMAKE_CURRENT_SOURCE_DIR}/models" "${PROJECT_BINARY_DIR}/models"
+    COMMENT "Copying models" VERBATIM
+    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:source>/models/"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    "${PROJECT_BINARY_DIR}/models"
+    "$<TARGET_FILE_DIR:source>/models"
+)
+
 add_dependencies(source Shaders)
 add_dependencies(source Textures)
+add_dependencies(source Models)

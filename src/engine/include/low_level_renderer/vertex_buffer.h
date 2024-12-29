@@ -14,11 +14,14 @@ struct Vertex {
     static vk::VertexInputBindingDescription getBindingDescription();
     static std::array<vk::VertexInputAttributeDescription, 3>
     getAttributeDescriptions();
+
+    bool operator==(const Vertex& other) const;
 };
 
 class VertexBuffer {
    public:
     static VertexBuffer create(
+        const char* filePath,
         const vk::Device& device,
         const vk::PhysicalDevice& physicalDevice,
         const vk::CommandPool& commandPool,
@@ -33,7 +36,9 @@ class VertexBuffer {
         vk::Buffer buffer,
         vk::DeviceMemory memory,
         vk::Buffer indexBuffer,
-        vk::DeviceMemory indexMemory
+        vk::DeviceMemory indexMemory,
+        uint32_t numberOfVertices,
+        uint32_t numberOfIndices
     );
     uint32_t getNumberOfVertices() const;
     uint32_t getNumberOfIndices() const;
@@ -43,7 +48,6 @@ class VertexBuffer {
     vk::DeviceMemory vertexMemory;
     vk::Buffer indexBuffer;
     vk::DeviceMemory indexMemory;
+    uint32_t numberOfVertices;
+    uint32_t numberOfIndices;
 };
-
-extern const std::vector<Vertex> quadVertices;
-extern const std::vector<uint16_t> quadIndices;

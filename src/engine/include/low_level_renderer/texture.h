@@ -11,8 +11,8 @@ class Texture {
         const char* filePath,
         const vk::Device& device,
         const vk::PhysicalDevice& physicalDevice,
-        vk::CommandPool& commandPool,
-        vk::Queue& graphicsQueue
+        const vk::CommandPool& commandPool,
+        const vk::Queue& graphicsQueue
     );
 
     [[nodiscard]]
@@ -29,8 +29,8 @@ class Texture {
 
     void transitionLayout(
         const vk::Device& device,
-        vk::CommandPool& commandPool,
-        vk::Queue& graphicsQueue,
+        const vk::CommandPool& commandPool,
+        const vk::Queue& graphicsQueue,
         vk::ImageLayout oldLayout,
         vk::ImageLayout newLayout
     );

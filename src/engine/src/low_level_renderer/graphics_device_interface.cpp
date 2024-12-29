@@ -12,7 +12,6 @@
 #include "low_level_renderer/vertex_buffer.h"
 #include "private/graphics_device_helper.h"
 #include "private/helpful_defines.h"
-#include "private/image.h"
 #include "private/queue_family.h"
 #include "private/swapchain.h"
 #include "private/validation.h"
@@ -123,82 +122,6 @@ vk::Device init_createLogicalDevice(
     return device;
 }
 
-std::tuple<vk::SwapchainKHR, vk::Format, vk::Extent2D> init_createSwapchain(
-    SDL_Window* window,
-    const vk::PhysicalDevice& physicalDevice,
-    const vk::Device& device,
-    const vk::SurfaceKHR& surface,
-    const QueueFamilyIndices& queueFamily
-) {
-    const SwapchainSupportDetails swapchainSupport =
-        Swapchain::querySwapChainSupport(physicalDevice, surface);
-    const vk::SurfaceFormatKHR surfaceFormat =
-        Swapchain::chooseSwapSurfaceFormat(swapchainSupport.formats);
-    const vk::PresentModeKHR presentMode =
-        Swapchain::chooseSwapPresentMode(swapchainSupport.presentModes);
-    const vk::Extent2D extent =
-        Swapchain::chooseSwapExtent(swapchainSupport.capabilities, window);
-    uint32_t imageCount = swapchainSupport.capabilities.minImageCount + 1;
-
-    if (swapchainSupport.capabilities.maxImageCount > 0)
-        imageCount =
-            std::min(imageCount, swapchainSupport.capabilities.maxImageCount);
-
-    const bool shouldUseExclusiveSharingMode =
-        queueFamily.presentFamily.value() == queueFamily.graphicsFamily.value();
-    const uint32_t queueFamilyIndices[] = {
-        queueFamily.presentFamily.value(), queueFamily.graphicsFamily.value()
-    };
-    const vk::SharingMode sharingMode = shouldUseExclusiveSharingMode
-                                            ? vk::SharingMode::eExclusive
-                                            : vk::SharingMode::eConcurrent;
-    const vk::SwapchainCreateInfoKHR swapchainCreateInfo(
-        {},
-        surface,
-        imageCount,
-        surfaceFormat.format,
-        surfaceFormat.colorSpace,
-        extent,
-        1,
-        vk::ImageUsageFlagBits::eColorAttachment,
-        sharingMode,
-        shouldUseExclusiveSharingMode ? 0 : 2,
-        shouldUseExclusiveSharingMode ? nullptr : queueFamilyIndices,
-        swapchainSupport.capabilities.currentTransform,
-        vk::CompositeAlphaFlagBitsKHR::eOpaque,
-        presentMode,
-        true,  // clipped
-        nullptr
-    );
-    const vk::ResultValue<vk::SwapchainKHR> swapchainCreateResult =
-        device.createSwapchainKHR(swapchainCreateInfo, nullptr);
-    VULKAN_ENSURE_SUCCESS(
-        swapchainCreateResult.result, "Can't create swapchain:"
-    );
-    return std::make_tuple(
-        swapchainCreateResult.value, surfaceFormat.format, extent
-    );
-}
-
-std::vector<vk::ImageView> init_createImageViews(
-    const vk::Device& device,
-    const std::vector<vk::Image>& swapchainImages,
-    const vk::Format swapchainImageFormat
-) {
-    std::vector<vk::ImageView> swapchainImageViews(swapchainImages.size());
-
-    for (unsigned int i = 0; i < swapchainImages.size(); i++) {
-        swapchainImageViews[i] = Image::createImageView(
-            device,
-            swapchainImages[i],
-            swapchainImageFormat,
-            vk::ImageAspectFlagBits::eColor
-        );
-    }
-
-    return swapchainImageViews;
-}
-
 vk::ShaderModule createShaderModule(
     const vk::Device& device, const std::vector<char>& code
 ) {
@@ -214,7 +137,7 @@ vk::ShaderModule createShaderModule(
 vk::RenderPass init_createRenderPass(
     const vk::Device& device,
     vk::Format swapchainImageFormat,
-    Texture depthTexture
+    vk::Format depthFormat
 ) {
     const vk::AttachmentDescription colorAttachment(
         {},
@@ -229,7 +152,7 @@ vk::RenderPass init_createRenderPass(
     );
     const vk::AttachmentDescription depthAttachment(
         {},
-        depthTexture.getFormat(),
+        depthFormat,
         vk::SampleCountFlagBits::e1,
         vk::AttachmentLoadOp::eClear,
         vk::AttachmentStoreOp::eDontCare,
@@ -433,44 +356,6 @@ init_createGraphicsPipeline(
         pipelineCreation.result, "Can't create graphics pipeline:"
     );
     return std::make_tuple(pipelineCreation.value, shaderModules);
-}
-
-std::vector<vk::Framebuffer> init_createFramebuffer(
-    const vk::Device& device,
-    const vk::RenderPass& renderPass,
-    const vk::Extent2D& swapchainExtent,
-    const std::vector<vk::ImageView>& swapchainImageViews,
-    const vk::ImageView& depthImageView
-) {
-    std::vector<vk::Framebuffer> swapchainFramebuffers(swapchainImageViews.size(
-    ));
-
-    for (size_t i = 0; i < swapchainImageViews.size(); i++) {
-        ASSERT(
-            swapchainImageViews[i],
-            "Swapchain image at location " << i << " is null"
-        );
-        const std::array<vk::ImageView, 2> attachments = {
-            swapchainImageViews[i], depthImageView
-        };
-        const vk::FramebufferCreateInfo framebufferCreateInfo(
-            {},
-            renderPass,
-            static_cast<uint32_t>(attachments.size()),
-            attachments.data(),
-            swapchainExtent.width,
-            swapchainExtent.height,
-            1
-        );
-        const vk::ResultValue<vk::Framebuffer> framebufferCreation =
-            device.createFramebuffer(framebufferCreateInfo);
-        VULKAN_ENSURE_SUCCESS(
-            framebufferCreation.result, "Can't create framebuffer:"
-        );
-        swapchainFramebuffers[i] = framebufferCreation.value;
-    }
-
-    return swapchainFramebuffers;
 }
 
 vk::CommandPool init_createCommandPool(
@@ -680,45 +565,6 @@ std::vector<vk::DescriptorSet> init_createDescriptorSets(
     return descriptorSetCreation.value;
 }
 
-Texture init_createDepthTexture(
-    const vk::Device& device,
-    const vk::PhysicalDevice& physicalDevice,
-    vk::CommandPool& commandPool,
-    vk::Queue& graphicsQueue,
-    vk::Extent2D swapchainExtent
-) {
-    std::optional<vk::Format> suitableFormat = Image::findSupportedFormat(
-        physicalDevice,
-        {vk::Format::eD32Sfloat,
-         vk::Format::eD32SfloatS8Uint,
-         vk::Format::eD24UnormS8Uint},
-        vk::ImageTiling::eOptimal,
-        vk::FormatFeatureFlagBits::eDepthStencilAttachment
-    );
-    ASSERT(
-        suitableFormat.has_value(),
-        "Can't find suitable format for depth buffer"
-    );
-    Texture depthTexture = Texture::create(
-        device,
-        physicalDevice,
-        suitableFormat.value(),
-        swapchainExtent.width,
-        swapchainExtent.height,
-        vk::ImageTiling::eOptimal,
-        vk::ImageUsageFlagBits::eDepthStencilAttachment,
-        vk::ImageAspectFlagBits::eDepth
-    );
-    depthTexture.transitionLayout(
-        device,
-        commandPool,
-        graphicsQueue,
-        vk::ImageLayout::eUndefined,
-        vk::ImageLayout::eDepthStencilAttachmentOptimal
-    );
-    return depthTexture;
-}
-
 }  // namespace
 
 GraphicsDeviceInterface::GraphicsDeviceInterface(
@@ -730,11 +576,6 @@ GraphicsDeviceInterface::GraphicsDeviceInterface(
     vk::PhysicalDevice physicalDevice,
     vk::Queue graphicsQueue,
     vk::Queue presentQueue,
-    vk::SwapchainKHR swapchain,
-    std::vector<vk::Image> swapchainImages,
-    std::vector<vk::ImageView> swapchainImageViews,
-    vk::Format swapchainImageFormat,
-    vk::Extent2D swapchainExtent,
     vk::RenderPass renderPass,
     vk::DescriptorSetLayout descriptorSetLayout,
     vk::DescriptorPool descriptorPool,
@@ -742,17 +583,14 @@ GraphicsDeviceInterface::GraphicsDeviceInterface(
     vk::PipelineLayout pipelineLayout,
     vk::Pipeline pipeline,
     std::vector<vk::ShaderModule> shaderModules,
-    std::vector<vk::Framebuffer> swapchainFramebuffers,
     vk::CommandPool commandPool,
     std::vector<vk::CommandBuffer> commandBuffers,
     std::vector<vk::Semaphore> isImageAvailable,
     std::vector<vk::Semaphore> isRenderingFinished,
     std::vector<vk::Fence> isRenderingInFlight,
     std::vector<UniformBuffer<ModelViewProjection>> uniformBuffers,
-    VertexBuffer vertexBuffer,
-    Texture texture,
-    Sampler sampler,
-    Texture depthTexture
+    Mesh mesh,
+    Sampler sampler
 ) :
     window(window),
     instance(instance),
@@ -762,11 +600,6 @@ GraphicsDeviceInterface::GraphicsDeviceInterface(
     physicalDevice(physicalDevice),
     graphicsQueue(graphicsQueue),
     presentQueue(presentQueue),
-    swapchain(swapchain),
-    swapchainImages(swapchainImages),
-    swapchainImageViews(swapchainImageViews),
-    swapchainImageFormat(swapchainImageFormat),
-    swapchainExtent(swapchainExtent),
     renderPass(renderPass),
     descriptorSetLayout(descriptorSetLayout),
     descriptorPool(descriptorPool),
@@ -774,17 +607,14 @@ GraphicsDeviceInterface::GraphicsDeviceInterface(
     pipelineLayout(pipelineLayout),
     pipeline(pipeline),
     shaderModules(shaderModules),
-    swapchainFramebuffers(swapchainFramebuffers),
     commandPool(commandPool),
     commandBuffers(commandBuffers),
     isImageAvailable(isImageAvailable),
     isRenderingFinished(isRenderingFinished),
     isRenderingInFlight(isRenderingInFlight),
     uniformBuffers(uniformBuffers),
-    vertexBuffer(vertexBuffer),
-    texture(texture),
+    mesh(mesh),
     sampler(sampler),
-    depthTexture(depthTexture),
     currentFrame(0) {}
 
 GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
@@ -800,72 +630,36 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
     SDL_Window* window = SDL_CreateWindow(
         "Liebeskind", 1024, 768, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE
     );
-    vk::Instance instance;
-    vk::DebugUtilsMessengerEXT debugUtilsMessenger;
-    std::tie(instance, debugUtilsMessenger) = init_createInstance();
-    vk::SurfaceKHR surface = init_createSurface(window, instance);
-    vk::PhysicalDevice physicalDevice =
+    const auto [instance, debugUtilsMessenger] = init_createInstance();
+    const vk::SurfaceKHR surface = init_createSurface(window, instance);
+    const vk::PhysicalDevice physicalDevice =
         init_createPhysicalDevice(instance, surface);
-    QueueFamilyIndices queueFamily =
+    const QueueFamilyIndices queueFamily =
         QueueFamilyIndices::findQueueFamilies(physicalDevice, surface);
-    vk::Device device = init_createLogicalDevice(physicalDevice, queueFamily);
-    vk::Queue graphicsQueue =
+    const vk::Device device =
+        init_createLogicalDevice(physicalDevice, queueFamily);
+    const vk::Queue graphicsQueue =
         device.getQueue(queueFamily.graphicsFamily.value(), 0);
-    vk::Queue presentQueue =
+    const vk::Queue presentQueue =
         device.getQueue(queueFamily.presentFamily.value(), 0);
-    {
-        LLOG_INFO << "Available Extensions:";
-        const auto instanceExtensionProps =
-            vk::enumerateInstanceExtensionProperties();
-        VULKAN_ENSURE_SUCCESS(
-            instanceExtensionProps.result,
-            "Can't get instance extension properties"
-        );
-
-        for (const auto& extension : instanceExtensionProps.value)
-            LLOG_INFO << "\t" << extension.extensionName;
-    }
-
-    vk::SwapchainKHR swapchain;
-    vk::Format swapchainImageFormat;
-    vk::Extent2D swapchainExtent;
-    std::tie(swapchain, swapchainImageFormat, swapchainExtent) =
-        init_createSwapchain(
-            window, physicalDevice, device, surface, queueFamily
-        );
-    LLOG_INFO << "Swapchain created with format "
-              << to_string(swapchainImageFormat) << " and extent "
-              << swapchainExtent.width << " x " << swapchainExtent.height;
-    const auto swapchainImagesGet = device.getSwapchainImagesKHR(swapchain);
-    VULKAN_ENSURE_SUCCESS(
-        swapchainImagesGet.result, "Can't get swapchain images:"
-    );
-    std::vector<vk::Image> swapchainImages = swapchainImagesGet.value;
-    std::vector<vk::ImageView> swapchainImageViews =
-        init_createImageViews(device, swapchainImages, swapchainImageFormat);
-    LLOG_INFO << "Created swapchain images and image views";
-    vk::CommandPool commandPool = init_createCommandPool(device, queueFamily);
-    const Texture depthTexture = init_createDepthTexture(
-        device, physicalDevice, commandPool, graphicsQueue, swapchainExtent
-    );
-
-    vk::DescriptorSetLayout descriptorSetLayout =
+    const vk::CommandPool commandPool =
+        init_createCommandPool(device, queueFamily);
+    const vk::DescriptorSetLayout descriptorSetLayout =
         init_createDescriptorSetLayout(device);
-    std::vector<UniformBuffer<ModelViewProjection>> uniformBuffers =
+    const std::vector<UniformBuffer<ModelViewProjection>> uniformBuffers =
         init_createUniformBuffers(device, physicalDevice, MAX_FRAMES_IN_FLIGHT);
-    vk::DescriptorPool descriptorPool = init_createDescriptorPool(device);
-    VertexBuffer vertexBuffer = VertexBuffer::create(
-        device, physicalDevice, commandPool, graphicsQueue
-    );
-    std::vector<vk::CommandBuffer> commandBuffers =
+    const vk::DescriptorPool descriptorPool = init_createDescriptorPool(device);
+    const std::vector<vk::CommandBuffer> commandBuffers =
         init_createCommandBuffers(device, commandPool, MAX_FRAMES_IN_FLIGHT);
     LLOG_INFO << "Created command pool and buffers";
-    const Texture texture = Texture::load(
-        "textures/texture.jpg",
+
+    const Mesh mesh = Mesh::load(
         device,
         physicalDevice,
         commandPool,
-        graphicsQueue
+        graphicsQueue,
+        "models/sword.obj",
+        "textures/swordAlbedo.jpg"
     );
     const Sampler sampler = Sampler::create(device, physicalDevice);
     const std::vector<vk::DescriptorSet> descriptorSets =
@@ -875,35 +669,27 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
             descriptorSetLayout,
             uniformBuffers,
             MAX_FRAMES_IN_FLIGHT,
-            texture,
+            mesh.albedo,
             sampler
         );
+    const vk::SurfaceFormatKHR swapchainColorFormat =
+        Swapchain::getSuitableColorAttachmentFormat(physicalDevice, surface);
     LLOG_INFO << "Created descriptor pool and sets";
-    vk::PipelineLayout pipelineLayout =
+    const vk::PipelineLayout pipelineLayout =
         init_createPipelineLayout(device, descriptorSetLayout);
-    vk::RenderPass renderPass =
-        init_createRenderPass(device, swapchainImageFormat, depthTexture);
-    vk::Pipeline pipeline;
-    std::vector<vk::ShaderModule> shaderModules;
-    std::tie(pipeline, shaderModules) =
+    const vk::RenderPass renderPass = init_createRenderPass(
+        device,
+        swapchainColorFormat.format,
+        Swapchain::getSuitableDepthAttachmentFormat(physicalDevice)
+    );
+    const auto [pipeline, shaderModules] =
         init_createGraphicsPipeline(device, pipelineLayout, renderPass);
     LLOG_INFO << "Created pipeline layout, renderpass, and pipeline";
-    std::vector<vk::Framebuffer> swapchainFramebuffers = init_createFramebuffer(
-        device,
-        renderPass,
-        swapchainExtent,
-        swapchainImageViews,
-        depthTexture.imageView
-    );
-    LLOG_INFO << "Created framebuffer";
-    std::vector<vk::Semaphore> isImageAvailable;
-    std::vector<vk::Semaphore> isRenderingFinished;
-    std::vector<vk::Fence> isRenderingInFlight;
-    std::tie(isImageAvailable, isRenderingFinished, isRenderingInFlight) =
+    const auto [isImageAvailable, isRenderingFinished, isRenderingInFlight] =
         init_createSyncObjects(device, MAX_FRAMES_IN_FLIGHT);
     LLOG_INFO << "Created semaphore and fences";
 
-    return GraphicsDeviceInterface(
+    GraphicsDeviceInterface deviceInterface(
         window,
         instance,
         debugUtilsMessenger,
@@ -912,11 +698,6 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
         physicalDevice,
         graphicsQueue,
         presentQueue,
-        swapchain,
-        swapchainImages,
-        swapchainImageViews,
-        swapchainImageFormat,
-        swapchainExtent,
         renderPass,
         descriptorSetLayout,
         descriptorPool,
@@ -924,18 +705,19 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
         pipelineLayout,
         pipeline,
         shaderModules,
-        swapchainFramebuffers,
         commandPool,
         commandBuffers,
         isImageAvailable,
         isRenderingFinished,
         isRenderingInFlight,
         uniformBuffers,
-        vertexBuffer,
-        texture,
-        sampler,
-        depthTexture
+        mesh,
+        sampler
     );
+
+    deviceInterface.swapchain = deviceInterface.createSwapchain();
+
+    return deviceInterface;
 }
 
 GraphicsDeviceInterface::~GraphicsDeviceInterface() {
@@ -957,9 +739,8 @@ GraphicsDeviceInterface::~GraphicsDeviceInterface() {
     LLOG_INFO << "Destroyed swapchain";
     sampler.destroyBy(device);
     LLOG_INFO << "Destroyed sampler";
-    texture.destroyBy(device);
-    LLOG_INFO << "Destroyed texture";
-    vertexBuffer.destroyBy(device);
+    mesh.destroyBy(device);
+    LLOG_INFO << "Destroyed mesh";
     device.destroyCommandPool(commandPool);
     LLOG_INFO << "Destroyed command pool";
     device.destroyDescriptorSetLayout(descriptorSetLayout);
@@ -994,6 +775,7 @@ GraphicsDeviceInterface::~GraphicsDeviceInterface() {
 void GraphicsDeviceInterface::recordCommandBuffer(
     vk::CommandBuffer buffer, uint32_t imageIndex
 ) {
+    ASSERT(swapchain, "Attempt to record command buffer");
     vk::CommandBufferBeginInfo beginInfo({}, nullptr);
     VULKAN_ENSURE_SUCCESS_EXPR(
         buffer.begin(beginInfo), "Can't begin recording command buffer:"
@@ -1004,19 +786,19 @@ void GraphicsDeviceInterface::recordCommandBuffer(
     };
     vk::RenderPassBeginInfo renderPassInfo(
         renderPass,
-        swapchainFramebuffers[imageIndex],
-        vk::Rect2D(vk::Offset2D{0, 0}, swapchainExtent),
+        swapchain->framebuffers[imageIndex],
+        vk::Rect2D(vk::Offset2D{0, 0}, swapchain->extent),
         static_cast<uint32_t>(clearColors.size()),
         clearColors.data()
     );
     buffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
     buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
-    vertexBuffer.bind(buffer);
+    mesh.bind(buffer);
     vk::Viewport viewport(
         0.0f,
         0.0f,
-        static_cast<float>(swapchainExtent.width),
-        static_cast<float>(swapchainExtent.height),
+        static_cast<float>(swapchain->extent.width),
+        static_cast<float>(swapchain->extent.height),
         0.0f,
         1.0f
     );
@@ -1030,9 +812,9 @@ void GraphicsDeviceInterface::recordCommandBuffer(
         nullptr
     );
     buffer.setViewport(0, 1, &viewport);
-    vk::Rect2D scissor(vk::Offset2D(0.0f, 0.0f), swapchainExtent);
+    vk::Rect2D scissor(vk::Offset2D(0.0f, 0.0f), swapchain->extent);
     buffer.setScissor(0, 1, &scissor);
-    vertexBuffer.draw(buffer);
+    mesh.draw(buffer);
     buffer.endRenderPass();
     VULKAN_ENSURE_SUCCESS_EXPR(
         buffer.end(), "Can't end recording command buffer:"
@@ -1040,6 +822,8 @@ void GraphicsDeviceInterface::recordCommandBuffer(
 }
 
 bool GraphicsDeviceInterface::drawFrame() {
+    ASSERT(swapchain, "Attempt to draw frame without a swapchain");
+
     const uint64_t no_time_limit = std::numeric_limits<uint64_t>::max();
     VULKAN_ENSURE_SUCCESS_EXPR(
         device.waitForFences(
@@ -1048,7 +832,10 @@ bool GraphicsDeviceInterface::drawFrame() {
         "Can't wait for previous frame rendering:"
     );
     const vk::ResultValue<uint32_t> imageIndex = device.acquireNextImageKHR(
-        swapchain, no_time_limit, isImageAvailable[currentFrame], nullptr
+        swapchain->swapchain,
+        no_time_limit,
+        isImageAvailable[currentFrame],
+        nullptr
     );
 
     switch (imageIndex.result) {
@@ -1089,7 +876,7 @@ bool GraphicsDeviceInterface::drawFrame() {
         1,
         &isRenderingFinished[currentFrame],
         1,
-        &swapchain,
+        &swapchain->swapchain,
         &imageIndex.value,
         nullptr
     );
@@ -1123,6 +910,7 @@ ModelViewProjection GraphicsDeviceInterface::getCurrentFrameMVP() const {
                      currentTime - startTime
     )
                      .count();
+    ASSERT(swapchain, "No swapchain exists");
 
     ModelViewProjection mvp{
         .model = glm::rotate(
@@ -1131,15 +919,15 @@ ModelViewProjection GraphicsDeviceInterface::getCurrentFrameMVP() const {
             glm::vec3(0.0f, 0.0f, 1.0f)
         ),
         .view = glm::lookAt(
-            glm::vec3(2.0f, 2.0f, 2.0f),
+            glm::vec3(10.0f, 10.0f, 10.0f),
             glm::vec3(0.0f, 0.0f, 0.0f),
             glm::vec3(0.0f, 0.0f, 1.0f)
         ),
         .proj = glm::perspective(
             glm::radians(45.0f),
-            swapchainExtent.width / (float)swapchainExtent.height,
+            swapchain->extent.width / (float)swapchain->extent.height,
             0.1f,
-            10.0f
+            45.0f
         )
     };
     // accounts for difference between openGL and Vulkan clip space
@@ -1152,42 +940,18 @@ void GraphicsDeviceInterface::recreateSwapchain() {
     VULKAN_ENSURE_SUCCESS_EXPR(
         device.waitIdle(), "Can't wait for device to idle:"
     );
-    cleanupSwapchain();
-    QueueFamilyIndices queueFamily =
-        QueueFamilyIndices::findQueueFamilies(physicalDevice, surface);
-    std::tie(swapchain, swapchainImageFormat, swapchainExtent) =
-        init_createSwapchain(
-            window, physicalDevice, device, surface, queueFamily
-        );
-    const auto swapchainImagesGet = device.getSwapchainImagesKHR(swapchain);
-    VULKAN_ENSURE_SUCCESS(
-        swapchainImagesGet.result, "Can't get swapchain images:"
+    ASSERT(
+        !swapchain.has_value(),
+        "Trying to recreate swapchain before cleaning up the previous swapchain"
     );
-    swapchainImages = swapchainImagesGet.value;
-    swapchainImageViews =
-        init_createImageViews(device, swapchainImages, swapchainImageFormat);
-    depthTexture = init_createDepthTexture(
-        device, physicalDevice, commandPool, graphicsQueue, swapchainExtent
-    );
-    swapchainFramebuffers = init_createFramebuffer(
-        device,
-        renderPass,
-        swapchainExtent,
-        swapchainImageViews,
-        depthTexture.imageView
-    );
+    swapchain = createSwapchain();
     LLOG_INFO << "Swapchain recreated";
 }
 
 void GraphicsDeviceInterface::cleanupSwapchain() {
-    for (const vk::Framebuffer& framebuffer : swapchainFramebuffers)
-        device.destroyFramebuffer(framebuffer);
-
-    for (const vk::ImageView& imageView : swapchainImageViews)
-        device.destroyImageView(imageView);
-
-    device.destroySwapchainKHR(std::move(swapchain));
-    depthTexture.destroyBy(device);
+    ASSERT(swapchain.has_value(), "Swapchain does not exist to clean up");
+    destroy(swapchain.value());
+    swapchain = std::nullopt;
 }
 
 void GraphicsDeviceInterface::handleWindowResize(

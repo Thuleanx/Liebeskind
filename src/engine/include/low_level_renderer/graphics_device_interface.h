@@ -1,15 +1,17 @@
 #pragma once
 
+#include <optional>
 #include <vulkan/vulkan.hpp>
 #include <SDL3/SDL.H>
 #include <SDL3/SDL_vulkan.h>
+
 #include <vector>
 
-#include "low_level_renderer/texture.h"
+#include "low_level_renderer/mesh.h"
 #include "low_level_renderer/sampler.h"
+#include "low_level_renderer/swapchain_data.h"
 #include "low_level_renderer/transformation.h"
 #include "low_level_renderer/uniform_buffer.h"
-#include "low_level_renderer/vertex_buffer.h"
 
 constexpr char APP_SHORT_NAME[] = "Game";
 constexpr char ENGINE_NAME[] = "Liebeskind";
@@ -17,12 +19,16 @@ constexpr uint32_t MAX_FRAMES_IN_FLIGHT = 2;
 
 class GraphicsDeviceInterface {
    public:
-       [[nodiscard]]
-       Sampler create();
+    [[nodiscard]]
+    Sampler create();
 
    public:
     static GraphicsDeviceInterface createGraphicsDevice();
     ~GraphicsDeviceInterface();
+
+    // This makes the object move only (non copyable)
+    GraphicsDeviceInterface(GraphicsDeviceInterface&&) = default;
+    GraphicsDeviceInterface& operator=(GraphicsDeviceInterface&&) = default;
 
     GraphicsDeviceInterface() = delete;
     GraphicsDeviceInterface(const GraphicsDeviceInterface&) = delete;
@@ -43,12 +49,6 @@ class GraphicsDeviceInterface {
     vk::PhysicalDevice physicalDevice;
     vk::Queue graphicsQueue, presentQueue;
 
-    vk::SwapchainKHR swapchain;
-    std::vector<vk::Image> swapchainImages;
-    std::vector<vk::ImageView> swapchainImageViews;
-    vk::Format swapchainImageFormat;
-    vk::Extent2D swapchainExtent;
-
     vk::RenderPass renderPass;
     vk::DescriptorSetLayout descriptorSetLayout;
     vk::DescriptorPool descriptorPool;
@@ -56,8 +56,9 @@ class GraphicsDeviceInterface {
     vk::PipelineLayout pipelineLayout;
     vk::Pipeline pipeline;
 
+    std::optional<SwapchainData> swapchain;
+
     std::vector<vk::ShaderModule> shaderModules;
-    std::vector<vk::Framebuffer> swapchainFramebuffers;
 
     vk::CommandPool commandPool;
     std::vector<vk::CommandBuffer> commandBuffers;
@@ -67,10 +68,8 @@ class GraphicsDeviceInterface {
     std::vector<vk::Fence> isRenderingInFlight;
 
     std::vector<UniformBuffer<ModelViewProjection>> uniformBuffers;
-    VertexBuffer vertexBuffer;
-    Texture texture;
+    Mesh mesh;
     Sampler sampler;
-    Texture depthTexture;
     uint32_t currentFrame = 0;
 
    private:
@@ -83,11 +82,6 @@ class GraphicsDeviceInterface {
         vk::PhysicalDevice physicalDevice,
         vk::Queue graphicsQueue,
         vk::Queue presentQueue,
-        vk::SwapchainKHR swapchain,
-        std::vector<vk::Image> swapchainImages,
-        std::vector<vk::ImageView> swapchainImageViews,
-        vk::Format swapchainImageFormat,
-        vk::Extent2D swapchainExtent,
         vk::RenderPass renderPass,
         vk::DescriptorSetLayout descriptorSetLayout,
         vk::DescriptorPool descriptorPool,
@@ -95,17 +89,14 @@ class GraphicsDeviceInterface {
         vk::PipelineLayout pipelineLayout,
         vk::Pipeline pipeline,
         std::vector<vk::ShaderModule> shaderModules,
-        std::vector<vk::Framebuffer> swapchainFramebuffers,
         vk::CommandPool commandPool,
         std::vector<vk::CommandBuffer> commandBuffers,
         std::vector<vk::Semaphore> isImageAvailable,
         std::vector<vk::Semaphore> isRenderingFinished,
         std::vector<vk::Fence> isRenderingInFlight,
         std::vector<UniformBuffer<ModelViewProjection>> uniformBuffers,
-        VertexBuffer vertexBuffer,
-        Texture texture,
-        Sampler sampler,
-        Texture depthTexture
+        Mesh mesh,
+        Sampler sampler
     );
 
     void recordCommandBuffer(vk::CommandBuffer buffer, uint32_t imageIndex);
@@ -113,4 +104,9 @@ class GraphicsDeviceInterface {
     void cleanupSwapchain();
     void handleWindowResize(int width, int height);
     ModelViewProjection getCurrentFrameMVP() const;
+
+   public:
+    // Constructors
+    SwapchainData createSwapchain() const;
+    void destroy(SwapchainData& swapchainData) const;
 };

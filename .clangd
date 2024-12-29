@@ -1,2 +1,2 @@
 CompileFlags:
-  Add: [-DVULKAN_HPP_NO_EXCEPTIONS, -std=c++20]
+  Add: [-DVULKAN_HPP_NO_EXCEPTIONS, -std=c++20, -DGLM_ENABLE_EXPERIMENTAL]

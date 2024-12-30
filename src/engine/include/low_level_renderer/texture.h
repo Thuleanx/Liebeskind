@@ -38,6 +38,7 @@ class Texture {
     vk::DescriptorImageInfo getDescriptorImageInfo(const Sampler& sampler
     ) const;
 
+    vk::ImageView getImageView() const;
     vk::Format getFormat() const;
     void destroyBy(const vk::Device& device);
 

@@ -13,6 +13,9 @@ class UniformBuffer {
     vk::DescriptorBufferInfo getDescriptorBufferInfo() const;
     void update(const T& data);
     void destroyBy(const vk::Device& device);
+
+    inline vk::Buffer getBuffer() const { return buffer; }
+
    private:
     UniformBuffer(
         vk::Buffer buffer, vk::DeviceMemory deviceMemory, void* mappedMemory
@@ -22,4 +25,6 @@ class UniformBuffer {
     vk::Buffer buffer;
     vk::DeviceMemory memory;
     void* mappedMemory;
+
+    friend class GraphicsDeviceInterface;
 };

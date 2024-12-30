@@ -9,6 +9,7 @@
 
 #include "file_system/file.h"
 #include "logger/assert.h"
+#include "low_level_renderer/descriptor_write_buffer.h"
 #include "low_level_renderer/vertex_buffer.h"
 #include "private/graphics_device_helper.h"
 #include "private/helpful_defines.h"
@@ -536,35 +537,22 @@ std::vector<vk::DescriptorSet> init_createDescriptorSets(
     const std::vector<vk::DescriptorSet> descriptorSets =
         descriptorAllocator.allocate(device, setLayout, numberOfSets);
     for (size_t i = 0; i < numberOfSets; i++) {
-        const vk::DescriptorBufferInfo bufferInfo =
-            uniformBuffers[i].getDescriptorBufferInfo();
-        const vk::DescriptorImageInfo imageInfo =
-            texture.getDescriptorImageInfo(sampler);
-        const std::array<vk::WriteDescriptorSet, 2> writes = {
-            vk::WriteDescriptorSet(
-                descriptorSets[i],
-                0,
-                0,
-                1,
-                vk::DescriptorType::eUniformBuffer,
-                nullptr,
-                &bufferInfo,
-                nullptr
-            ),
-            vk::WriteDescriptorSet(
-                descriptorSets[i],
-                1,
-                0,
-                1,
-                vk::DescriptorType::eCombinedImageSampler,
-                &imageInfo,
-                nullptr,
-                nullptr
-            ),
-        };
-        device.updateDescriptorSets(
-            static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr
+        DescriptorWriteBuffer writeBuffer;
+        writeBuffer.writeBuffer(
+            0,
+            uniformBuffers[i].getBuffer(),
+            vk::DescriptorType::eUniformBuffer,
+            0,
+            sizeof(ModelViewProjection)
         );
+        writeBuffer.writeImage(
+            1,
+            texture.getImageView(),
+            vk::DescriptorType::eCombinedImageSampler,
+            sampler.getSampler(),
+            vk::ImageLayout::eShaderReadOnlyOptimal
+        );
+        writeBuffer.batch_write(device, descriptorSets[i]);
     }
     return descriptorSets;
 }

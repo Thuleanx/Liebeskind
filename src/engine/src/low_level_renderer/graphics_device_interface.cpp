@@ -488,6 +488,14 @@ std::vector<UniformBuffer<ModelViewProjection>> init_createUniformBuffers(
     return result;
 }
 
+DescriptorAllocator init_createDescriptorAllocator(const vk::Device& device) {
+    std::vector<vk::DescriptorPoolSize> poolSizes = {
+        vk::DescriptorPoolSize(vk::DescriptorType::eUniformBuffer, 1),
+        vk::DescriptorPoolSize(vk::DescriptorType::eCombinedImageSampler, 1),
+    };
+    return DescriptorAllocator::create(device, poolSizes, MAX_FRAMES_IN_FLIGHT);
+}
+
 vk::DescriptorPool init_createDescriptorPool(const vk::Device& device) {
     const std::array<vk::DescriptorPoolSize, 2> poolSizes = {
         vk::DescriptorPoolSize(
@@ -515,7 +523,7 @@ vk::DescriptorPool init_createDescriptorPool(const vk::Device& device) {
 
 std::vector<vk::DescriptorSet> init_createDescriptorSets(
     const vk::Device& device,
-    const vk::DescriptorPool& descriptorPool,
+    DescriptorAllocator& descriptorAllocator,
     const vk::DescriptorSetLayout& setLayout,
     const std::vector<UniformBuffer<ModelViewProjection>>& uniformBuffers,
     uint32_t numberOfSets,
@@ -525,15 +533,8 @@ std::vector<vk::DescriptorSet> init_createDescriptorSets(
     const std::vector<vk::DescriptorSetLayout> setLayouts(
         MAX_FRAMES_IN_FLIGHT, setLayout
     );
-    const vk::DescriptorSetAllocateInfo allocateInfo(
-        descriptorPool, numberOfSets, setLayouts.data()
-    );
-    const vk::ResultValue<std::vector<vk::DescriptorSet>>
-        descriptorSetCreation = device.allocateDescriptorSets(allocateInfo);
-    VULKAN_ENSURE_SUCCESS(
-        descriptorSetCreation.result, "Can't create descriptor sets"
-    );
-    std::vector<vk::DescriptorSet> descriptorSets = descriptorSetCreation.value;
+    const std::vector<vk::DescriptorSet> descriptorSets =
+        descriptorAllocator.allocate(device, setLayout, numberOfSets);
     for (size_t i = 0; i < numberOfSets; i++) {
         const vk::DescriptorBufferInfo bufferInfo =
             uniformBuffers[i].getDescriptorBufferInfo();
@@ -565,7 +566,7 @@ std::vector<vk::DescriptorSet> init_createDescriptorSets(
             static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr
         );
     }
-    return descriptorSetCreation.value;
+    return descriptorSets;
 }
 
 }  // namespace
@@ -581,7 +582,7 @@ GraphicsDeviceInterface::GraphicsDeviceInterface(
     vk::Queue presentQueue,
     vk::RenderPass renderPass,
     vk::DescriptorSetLayout descriptorSetLayout,
-    vk::DescriptorPool descriptorPool,
+    DescriptorAllocator descriptorAllocator,
     std::vector<vk::DescriptorSet> descriptorSets,
     vk::PipelineLayout pipelineLayout,
     vk::Pipeline pipeline,
@@ -605,7 +606,7 @@ GraphicsDeviceInterface::GraphicsDeviceInterface(
     presentQueue(presentQueue),
     renderPass(renderPass),
     descriptorSetLayout(descriptorSetLayout),
-    descriptorPool(descriptorPool),
+    descriptorAllocator(descriptorAllocator),
     descriptorSets(descriptorSets),
     pipelineLayout(pipelineLayout),
     pipeline(pipeline),
@@ -651,7 +652,8 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
         init_createDescriptorSetLayout(device);
     const std::vector<UniformBuffer<ModelViewProjection>> uniformBuffers =
         init_createUniformBuffers(device, physicalDevice, MAX_FRAMES_IN_FLIGHT);
-    const vk::DescriptorPool descriptorPool = init_createDescriptorPool(device);
+    DescriptorAllocator descriptorAllocator =
+        init_createDescriptorAllocator(device);
     const std::vector<vk::CommandBuffer> commandBuffers =
         init_createCommandBuffers(device, commandPool, MAX_FRAMES_IN_FLIGHT);
     LLOG_INFO << "Created command pool and buffers";
@@ -668,7 +670,7 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
     const std::vector<vk::DescriptorSet> descriptorSets =
         init_createDescriptorSets(
             device,
-            descriptorPool,
+            descriptorAllocator,
             descriptorSetLayout,
             uniformBuffers,
             MAX_FRAMES_IN_FLIGHT,
@@ -703,7 +705,7 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
         presentQueue,
         renderPass,
         descriptorSetLayout,
-        descriptorPool,
+        descriptorAllocator,
         descriptorSets,
         pipelineLayout,
         pipeline,
@@ -747,8 +749,7 @@ GraphicsDeviceInterface::~GraphicsDeviceInterface() {
     device.destroyCommandPool(commandPool);
     LLOG_INFO << "Destroyed command pool";
     device.destroyDescriptorSetLayout(descriptorSetLayout);
-    device.destroyDescriptorPool(descriptorPool);
-    LLOG_INFO << "Destroyed descriptor pool";
+    descriptorAllocator.destroyBy(device);
     device.destroyPipelineLayout(pipelineLayout);
     device.destroyRenderPass(renderPass);
 

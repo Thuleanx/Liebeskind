@@ -1,12 +1,13 @@
 #pragma once
 
-#include <optional>
 #include <vulkan/vulkan.hpp>
 #include <SDL3/SDL.H>
 #include <SDL3/SDL_vulkan.h>
 
+#include <optional>
 #include <vector>
 
+#include "low_level_renderer/descriptor_allocator.h"
 #include "low_level_renderer/mesh.h"
 #include "low_level_renderer/sampler.h"
 #include "low_level_renderer/swapchain_data.h"
@@ -18,10 +19,6 @@ constexpr char ENGINE_NAME[] = "Liebeskind";
 constexpr uint32_t MAX_FRAMES_IN_FLIGHT = 2;
 
 class GraphicsDeviceInterface {
-   public:
-    [[nodiscard]]
-    Sampler create();
-
    public:
     static GraphicsDeviceInterface createGraphicsDevice();
     ~GraphicsDeviceInterface();
@@ -51,7 +48,7 @@ class GraphicsDeviceInterface {
 
     vk::RenderPass renderPass;
     vk::DescriptorSetLayout descriptorSetLayout;
-    vk::DescriptorPool descriptorPool;
+    DescriptorAllocator descriptorAllocator;
     std::vector<vk::DescriptorSet> descriptorSets;
     vk::PipelineLayout pipelineLayout;
     vk::Pipeline pipeline;
@@ -84,7 +81,7 @@ class GraphicsDeviceInterface {
         vk::Queue presentQueue,
         vk::RenderPass renderPass,
         vk::DescriptorSetLayout descriptorSetLayout,
-        vk::DescriptorPool descriptorPool,
+        DescriptorAllocator descriptorAllocator,
         std::vector<vk::DescriptorSet> descriptorSets,
         vk::PipelineLayout pipelineLayout,
         vk::Pipeline pipeline,
@@ -107,6 +104,7 @@ class GraphicsDeviceInterface {
 
    public:
     // Constructors
+    [[nodiscard]]
     SwapchainData createSwapchain() const;
     void destroy(SwapchainData& swapchainData) const;
 };

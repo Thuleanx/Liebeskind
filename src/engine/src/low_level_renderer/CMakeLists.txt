@@ -1,5 +1,6 @@
 set(SRC 
     graphics_device_interface.cpp 
+    descriptor_allocator.cpp 
     mesh.cpp
     swapchain_data.cpp
     vertex_buffer.cpp

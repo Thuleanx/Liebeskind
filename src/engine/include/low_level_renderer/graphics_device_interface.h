@@ -19,6 +19,13 @@ constexpr char ENGINE_NAME[] = "Liebeskind";
 constexpr uint32_t MAX_FRAMES_IN_FLIGHT = 2;
 
 class GraphicsDeviceInterface {
+    struct FrameData {
+        vk::CommandBuffer drawCommandBuffer;
+        vk::Semaphore isImageAvailable;
+        vk::Semaphore isRenderingFinished;
+        vk::Fence isRenderingInFlight;
+    };
+
    public:
     static GraphicsDeviceInterface createGraphicsDevice();
     ~GraphicsDeviceInterface();
@@ -36,6 +43,8 @@ class GraphicsDeviceInterface {
     void handleEvent(const SDL_Event& sdlEvent);
 
    private:
+    std::array<FrameData, MAX_FRAMES_IN_FLIGHT> frameDatas;
+
     SDL_Window* window;
 
     vk::Instance instance;
@@ -58,11 +67,6 @@ class GraphicsDeviceInterface {
     std::vector<vk::ShaderModule> shaderModules;
 
     vk::CommandPool commandPool;
-    std::vector<vk::CommandBuffer> commandBuffers;
-
-    std::vector<vk::Semaphore> isImageAvailable;
-    std::vector<vk::Semaphore> isRenderingFinished;
-    std::vector<vk::Fence> isRenderingInFlight;
 
     std::vector<UniformBuffer<ModelViewProjection>> uniformBuffers;
     Mesh mesh;
@@ -71,6 +75,7 @@ class GraphicsDeviceInterface {
 
    private:
     GraphicsDeviceInterface(
+        std::array<FrameData, MAX_FRAMES_IN_FLIGHT> frameDatas,
         SDL_Window* window,
         vk::Instance instance,
         vk::DebugUtilsMessengerEXT debugUtilsMessenger,
@@ -87,10 +92,6 @@ class GraphicsDeviceInterface {
         vk::Pipeline pipeline,
         std::vector<vk::ShaderModule> shaderModules,
         vk::CommandPool commandPool,
-        std::vector<vk::CommandBuffer> commandBuffers,
-        std::vector<vk::Semaphore> isImageAvailable,
-        std::vector<vk::Semaphore> isRenderingFinished,
-        std::vector<vk::Fence> isRenderingInFlight,
         std::vector<UniformBuffer<ModelViewProjection>> uniformBuffers,
         Mesh mesh,
         Sampler sampler

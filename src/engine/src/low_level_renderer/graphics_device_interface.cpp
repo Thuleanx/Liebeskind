@@ -497,31 +497,6 @@ DescriptorAllocator init_createDescriptorAllocator(const vk::Device& device) {
     return DescriptorAllocator::create(device, poolSizes, MAX_FRAMES_IN_FLIGHT);
 }
 
-vk::DescriptorPool init_createDescriptorPool(const vk::Device& device) {
-    const std::array<vk::DescriptorPoolSize, 2> poolSizes = {
-        vk::DescriptorPoolSize(
-            vk::DescriptorType::eUniformBuffer,
-            static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT)
-        ),
-        vk::DescriptorPoolSize(
-            vk::DescriptorType::eCombinedImageSampler,
-            static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT)
-        ),
-    };
-    const vk::DescriptorPoolCreateInfo poolInfo(
-        {},
-        static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT),
-        static_cast<uint32_t>(poolSizes.size()),
-        poolSizes.data()
-    );
-    const vk::ResultValue<vk::DescriptorPool> descriptorPoolCreation =
-        device.createDescriptorPool(poolInfo);
-    VULKAN_ENSURE_SUCCESS(
-        descriptorPoolCreation.result, "Can't create descriptor pool:"
-    );
-    return descriptorPoolCreation.value;
-}
-
 std::vector<vk::DescriptorSet> init_createDescriptorSets(
     const vk::Device& device,
     DescriptorAllocator& descriptorAllocator,
@@ -560,6 +535,7 @@ std::vector<vk::DescriptorSet> init_createDescriptorSets(
 }  // namespace
 
 GraphicsDeviceInterface::GraphicsDeviceInterface(
+    std::array<FrameData, MAX_FRAMES_IN_FLIGHT> frameDatas,
     SDL_Window* window,
     vk::Instance instance,
     vk::DebugUtilsMessengerEXT debugUtilsMessenger,
@@ -576,14 +552,11 @@ GraphicsDeviceInterface::GraphicsDeviceInterface(
     vk::Pipeline pipeline,
     std::vector<vk::ShaderModule> shaderModules,
     vk::CommandPool commandPool,
-    std::vector<vk::CommandBuffer> commandBuffers,
-    std::vector<vk::Semaphore> isImageAvailable,
-    std::vector<vk::Semaphore> isRenderingFinished,
-    std::vector<vk::Fence> isRenderingInFlight,
     std::vector<UniformBuffer<ModelViewProjection>> uniformBuffers,
     Mesh mesh,
     Sampler sampler
 ) :
+    frameDatas(frameDatas),
     window(window),
     instance(instance),
     debugUtilsMessenger(debugUtilsMessenger),
@@ -600,10 +573,6 @@ GraphicsDeviceInterface::GraphicsDeviceInterface(
     pipeline(pipeline),
     shaderModules(shaderModules),
     commandPool(commandPool),
-    commandBuffers(commandBuffers),
-    isImageAvailable(isImageAvailable),
-    isRenderingFinished(isRenderingFinished),
-    isRenderingInFlight(isRenderingInFlight),
     uniformBuffers(uniformBuffers),
     mesh(mesh),
     sampler(sampler),
@@ -682,7 +651,18 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
         init_createSyncObjects(device, MAX_FRAMES_IN_FLIGHT);
     LLOG_INFO << "Created semaphore and fences";
 
+    std::array<FrameData, MAX_FRAMES_IN_FLIGHT> frameDatas;
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        frameDatas[i] = {
+            commandBuffers[i],
+            isImageAvailable[i],
+            isRenderingFinished[i],
+            isRenderingInFlight[i]
+        };
+    }
+
     GraphicsDeviceInterface deviceInterface(
+        frameDatas,
         window,
         instance,
         debugUtilsMessenger,
@@ -699,10 +679,6 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
         pipeline,
         shaderModules,
         commandPool,
-        commandBuffers,
-        isImageAvailable,
-        isRenderingFinished,
-        isRenderingInFlight,
         uniformBuffers,
         mesh,
         sampler
@@ -718,14 +694,12 @@ GraphicsDeviceInterface::~GraphicsDeviceInterface() {
         device.waitIdle(), "Can't wait for device idle:"
     );
 
-    for (const vk::Semaphore& semaphore : isImageAvailable)
-        device.destroySemaphore(semaphore);
+    for (const FrameData& frameData : frameDatas) {
+        device.destroySemaphore(frameData.isImageAvailable);
+        device.destroySemaphore(frameData.isRenderingFinished);
+        device.destroyFence(frameData.isRenderingInFlight);
+    }
 
-    for (const vk::Semaphore& semaphore : isRenderingFinished)
-        device.destroySemaphore(semaphore);
-
-    for (const vk::Fence& fence : isRenderingInFlight)
-        device.destroyFence(fence);
     LLOG_INFO << "Destroyed semaphore and fences";
 
     cleanupSwapchain();
@@ -827,14 +801,17 @@ bool GraphicsDeviceInterface::drawFrame() {
     const uint64_t no_time_limit = std::numeric_limits<uint64_t>::max();
     VULKAN_ENSURE_SUCCESS_EXPR(
         device.waitForFences(
-            1, &isRenderingInFlight[currentFrame], vk::True, no_time_limit
+            1,
+            &frameDatas[currentFrame].isRenderingInFlight,
+            vk::True,
+            no_time_limit
         ),
         "Can't wait for previous frame rendering:"
     );
     const vk::ResultValue<uint32_t> imageIndex = device.acquireNextImageKHR(
         swapchain->swapchain,
         no_time_limit,
-        isImageAvailable[currentFrame],
+        frameDatas[currentFrame].isImageAvailable,
         nullptr
     );
 
@@ -851,30 +828,34 @@ bool GraphicsDeviceInterface::drawFrame() {
     }
 
     VULKAN_ENSURE_SUCCESS_EXPR(
-        device.resetFences(1, &isRenderingInFlight[currentFrame]),
+        device.resetFences(1, &frameDatas[currentFrame].isRenderingInFlight),
         "Can't reset fence for render:"
     );
-    commandBuffers[currentFrame].reset();
+    vk::CommandBuffer commandBuffer =
+        frameDatas[currentFrame].drawCommandBuffer;
+    commandBuffer.reset();
     uniformBuffers[currentFrame].update(getCurrentFrameMVP());
-    recordCommandBuffer(commandBuffers[currentFrame], imageIndex.value);
+    recordCommandBuffer(commandBuffer, imageIndex.value);
     const vk::PipelineStageFlags waitStage =
         vk::PipelineStageFlagBits::eColorAttachmentOutput;
     const vk::SubmitInfo submitInfo(
         1,
-        &isImageAvailable[currentFrame],
+        &frameDatas[currentFrame].isImageAvailable,
         &waitStage,
         1,
-        &commandBuffers[currentFrame],
+        &frameDatas[currentFrame].drawCommandBuffer,
         1,
-        &isRenderingFinished[currentFrame]
+        &frameDatas[currentFrame].isRenderingFinished
     );
     VULKAN_ENSURE_SUCCESS_EXPR(
-        graphicsQueue.submit(1, &submitInfo, isRenderingInFlight[currentFrame]),
+        graphicsQueue.submit(
+            1, &submitInfo, frameDatas[currentFrame].isRenderingInFlight
+        ),
         "Can't submit graphics queue:"
     );
     vk::PresentInfoKHR presentInfo(
         1,
-        &isRenderingFinished[currentFrame],
+        &frameDatas[currentFrame].isRenderingFinished,
         1,
         &swapchain->swapchain,
         &imageIndex.value,

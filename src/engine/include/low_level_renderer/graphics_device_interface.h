@@ -8,10 +8,10 @@
 #include <vector>
 
 #include "low_level_renderer/descriptor_allocator.h"
+#include "low_level_renderer/gpu_scene_data.h"
 #include "low_level_renderer/mesh.h"
 #include "low_level_renderer/sampler.h"
 #include "low_level_renderer/swapchain_data.h"
-#include "low_level_renderer/transformation.h"
 #include "low_level_renderer/uniform_buffer.h"
 
 constexpr char APP_SHORT_NAME[] = "Game";
@@ -20,6 +20,7 @@ constexpr uint32_t MAX_FRAMES_IN_FLIGHT = 2;
 
 class GraphicsDeviceInterface {
     struct FrameData {
+        UniformBuffer<GPUSceneData> sceneDataBuffer;
         vk::CommandBuffer drawCommandBuffer;
         vk::Semaphore isImageAvailable;
         vk::Semaphore isRenderingFinished;
@@ -68,9 +69,10 @@ class GraphicsDeviceInterface {
 
     vk::CommandPool commandPool;
 
-    std::vector<UniformBuffer<ModelViewProjection>> uniformBuffers;
     Mesh mesh;
     Sampler sampler;
+
+    GPUSceneData gpuSceneData = {};
     uint32_t currentFrame = 0;
 
    private:
@@ -92,7 +94,6 @@ class GraphicsDeviceInterface {
         vk::Pipeline pipeline,
         std::vector<vk::ShaderModule> shaderModules,
         vk::CommandPool commandPool,
-        std::vector<UniformBuffer<ModelViewProjection>> uniformBuffers,
         Mesh mesh,
         Sampler sampler
     );
@@ -101,7 +102,6 @@ class GraphicsDeviceInterface {
     void recreateSwapchain();
     void cleanupSwapchain();
     void handleWindowResize(int width, int height);
-    ModelViewProjection getCurrentFrameMVP() const;
 
    public:
     // Constructors

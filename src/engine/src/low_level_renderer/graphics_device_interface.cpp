@@ -216,7 +216,7 @@ vk::PipelineLayout init_createPipelineLayout(
 ) {
     // We're pushing the transform to the vertex shader
     const vk::PushConstantRange pushConstantRange(
-        vk::ShaderStageFlagBits::eVertex, 0, sizeof(ModelViewProjection)
+        vk::ShaderStageFlagBits::eVertex, 0, sizeof(GPUPushConstants)
     );
     const vk::PipelineLayoutCreateInfo pipelineLayoutInfo(
         {}, 1, &descriptorSetLayout, 1, &pushConstantRange
@@ -446,7 +446,7 @@ vk::DescriptorSetLayout init_createDescriptorSetLayout(const vk::Device& device
         0,  // binding
         vk::DescriptorType::eUniformBuffer,
         1,  // descriptor count
-        vk::ShaderStageFlagBits::eVertex,
+        vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment,
         nullptr  // immutable sampler pointer
     );
     const vk::DescriptorSetLayoutBinding textureSamplerBinding(
@@ -472,18 +472,17 @@ vk::DescriptorSetLayout init_createDescriptorSetLayout(const vk::Device& device
     return descriptorSetLayout.value;
 }
 
-std::vector<UniformBuffer<ModelViewProjection>> init_createUniformBuffers(
+template <typename T>
+std::vector<UniformBuffer<T>> init_createUniformBuffers(
     const vk::Device& device,
     const vk::PhysicalDevice& physicalDevice,
     const uint32_t numberOfFrames
 ) {
-    std::vector<UniformBuffer<ModelViewProjection>> result;
+    std::vector<UniformBuffer<T>> result;
     result.reserve(MAX_FRAMES_IN_FLIGHT);
 
     for (uint32_t _ = 0; _ < numberOfFrames; _++) {
-        result.push_back(
-            UniformBuffer<ModelViewProjection>::create(device, physicalDevice)
-        );
+        result.push_back(UniformBuffer<T>::create(device, physicalDevice));
     }
 
     return result;
@@ -501,7 +500,7 @@ std::vector<vk::DescriptorSet> init_createDescriptorSets(
     const vk::Device& device,
     DescriptorAllocator& descriptorAllocator,
     const vk::DescriptorSetLayout& setLayout,
-    const std::vector<UniformBuffer<ModelViewProjection>>& uniformBuffers,
+    const std::vector<UniformBuffer<GPUSceneData>>& uniformBuffers,
     uint32_t numberOfSets,
     const Texture& texture,
     const Sampler& sampler
@@ -518,7 +517,7 @@ std::vector<vk::DescriptorSet> init_createDescriptorSets(
             uniformBuffers[i].getBuffer(),
             vk::DescriptorType::eUniformBuffer,
             0,
-            sizeof(ModelViewProjection)
+            sizeof(GPUSceneData)
         );
         writeBuffer.writeImage(
             1,
@@ -552,7 +551,6 @@ GraphicsDeviceInterface::GraphicsDeviceInterface(
     vk::Pipeline pipeline,
     std::vector<vk::ShaderModule> shaderModules,
     vk::CommandPool commandPool,
-    std::vector<UniformBuffer<ModelViewProjection>> uniformBuffers,
     Mesh mesh,
     Sampler sampler
 ) :
@@ -573,10 +571,8 @@ GraphicsDeviceInterface::GraphicsDeviceInterface(
     pipeline(pipeline),
     shaderModules(shaderModules),
     commandPool(commandPool),
-    uniformBuffers(uniformBuffers),
     mesh(mesh),
-    sampler(sampler),
-    currentFrame(0) {}
+    sampler(sampler) {}
 
 GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
     const SDL_InitFlags initFlags = SDL_INIT_VIDEO | SDL_INIT_EVENTS;
@@ -607,8 +603,10 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
         init_createCommandPool(device, queueFamily);
     const vk::DescriptorSetLayout descriptorSetLayout =
         init_createDescriptorSetLayout(device);
-    const std::vector<UniformBuffer<ModelViewProjection>> uniformBuffers =
-        init_createUniformBuffers(device, physicalDevice, MAX_FRAMES_IN_FLIGHT);
+    const std::vector<UniformBuffer<GPUSceneData>> uniformBuffers =
+        init_createUniformBuffers<GPUSceneData>(
+            device, physicalDevice, MAX_FRAMES_IN_FLIGHT
+        );
     DescriptorAllocator descriptorAllocator =
         init_createDescriptorAllocator(device);
     const std::vector<vk::CommandBuffer> commandBuffers =
@@ -651,9 +649,10 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
         init_createSyncObjects(device, MAX_FRAMES_IN_FLIGHT);
     LLOG_INFO << "Created semaphore and fences";
 
-    std::array<FrameData, MAX_FRAMES_IN_FLIGHT> frameDatas;
+    std::array<FrameData, MAX_FRAMES_IN_FLIGHT> frameDatas = {};
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         frameDatas[i] = {
+            uniformBuffers[i],
             commandBuffers[i],
             isImageAvailable[i],
             isRenderingFinished[i],
@@ -679,7 +678,6 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
         pipeline,
         shaderModules,
         commandPool,
-        uniformBuffers,
         mesh,
         sampler
     );
@@ -694,10 +692,11 @@ GraphicsDeviceInterface::~GraphicsDeviceInterface() {
         device.waitIdle(), "Can't wait for device idle:"
     );
 
-    for (const FrameData& frameData : frameDatas) {
+    for (FrameData& frameData : frameDatas) {
         device.destroySemaphore(frameData.isImageAvailable);
         device.destroySemaphore(frameData.isRenderingFinished);
         device.destroyFence(frameData.isRenderingInFlight);
+        frameData.sceneDataBuffer.destroyBy(device);
     }
 
     LLOG_INFO << "Destroyed semaphore and fences";
@@ -714,9 +713,6 @@ GraphicsDeviceInterface::~GraphicsDeviceInterface() {
     descriptorAllocator.destroyBy(device);
     device.destroyPipelineLayout(pipelineLayout);
     device.destroyRenderPass(renderPass);
-
-    for (UniformBuffer<ModelViewProjection>& uniformBuffer : uniformBuffers)
-        uniformBuffer.destroyBy(device);
 
     for (const vk::ShaderModule& shaderModule : shaderModules)
         device.destroyShaderModule(shaderModule);
@@ -759,13 +755,28 @@ void GraphicsDeviceInterface::recordCommandBuffer(
     );
     buffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
     buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
-    ModelViewProjection mvp = getCurrentFrameMVP();
+
+    static auto startTime = std::chrono::high_resolution_clock::now();
+
+    auto currentTime = std::chrono::high_resolution_clock::now();
+    float time = std::chrono::duration<float, std::chrono::seconds::period>(
+                     currentTime - startTime
+    )
+                     .count();
+
+    GPUPushConstants pushConstants = {
+        .model = glm::rotate(
+            glm::mat4(1.0f),
+            time * glm::radians(90.0f),
+            glm::vec3(0.0f, 0.0f, 1.0f)
+        ),
+    };
     buffer.pushConstants(
         pipelineLayout,
         vk::ShaderStageFlagBits::eVertex,
         0,
-        sizeof(ModelViewProjection),
-        &mvp
+        sizeof(GPUPushConstants),
+        &pushConstants
     );
     mesh.bind(buffer);
     vk::Viewport viewport(
@@ -834,7 +845,29 @@ bool GraphicsDeviceInterface::drawFrame() {
     vk::CommandBuffer commandBuffer =
         frameDatas[currentFrame].drawCommandBuffer;
     commandBuffer.reset();
-    uniformBuffers[currentFrame].update(getCurrentFrameMVP());
+
+    GPUSceneData sceneData {
+        .view = glm::lookAt(
+            glm::vec3(10.0f, 10.0f, 10.0f),
+            glm::vec3(0.0f, 0.0f, 0.0f),
+            glm::vec3(0.0f, 0.0f, 1.0f)
+        ),
+        .projection = glm::perspective(
+            glm::radians(45.0f),
+            swapchain->extent.width / (float)swapchain->extent.height,
+            0.1f,
+            45.0f
+        ),
+        .viewProjection = {},
+        .ambientColor = glm::vec4(0.2,0.2,0.2,1.0),
+        .mainLightDirection = glm::normalize(glm::vec4(0.0,-1,0,0)),
+        .mainLightColor = glm::vec4(1,0,0,0),
+    };
+    // accounts for difference between openGL and Vulkan clip space
+    sceneData.projection[1][1] *= -1;
+    sceneData.viewProjection = sceneData.projection * sceneData.view;
+    frameDatas[currentFrame].sceneDataBuffer.update(sceneData);
+
     recordCommandBuffer(commandBuffer, imageIndex.value);
     const vk::PipelineStageFlags waitStage =
         vk::PipelineStageFlagBits::eColorAttachmentOutput;
@@ -881,40 +914,6 @@ void GraphicsDeviceInterface::handleEvent(const SDL_Event& event) {
             handleWindowResize(event.window.data1, event.window.data2);
             break;
     }
-}
-
-ModelViewProjection GraphicsDeviceInterface::getCurrentFrameMVP() const {
-    static auto startTime = std::chrono::high_resolution_clock::now();
-
-    auto currentTime = std::chrono::high_resolution_clock::now();
-    float time = std::chrono::duration<float, std::chrono::seconds::period>(
-                     currentTime - startTime
-    )
-                     .count();
-    ASSERT(swapchain, "No swapchain exists");
-
-    ModelViewProjection mvp{
-        .model = glm::rotate(
-            glm::mat4(1.0f),
-            time * glm::radians(90.0f),
-            glm::vec3(0.0f, 0.0f, 1.0f)
-        ),
-        .view = glm::lookAt(
-            glm::vec3(10.0f, 10.0f, 10.0f),
-            glm::vec3(0.0f, 0.0f, 0.0f),
-            glm::vec3(0.0f, 0.0f, 1.0f)
-        ),
-        .proj = glm::perspective(
-            glm::radians(45.0f),
-            swapchain->extent.width / (float)swapchain->extent.height,
-            0.1f,
-            45.0f
-        )
-    };
-    // accounts for difference between openGL and Vulkan clip space
-    mvp.proj[1][1] *= -1;
-
-    return mvp;
 }
 
 void GraphicsDeviceInterface::recreateSwapchain() {

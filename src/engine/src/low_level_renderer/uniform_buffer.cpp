@@ -1,6 +1,6 @@
 #include "low_level_renderer/uniform_buffer.h"
 
-#include "low_level_renderer/transformation.h"
+#include "low_level_renderer/gpu_scene_data.h"
 #include "private/buffer.h"
 
 template <typename T>
@@ -54,4 +54,4 @@ void UniformBuffer<T>::destroyBy(const vk::Device& device) {
     device.freeMemory(memory);
 }
 
-template class UniformBuffer<ModelViewProjection>;
+template class UniformBuffer<GPUSceneData>;

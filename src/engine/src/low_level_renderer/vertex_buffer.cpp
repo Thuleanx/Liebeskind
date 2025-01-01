@@ -4,17 +4,18 @@
 
 #include <cstddef>
 #include <glm/gtx/hash.hpp>
-
 #include "private/buffer.h"
 
 namespace std {
 template <>
 struct hash<Vertex> {
     size_t operator()(Vertex const& vertex) const {
-        return ((hash<glm::vec3>()(vertex.position) ^
-                 (hash<glm::vec3>()(vertex.color) << 1)) >>
-                1) ^
-               (hash<glm::vec2>()(vertex.texCoord) << 1);
+        size_t hash_value = 0;
+        hash_value = (hash_value << 1) ^ hash<glm::vec3>()(vertex.position);
+        hash_value = (hash_value << 1) ^ hash<glm::vec3>()(vertex.normal);
+        hash_value = (hash_value << 1) ^ hash<glm::vec3>()(vertex.color);
+        hash_value = (hash_value << 1) ^ hash<glm::vec2>()(vertex.texCoord);
+        return hash_value;
     }
 };
 }  // namespace std
@@ -24,9 +25,9 @@ bool Vertex::operator==(const Vertex& other) const {
            texCoord == other.texCoord;
 }
 
-std::array<vk::VertexInputAttributeDescription, 3>
+std::array<vk::VertexInputAttributeDescription, 4>
 Vertex::getAttributeDescriptions() {
-    static std::array<vk::VertexInputAttributeDescription, 3>
+    static std::array<vk::VertexInputAttributeDescription, 4>
         attributeDescriptions = {
             vk::VertexInputAttributeDescription(
                 0,  // location
@@ -38,10 +39,16 @@ Vertex::getAttributeDescriptions() {
                 1,  // location
                 0,  // binding
                 vk::Format::eR32G32B32Sfloat,
-                offsetof(Vertex, color)
+                offsetof(Vertex, normal)
             ),
             vk::VertexInputAttributeDescription(
                 2,  // location
+                0,  // binding
+                vk::Format::eR32G32B32Sfloat,
+                offsetof(Vertex, color)
+            ),
+            vk::VertexInputAttributeDescription(
+                3,  // location
                 0,  // binding
                 vk::Format::eR32G32Sfloat,
                 offsetof(Vertex, texCoord)
@@ -99,16 +106,21 @@ VertexBuffer VertexBuffer::create(
         for (const auto& shape : shapes) {
             for (const auto& index : shape.mesh.indices) {
                 const Vertex vertex{
-                    glm::vec3{
+                    .position = glm::vec3{
                         attrib.vertices[3 * index.vertex_index + 0],
                         attrib.vertices[3 * index.vertex_index + 1],
                         attrib.vertices[3 * index.vertex_index + 2]
                     },
-                    glm::vec3{1.0, 1.0, 1.0},
+                    .normal = glm::vec3{
+                        attrib.normals[3 * index.normal_index + 0],
+                        attrib.normals[3 * index.normal_index + 1],
+                        attrib.normals[3 * index.normal_index + 2]
+                    },
+                    .color = glm::vec3{1.0, 1.0, 1.0},
                     // obj format coordinate system makes 0 the bottom of the
                     // image, which is different from vulkan which considers it
                     // the top
-                    glm::vec2{
+                    .texCoord = glm::vec2{
                         attrib.texcoords[2 * index.texcoord_index],
                         1.0 - attrib.texcoords[2 * index.texcoord_index + 1]
                     }

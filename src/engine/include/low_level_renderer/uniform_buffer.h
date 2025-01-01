@@ -5,7 +5,6 @@
 template <typename T>
 class UniformBuffer {
    public:
-    UniformBuffer() = delete;
 
     static UniformBuffer create(
         const vk::Device& device, const vk::PhysicalDevice& physicalDevice
@@ -15,7 +14,7 @@ class UniformBuffer {
     void destroyBy(const vk::Device& device);
 
     inline vk::Buffer getBuffer() const { return buffer; }
-
+    UniformBuffer() = default;
    private:
     UniformBuffer(
         vk::Buffer buffer, vk::DeviceMemory deviceMemory, void* mappedMemory

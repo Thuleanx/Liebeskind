@@ -1,8 +1,12 @@
 set(SRC 
+    material_pipeline.cpp
+    material_manager.cpp
+    texture_manager.cpp
+    shader_manager.cpp
+    mesh_manager.cpp
     graphics_device_interface.cpp 
     descriptor_write_buffer.cpp 
     descriptor_allocator.cpp 
-    mesh.cpp
     swapchain_data.cpp
     vertex_buffer.cpp
     uniform_buffer.cpp

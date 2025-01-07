@@ -6,6 +6,7 @@
 class DescriptorWriteBuffer {
    public:
     void writeBuffer(
+        vk::DescriptorSet descriptorSet,
         int binding,
         const vk::Buffer& buffer,
         vk::DescriptorType type,
@@ -14,6 +15,7 @@ class DescriptorWriteBuffer {
     );
 
     void writeImage(
+        vk::DescriptorSet descriptorSet,
         int binding,
         const vk::ImageView& imageView,
         vk::DescriptorType type,
@@ -21,8 +23,8 @@ class DescriptorWriteBuffer {
         vk::ImageLayout layout
     );
 
-    void batch_write(
-        const vk::Device& device, const vk::DescriptorSet& descriptorSet
+    void batchWrite(
+        const vk::Device& device
     );
     void clear();
 

@@ -5,21 +5,31 @@
 #include <SDL3/SDL_vulkan.h>
 
 #include <optional>
+#include <unordered_map>
 #include <vector>
 
-#include "low_level_renderer/descriptor_allocator.h"
-#include "low_level_renderer/gpu_scene_data.h"
-#include "low_level_renderer/mesh.h"
+#include "low_level_renderer/config.h"
+#include "low_level_renderer/material_manager.h"
+#include "low_level_renderer/material_pipeline.h"
+#include "low_level_renderer/mesh_manager.h"
 #include "low_level_renderer/sampler.h"
+#include "low_level_renderer/shader_data.h"
+#include "low_level_renderer/shader_manager.h"
 #include "low_level_renderer/swapchain_data.h"
+#include "low_level_renderer/texture_manager.h"
 #include "low_level_renderer/uniform_buffer.h"
 
 constexpr char APP_SHORT_NAME[] = "Game";
 constexpr char ENGINE_NAME[] = "Liebeskind";
-constexpr uint32_t MAX_FRAMES_IN_FLIGHT = 2;
+
+struct RenderObject {
+    MeshID mesh;
+    glm::mat4 transform;
+};
 
 class GraphicsDeviceInterface {
     struct FrameData {
+        vk::DescriptorSet globalDescriptor;
         UniformBuffer<GPUSceneData> sceneDataBuffer;
         vk::CommandBuffer drawCommandBuffer;
         vk::Semaphore isImageAvailable;
@@ -40,8 +50,23 @@ class GraphicsDeviceInterface {
     const GraphicsDeviceInterface& operator=(const GraphicsDeviceInterface&) =
         delete;
 
+    // Submits render object for the next draw call
+    void submitDrawRenderObject(
+        RenderObject renderObject, MaterialInstanceID materialInstance
+    );
     bool drawFrame();
     void handleEvent(const SDL_Event& sdlEvent);
+
+    [[nodiscard]]
+    TextureID loadTexture(const char* filePath);
+
+    [[nodiscard]]
+    MeshID loadMesh(const char* filePath);
+
+    [[nodiscard]]
+    MaterialInstanceID loadMaterial(
+        TextureID albedo, MaterialProperties properties, MaterialPass pass
+    );
 
    private:
     std::array<FrameData, MAX_FRAMES_IN_FLIGHT> frameDatas;
@@ -56,24 +81,27 @@ class GraphicsDeviceInterface {
     vk::PhysicalDevice physicalDevice;
     vk::Queue graphicsQueue, presentQueue;
 
-    vk::RenderPass renderPass;
-    vk::DescriptorSetLayout descriptorSetLayout;
-    DescriptorAllocator descriptorAllocator;
-    std::vector<vk::DescriptorSet> descriptorSets;
-    vk::PipelineLayout pipelineLayout;
-    vk::Pipeline pipeline;
+    // Resource managers
+    MeshManager meshManager;
+    TextureManager textureManager;
+    ShaderManager shaderManager;
+    MaterialManager materialManager;
 
+    vk::RenderPass renderPass;
+    MaterialPipeline pipeline;
     std::optional<SwapchainData> swapchain;
 
-    std::vector<vk::ShaderModule> shaderModules;
-
     vk::CommandPool commandPool;
-
-    Mesh mesh;
     Sampler sampler;
 
     GPUSceneData gpuSceneData = {};
+    std::unordered_map<
+        MaterialInstanceID,
+        std::vector<RenderObject>,
+        MaterialInstanceIDHashFunction>
+        renderObjects;
     uint32_t currentFrame = 0;
+    DescriptorWriteBuffer writeBuffer;
 
    private:
     GraphicsDeviceInterface(
@@ -86,15 +114,13 @@ class GraphicsDeviceInterface {
         vk::PhysicalDevice physicalDevice,
         vk::Queue graphicsQueue,
         vk::Queue presentQueue,
+        MeshManager meshManager,
+        TextureManager textureManager,
+        ShaderManager shaderManager,
+        MaterialManager materialManager,
         vk::RenderPass renderPass,
-        vk::DescriptorSetLayout descriptorSetLayout,
-        DescriptorAllocator descriptorAllocator,
-        std::vector<vk::DescriptorSet> descriptorSets,
-        vk::PipelineLayout pipelineLayout,
-        vk::Pipeline pipeline,
-        std::vector<vk::ShaderModule> shaderModules,
+        MaterialPipeline pipeline,
         vk::CommandPool commandPool,
-        Mesh mesh,
         Sampler sampler
     );
 

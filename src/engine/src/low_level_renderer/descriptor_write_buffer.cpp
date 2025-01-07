@@ -1,6 +1,7 @@
 #include "low_level_renderer/descriptor_write_buffer.h"
 
 void DescriptorWriteBuffer::writeBuffer(
+    vk::DescriptorSet descriptorSet,
     int binding,
     const vk::Buffer& buffer,
     vk::DescriptorType type,
@@ -10,7 +11,7 @@ void DescriptorWriteBuffer::writeBuffer(
     buffers.emplace_back(buffer, offset, range);
 
     const vk::WriteDescriptorSet write(
-        {/* empty descriptor set, to be filled when writing*/},
+        descriptorSet,
         binding,
         0,
         1,
@@ -22,6 +23,7 @@ void DescriptorWriteBuffer::writeBuffer(
 }
 
 void DescriptorWriteBuffer::writeImage(
+    vk::DescriptorSet descriptorSet,
     int binding,
     const vk::ImageView& imageView,
     vk::DescriptorType type,
@@ -30,7 +32,7 @@ void DescriptorWriteBuffer::writeImage(
 ) {
     images.emplace_back(sampler, imageView, layout);
     const vk::WriteDescriptorSet write(
-        {/* empty descriptor set, to be filled when writing*/},
+        descriptorSet,
         binding,
         0,
         1,
@@ -40,13 +42,11 @@ void DescriptorWriteBuffer::writeImage(
     writes.push_back(std::move(write));
 }
 
-void DescriptorWriteBuffer::batch_write(
-    const vk::Device& device, const vk::DescriptorSet& descriptorSet
-) {
-    for (auto& write : writes) write.setDstSet(descriptorSet);
+void DescriptorWriteBuffer::batchWrite(const vk::Device& device) {
     device.updateDescriptorSets(
         static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr
     );
+    clear();
 }
 
 void DescriptorWriteBuffer::clear() {

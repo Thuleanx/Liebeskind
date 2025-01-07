@@ -1,16 +1,13 @@
 #include "low_level_renderer/graphics_device_interface.h"
 
-#include <chrono>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <limits>
 #include <set>
 #include <vector>
 
-#include "file_system/file.h"
 #include "logger/assert.h"
 #include "low_level_renderer/descriptor_write_buffer.h"
-#include "low_level_renderer/vertex_buffer.h"
 #include "private/graphics_device_helper.h"
 #include "private/helpful_defines.h"
 #include "private/queue_family.h"
@@ -123,18 +120,6 @@ vk::Device init_createLogicalDevice(
     return device;
 }
 
-vk::ShaderModule createShaderModule(
-    const vk::Device& device, const std::vector<char>& code
-) {
-    vk::ShaderModuleCreateInfo createInfo(
-        {}, code.size(), reinterpret_cast<const uint32_t*>(code.data())
-    );
-    vk::ResultValue<vk::ShaderModule> shaderModule =
-        device.createShaderModule(createInfo);
-    VULKAN_ENSURE_SUCCESS(shaderModule.result, "Can't create shader");
-    return shaderModule.value;
-}
-
 vk::RenderPass init_createRenderPass(
     const vk::Device& device,
     vk::Format swapchainImageFormat,
@@ -209,157 +194,6 @@ vk::RenderPass init_createRenderPass(
         renderPassCreation.result, "Can't create renderpass:"
     );
     return renderPassCreation.value;
-}
-
-vk::PipelineLayout init_createPipelineLayout(
-    const vk::Device& device, const vk::DescriptorSetLayout& descriptorSetLayout
-) {
-    // We're pushing the transform to the vertex shader
-    const vk::PushConstantRange pushConstantRange(
-        vk::ShaderStageFlagBits::eVertex, 0, sizeof(GPUPushConstants)
-    );
-    const vk::PipelineLayoutCreateInfo pipelineLayoutInfo(
-        {}, 1, &descriptorSetLayout, 1, &pushConstantRange
-    );
-    const vk::ResultValue<vk::PipelineLayout> pipelineLayoutCreation =
-        device.createPipelineLayout(pipelineLayoutInfo);
-    VULKAN_ENSURE_SUCCESS(
-        pipelineLayoutCreation.result, "Can't create pipeline layout:"
-    );
-    return pipelineLayoutCreation.value;
-}
-
-std::tuple<vk::Pipeline, std::vector<vk::ShaderModule>>
-init_createGraphicsPipeline(
-    const vk::Device& device,
-    vk::PipelineLayout layout,
-    vk::RenderPass renderPass
-) {
-    const std::optional<std::vector<char>> vertexShaderCode =
-        FileUtilities::readFile("shaders/test_triangle.vert.glsl.spv");
-    const std::optional<std::vector<char>> fragmentShaderCode =
-        FileUtilities::readFile("shaders/test_triangle.frag.glsl.spv");
-    ASSERT(vertexShaderCode.has_value(), "Vertex shader can't be loaded");
-    ASSERT(fragmentShaderCode.has_value(), "Fragment shader can't be loaded");
-    const vk::ShaderModule vertexShader =
-        createShaderModule(device, vertexShaderCode.value());
-    const vk::ShaderModule fragmentShader =
-        createShaderModule(device, fragmentShaderCode.value());
-    const std::vector<vk::ShaderModule> shaderModules = {
-        vertexShader, fragmentShader
-    };
-    const vk::PipelineShaderStageCreateInfo vertexShaderStageInfo(
-        {}, vk::ShaderStageFlagBits::eVertex, vertexShader, "main"
-    );
-    const vk::PipelineShaderStageCreateInfo fragmentShaderStageInfo(
-        {}, vk::ShaderStageFlagBits::eFragment, fragmentShader, "main"
-    );
-    const std::vector<vk::DynamicState> dynamicStates = {
-        vk::DynamicState::eViewport,
-        vk::DynamicState::eScissor,
-    };
-    const vk::PipelineDynamicStateCreateInfo dynamicStateInfo(
-        {}, static_cast<uint32_t>(dynamicStates.size()), dynamicStates.data()
-    );
-    const vk::PipelineShaderStageCreateInfo shaderStages[] = {
-        vertexShaderStageInfo, fragmentShaderStageInfo
-    };
-    const auto bindingDescription = Vertex::getBindingDescription();
-    const auto attributeDescription = Vertex::getAttributeDescriptions();
-    const vk::PipelineVertexInputStateCreateInfo vertexInputStateInfo(
-        {},
-        1,
-        &bindingDescription,
-        static_cast<uint32_t>(attributeDescription.size()),
-        attributeDescription.data()
-    );
-    const vk::PipelineInputAssemblyStateCreateInfo inputAssemblyStateInfo(
-        {},
-        vk::PrimitiveTopology::eTriangleList,
-        vk::False  // primitive restart
-    );
-    const vk::PipelineViewportStateCreateInfo viewportStateInfo(
-        {}, 1, nullptr, 1, nullptr
-    );
-    const vk::PipelineRasterizationStateCreateInfo rasterizerCreateInfo(
-        {},
-        vk::False,  // depth clamp enable. only useful for shadow mapping
-        vk::False,  // rasterizerDiscardEnable
-        vk::PolygonMode::eFill,  // fill polygon with fragments
-        vk::CullModeFlagBits::eBack,
-        vk::FrontFace::eCounterClockwise,
-        vk::False,  // depth bias, probably useful for shadow mapping
-        0.0f,
-        0.0f,
-        0.0f,
-        1.0f  // line width
-    );
-    const vk::PipelineMultisampleStateCreateInfo multisamplingInfo(
-        {},
-        vk::SampleCountFlagBits::e1,
-        vk::False,
-        1.0f,
-        nullptr,
-        vk::False,
-        vk::False
-    );
-    const vk::PipelineColorBlendAttachmentState colorBlendAttachment(
-        vk::True,  // enable blend
-        vk::BlendFactor::eSrcAlpha,
-        vk::BlendFactor::eOneMinusSrcAlpha,
-        vk::BlendOp::eAdd,
-        vk::BlendFactor::eOne,
-        vk::BlendFactor::eZero,
-        vk::BlendOp::eAdd,
-        vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
-            vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA
-    );
-    const std::array<float, 4> colorBlendingConstants = {
-        0.0f, 0.0f, 0.0f, 0.0f
-    };
-    const vk::PipelineColorBlendStateCreateInfo colorBlendingInfo(
-        {},
-        vk::False,
-        vk::LogicOp::eCopy,
-        1,
-        &colorBlendAttachment,
-        colorBlendingConstants
-    );
-    const vk::PipelineDepthStencilStateCreateInfo depthStencilState(
-        {},
-        vk::True,  // enable depth test
-        vk::True,  // enable depth write
-        vk::CompareOp::eLess,
-        vk::False,  // disable depth bounds test
-        vk::False,  // disable stencil test
-        {},         // stencil front op state
-        {},         // stencil back op state
-        {},         // min depth bound
-        {}          // max depth bound
-    );
-    vk::GraphicsPipelineCreateInfo pipelineCreateInfo(
-        {},
-        2,
-        shaderStages,
-        &vertexInputStateInfo,
-        &inputAssemblyStateInfo,
-        nullptr,  // no tesselation viewport
-        &viewportStateInfo,
-        &rasterizerCreateInfo,
-        &multisamplingInfo,
-        &depthStencilState,
-        &colorBlendingInfo,
-        &dynamicStateInfo,
-        layout,
-        renderPass,
-        0
-    );
-    const vk::ResultValue<vk::Pipeline> pipelineCreation =
-        device.createGraphicsPipeline(nullptr, pipelineCreateInfo);
-    VULKAN_ENSURE_SUCCESS(
-        pipelineCreation.result, "Can't create graphics pipeline:"
-    );
-    return std::make_tuple(pipelineCreation.value, shaderModules);
 }
 
 vk::CommandPool init_createCommandPool(
@@ -440,38 +274,6 @@ init_createSyncObjects(const vk::Device& device, const uint32_t num_of_frames) {
     );
 }
 
-vk::DescriptorSetLayout init_createDescriptorSetLayout(const vk::Device& device
-) {
-    const vk::DescriptorSetLayoutBinding uboLayoutBinding(
-        0,  // binding
-        vk::DescriptorType::eUniformBuffer,
-        1,  // descriptor count
-        vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment,
-        nullptr  // immutable sampler pointer
-    );
-    const vk::DescriptorSetLayoutBinding textureSamplerBinding(
-        1,  // binding
-        vk::DescriptorType::eCombinedImageSampler,
-        1,  // descriptor count
-        vk::ShaderStageFlagBits::eFragment,
-        nullptr  // immutable sampler pointer
-    );
-    const std::array<vk::DescriptorSetLayoutBinding, 2> bindings = {
-        uboLayoutBinding, textureSamplerBinding
-    };
-    const vk::DescriptorSetLayoutCreateInfo layoutInfo(
-        {},
-        static_cast<uint32_t>(bindings.size()),  // binding count
-        bindings.data()
-    );
-    vk::ResultValue<vk::DescriptorSetLayout> descriptorSetLayout =
-        device.createDescriptorSetLayout(layoutInfo);
-    VULKAN_ENSURE_SUCCESS(
-        descriptorSetLayout.result, "Can't create descriptor set layout:"
-    );
-    return descriptorSetLayout.value;
-}
-
 template <typename T>
 std::vector<UniformBuffer<T>> init_createUniformBuffers(
     const vk::Device& device,
@@ -488,49 +290,6 @@ std::vector<UniformBuffer<T>> init_createUniformBuffers(
     return result;
 }
 
-DescriptorAllocator init_createDescriptorAllocator(const vk::Device& device) {
-    std::vector<vk::DescriptorPoolSize> poolSizes = {
-        vk::DescriptorPoolSize(vk::DescriptorType::eUniformBuffer, 1),
-        vk::DescriptorPoolSize(vk::DescriptorType::eCombinedImageSampler, 1),
-    };
-    return DescriptorAllocator::create(device, poolSizes, MAX_FRAMES_IN_FLIGHT);
-}
-
-std::vector<vk::DescriptorSet> init_createDescriptorSets(
-    const vk::Device& device,
-    DescriptorAllocator& descriptorAllocator,
-    const vk::DescriptorSetLayout& setLayout,
-    const std::vector<UniformBuffer<GPUSceneData>>& uniformBuffers,
-    uint32_t numberOfSets,
-    const Texture& texture,
-    const Sampler& sampler
-) {
-    const std::vector<vk::DescriptorSetLayout> setLayouts(
-        MAX_FRAMES_IN_FLIGHT, setLayout
-    );
-    const std::vector<vk::DescriptorSet> descriptorSets =
-        descriptorAllocator.allocate(device, setLayout, numberOfSets);
-    for (size_t i = 0; i < numberOfSets; i++) {
-        DescriptorWriteBuffer writeBuffer;
-        writeBuffer.writeBuffer(
-            0,
-            uniformBuffers[i].getBuffer(),
-            vk::DescriptorType::eUniformBuffer,
-            0,
-            sizeof(GPUSceneData)
-        );
-        writeBuffer.writeImage(
-            1,
-            texture.getImageView(),
-            vk::DescriptorType::eCombinedImageSampler,
-            sampler.getSampler(),
-            vk::ImageLayout::eShaderReadOnlyOptimal
-        );
-        writeBuffer.batch_write(device, descriptorSets[i]);
-    }
-    return descriptorSets;
-}
-
 }  // namespace
 
 GraphicsDeviceInterface::GraphicsDeviceInterface(
@@ -543,15 +302,13 @@ GraphicsDeviceInterface::GraphicsDeviceInterface(
     vk::PhysicalDevice physicalDevice,
     vk::Queue graphicsQueue,
     vk::Queue presentQueue,
+    MeshManager meshManager,
+    TextureManager textureManager,
+    ShaderManager shaderManager,
+    MaterialManager materialManager,
     vk::RenderPass renderPass,
-    vk::DescriptorSetLayout descriptorSetLayout,
-    DescriptorAllocator descriptorAllocator,
-    std::vector<vk::DescriptorSet> descriptorSets,
-    vk::PipelineLayout pipelineLayout,
-    vk::Pipeline pipeline,
-    std::vector<vk::ShaderModule> shaderModules,
+    MaterialPipeline pipeline,
     vk::CommandPool commandPool,
-    Mesh mesh,
     Sampler sampler
 ) :
     frameDatas(frameDatas),
@@ -563,15 +320,13 @@ GraphicsDeviceInterface::GraphicsDeviceInterface(
     physicalDevice(physicalDevice),
     graphicsQueue(graphicsQueue),
     presentQueue(presentQueue),
+    meshManager(meshManager),
+    textureManager(textureManager),
+    shaderManager(shaderManager),
+    materialManager(materialManager),
     renderPass(renderPass),
-    descriptorSetLayout(descriptorSetLayout),
-    descriptorAllocator(descriptorAllocator),
-    descriptorSets(descriptorSets),
-    pipelineLayout(pipelineLayout),
     pipeline(pipeline),
-    shaderModules(shaderModules),
     commandPool(commandPool),
-    mesh(mesh),
     sampler(sampler) {}
 
 GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
@@ -601,50 +356,69 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
         device.getQueue(queueFamily.presentFamily.value(), 0);
     const vk::CommandPool commandPool =
         init_createCommandPool(device, queueFamily);
-    const vk::DescriptorSetLayout descriptorSetLayout =
-        init_createDescriptorSetLayout(device);
-    const std::vector<UniformBuffer<GPUSceneData>> uniformBuffers =
-        init_createUniformBuffers<GPUSceneData>(
-            device, physicalDevice, MAX_FRAMES_IN_FLIGHT
-        );
-    DescriptorAllocator descriptorAllocator =
-        init_createDescriptorAllocator(device);
+
+    MaterialManager materialManager;
+    MeshManager meshManager;
+    TextureManager textureManager;
+    ShaderManager shaderManager;
+    ShaderID vertexShader =
+        shaderManager.load(device, "shaders/test_triangle.vert.glsl.spv");
+    ShaderID fragmentShader =
+        shaderManager.load(device, "shaders/test_triangle.frag.glsl.spv");
+
     const std::vector<vk::CommandBuffer> commandBuffers =
         init_createCommandBuffers(device, commandPool, MAX_FRAMES_IN_FLIGHT);
     LLOG_INFO << "Created command pool and buffers";
 
-    const Mesh mesh = Mesh::load(
-        device,
-        physicalDevice,
-        commandPool,
-        graphicsQueue,
-        "models/sword.obj",
-        "textures/swordAlbedo.jpg"
-    );
     const Sampler sampler = Sampler::create(device, physicalDevice);
-    const std::vector<vk::DescriptorSet> descriptorSets =
-        init_createDescriptorSets(
-            device,
-            descriptorAllocator,
-            descriptorSetLayout,
-            uniformBuffers,
-            MAX_FRAMES_IN_FLIGHT,
-            mesh.albedo,
-            sampler
-        );
     const vk::SurfaceFormatKHR swapchainColorFormat =
         Swapchain::getSuitableColorAttachmentFormat(physicalDevice, surface);
     LLOG_INFO << "Created descriptor pool and sets";
-    const vk::PipelineLayout pipelineLayout =
-        init_createPipelineLayout(device, descriptorSetLayout);
     const vk::RenderPass renderPass = init_createRenderPass(
         device,
         swapchainColorFormat.format,
         Swapchain::getSuitableDepthAttachmentFormat(physicalDevice)
     );
-    const auto [pipeline, shaderModules] =
-        init_createGraphicsPipeline(device, pipelineLayout, renderPass);
-    LLOG_INFO << "Created pipeline layout, renderpass, and pipeline";
+
+    DescriptorWriteBuffer writeBuffer;
+    MaterialPipeline pipeline = MaterialPipeline::create(
+        device,
+        shaderManager.getModule(vertexShader),
+        shaderManager.getModule(fragmentShader),
+        renderPass
+    );
+    std::vector<vk::DescriptorSet> globalDescriptors =
+        pipeline.globalDescriptorAllocator.allocate(
+            device, pipeline.globalDescriptorSetLayout, MAX_FRAMES_IN_FLIGHT
+        );
+    ASSERT(
+        globalDescriptors.size() == MAX_FRAMES_IN_FLIGHT,
+        "Requested " << MAX_FRAMES_IN_FLIGHT
+                     << " global descriptors but allocator returned "
+                     << globalDescriptors.size()
+    );
+    std::vector<UniformBuffer<GPUSceneData>> uniformBuffers =
+        init_createUniformBuffers<GPUSceneData>(
+            device, physicalDevice, MAX_FRAMES_IN_FLIGHT
+        );
+    ASSERT(
+        uniformBuffers.size() == MAX_FRAMES_IN_FLIGHT,
+        "Tried to create" << MAX_FRAMES_IN_FLIGHT
+                          << " uniform buffers but allocator returned "
+                          << uniformBuffers.size()
+    );
+    for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        writeBuffer.writeBuffer(
+            globalDescriptors[i],
+            0,
+            uniformBuffers[i].buffer,
+            vk::DescriptorType::eUniformBuffer,
+            0,
+            sizeof(GPUSceneData)
+        );
+    }
+    writeBuffer.batchWrite(device);
+
     const auto [isImageAvailable, isRenderingFinished, isRenderingInFlight] =
         init_createSyncObjects(device, MAX_FRAMES_IN_FLIGHT);
     LLOG_INFO << "Created semaphore and fences";
@@ -652,6 +426,7 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
     std::array<FrameData, MAX_FRAMES_IN_FLIGHT> frameDatas = {};
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         frameDatas[i] = {
+            globalDescriptors[i],
             uniformBuffers[i],
             commandBuffers[i],
             isImageAvailable[i],
@@ -670,15 +445,13 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
         physicalDevice,
         graphicsQueue,
         presentQueue,
+        meshManager,
+        textureManager,
+        shaderManager,
+        materialManager,
         renderPass,
-        descriptorSetLayout,
-        descriptorAllocator,
-        descriptorSets,
-        pipelineLayout,
         pipeline,
-        shaderModules,
         commandPool,
-        mesh,
         sampler
     );
 
@@ -705,21 +478,18 @@ GraphicsDeviceInterface::~GraphicsDeviceInterface() {
     LLOG_INFO << "Destroyed swapchain";
     sampler.destroyBy(device);
     LLOG_INFO << "Destroyed sampler";
-    mesh.destroyBy(device);
-    LLOG_INFO << "Destroyed mesh";
     device.destroyCommandPool(commandPool);
     LLOG_INFO << "Destroyed command pool";
-    device.destroyDescriptorSetLayout(descriptorSetLayout);
-    descriptorAllocator.destroyBy(device);
-    device.destroyPipelineLayout(pipelineLayout);
+    pipeline.destroyBy(device);
+    LLOG_INFO << "Destroyed material pipeline";
     device.destroyRenderPass(renderPass);
+    LLOG_INFO << "Destroyed renderpass";
 
-    for (const vk::ShaderModule& shaderModule : shaderModules)
-        device.destroyShaderModule(shaderModule);
-    LLOG_INFO << "Destroyed shaders";
-
-    device.destroyPipeline(pipeline);
-    LLOG_INFO << "Destroyed pipeline";
+    shaderManager.destroyBy(device);
+    materialManager.destroyBy(device);
+    textureManager.destroyBy(device);
+    meshManager.destroyBy(device);
+    LLOG_INFO << "Destroyed managers";
 
     device.destroy();
     LLOG_INFO << "Destroyed device";
@@ -746,7 +516,7 @@ void GraphicsDeviceInterface::recordCommandBuffer(
         vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f),
         vk::ClearColorValue(1.0f, 0.0f, 0.0f, 0.0f)
     };
-    vk::RenderPassBeginInfo renderPassInfo(
+    const vk::RenderPassBeginInfo renderPassInfo(
         renderPass,
         swapchain->framebuffers[imageIndex],
         vk::Rect2D(vk::Offset2D{0, 0}, swapchain->extent),
@@ -754,31 +524,8 @@ void GraphicsDeviceInterface::recordCommandBuffer(
         clearColors.data()
     );
     buffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
-    buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
+    buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.pipeline);
 
-    static auto startTime = std::chrono::high_resolution_clock::now();
-
-    auto currentTime = std::chrono::high_resolution_clock::now();
-    float time = std::chrono::duration<float, std::chrono::seconds::period>(
-                     currentTime - startTime
-    )
-                     .count();
-
-    GPUPushConstants pushConstants = {
-        .model = glm::rotate(
-            glm::mat4(1.0f),
-            time * glm::radians(90.0f),
-            glm::vec3(0.0f, 0.0f, 1.0f)
-        ),
-    };
-    buffer.pushConstants(
-        pipelineLayout,
-        vk::ShaderStageFlagBits::eVertex,
-        0,
-        sizeof(GPUPushConstants),
-        &pushConstants
-    );
-    mesh.bind(buffer);
     vk::Viewport viewport(
         0.0f,
         0.0f,
@@ -787,27 +534,54 @@ void GraphicsDeviceInterface::recordCommandBuffer(
         0.0f,
         1.0f
     );
-    buffer.bindDescriptorSets(
-        vk::PipelineBindPoint::eGraphics,
-        pipelineLayout,
-        0,
-        1,
-        &descriptorSets[currentFrame],
-        0,
-        nullptr
-    );
     buffer.setViewport(0, 1, &viewport);
     vk::Rect2D scissor(vk::Offset2D(0.0f, 0.0f), swapchain->extent);
     buffer.setScissor(0, 1, &scissor);
-    mesh.draw(buffer);
+
+    buffer.bindDescriptorSets(
+        vk::PipelineBindPoint::eGraphics,
+        pipeline.layout,
+        0,
+        1,
+        &frameDatas[currentFrame].globalDescriptor,
+        0,
+        nullptr
+    );
+    for (const auto& [materialID, allRenderObjects] : renderObjects) {
+        materialManager.bind(buffer, pipeline.layout, materialID);
+        for (const RenderObject& renderObject : allRenderObjects) {
+            GPUPushConstants pushConstants = {.model = renderObject.transform};
+            buffer.pushConstants(
+                pipeline.layout,
+                vk::ShaderStageFlagBits::eVertex,
+                0,
+                sizeof(GPUPushConstants),
+                &pushConstants
+            );
+            meshManager.bind(buffer, renderObject.mesh);
+            meshManager.draw(buffer, renderObject.mesh);
+        }
+    }
+    renderObjects.clear();
+
     buffer.endRenderPass();
     VULKAN_ENSURE_SUCCESS_EXPR(
         buffer.end(), "Can't end recording command buffer:"
     );
 }
 
+void GraphicsDeviceInterface::submitDrawRenderObject(
+    RenderObject renderObject, MaterialInstanceID materialInstance
+) {
+    if (!renderObjects.contains(materialInstance))
+        renderObjects[materialInstance] = std::vector<RenderObject>();
+    renderObjects[materialInstance].push_back(std::move(renderObject));
+}
+
 bool GraphicsDeviceInterface::drawFrame() {
     ASSERT(swapchain, "Attempt to draw frame without a swapchain");
+
+    writeBuffer.batchWrite(device);
 
     const uint64_t no_time_limit = std::numeric_limits<uint64_t>::max();
     VULKAN_ENSURE_SUCCESS_EXPR(
@@ -846,7 +620,7 @@ bool GraphicsDeviceInterface::drawFrame() {
         frameDatas[currentFrame].drawCommandBuffer;
     commandBuffer.reset();
 
-    GPUSceneData sceneData {
+    GPUSceneData sceneData{
         .view = glm::lookAt(
             glm::vec3(10.0f, 10.0f, 10.0f),
             glm::vec3(0.0f, 0.0f, 0.0f),
@@ -859,9 +633,9 @@ bool GraphicsDeviceInterface::drawFrame() {
             45.0f
         ),
         .viewProjection = {},
-        .ambientColor = glm::vec4(0.2,0.2,0.2,1.0),
-        .mainLightDirection = glm::normalize(glm::vec4(0.0,-1,0,0)),
-        .mainLightColor = glm::vec4(1,0,0,0),
+        .ambientColor = glm::vec4(0.1, 0.1, 0.1, 1.0),
+        .mainLightDirection = glm::normalize(glm::vec4(0.0, 0, -1, 0)),
+        .mainLightColor = glm::vec4(1, 0, 0, 0),
     };
     // accounts for difference between openGL and Vulkan clip space
     sceneData.projection[1][1] *= -1;
@@ -908,6 +682,35 @@ bool GraphicsDeviceInterface::drawFrame() {
     return true;
 }
 
+TextureID GraphicsDeviceInterface::loadTexture(const char* filePath) {
+    return textureManager.load(
+        filePath, device, physicalDevice, commandPool, graphicsQueue
+    );
+}
+
+MeshID GraphicsDeviceInterface::loadMesh(const char* filePath) {
+    return meshManager.load(
+        device, physicalDevice, commandPool, graphicsQueue, filePath
+    );
+}
+
+MaterialInstanceID GraphicsDeviceInterface::loadMaterial(
+    TextureID albedo, MaterialProperties properties, MaterialPass pass
+) {
+    return materialManager.load(
+        device,
+        physicalDevice,
+        pipeline.materialDescriptorSetLayout,
+        pipeline.materialDescriptorAllocator,
+        sampler.sampler,
+        writeBuffer,
+        textureManager,
+        albedo,
+        properties,
+        pass
+    );
+}
+
 void GraphicsDeviceInterface::handleEvent(const SDL_Event& event) {
     switch (event.type) {
         case SDL_EVENT_WINDOW_RESIZED:
@@ -920,6 +723,7 @@ void GraphicsDeviceInterface::recreateSwapchain() {
     VULKAN_ENSURE_SUCCESS_EXPR(
         device.waitIdle(), "Can't wait for device to idle:"
     );
+    cleanupSwapchain();
     ASSERT(
         !swapchain.has_value(),
         "Trying to recreate swapchain before cleaning up the previous swapchain"

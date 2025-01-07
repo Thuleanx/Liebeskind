@@ -3,9 +3,7 @@
 #include <vulkan/vulkan.hpp>
 
 template <typename T>
-class UniformBuffer {
-   public:
-
+struct UniformBuffer {
     static UniformBuffer create(
         const vk::Device& device, const vk::PhysicalDevice& physicalDevice
     );
@@ -13,17 +11,16 @@ class UniformBuffer {
     void update(const T& data);
     void destroyBy(const vk::Device& device);
 
-    inline vk::Buffer getBuffer() const { return buffer; }
     UniformBuffer() = default;
+
+    vk::Buffer buffer;
+    vk::DeviceMemory memory;
+    void* mappedMemory;
+
    private:
     UniformBuffer(
         vk::Buffer buffer, vk::DeviceMemory deviceMemory, void* mappedMemory
     );
-
-   private:
-    vk::Buffer buffer;
-    vk::DeviceMemory memory;
-    void* mappedMemory;
 
     friend class GraphicsDeviceInterface;
 };

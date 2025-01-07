@@ -17,3 +17,4 @@ struct GPUSceneData {
 struct GPUPushConstants {
     glm::mat4 model;
 };
+

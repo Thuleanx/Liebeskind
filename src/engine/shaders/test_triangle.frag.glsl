@@ -6,7 +6,7 @@ layout(location = 2) in vec3 normalWorld;
 
 layout(location = 0) out vec4 outColor;
 
-layout(binding = 0) uniform GPUSceneData {
+layout(set = 0, binding = 0) uniform GPUSceneData {
     mat4 view;
     mat4 projection;
     mat4 viewProjection;
@@ -15,7 +15,11 @@ layout(binding = 0) uniform GPUSceneData {
     vec4 mainLightColor;
 } scene;
 
-layout(binding = 1) uniform sampler2D texSampler;
+layout(set = 1, binding = 0) uniform MaterialProperties {
+    vec4 color;
+} materialProperties;
+
+layout(set = 1, binding = 1) uniform sampler2D texSampler;
 
 void main() {
     vec4 texColor = texture(texSampler, fragTexCoord) * vec4(fragColor, 1.0);

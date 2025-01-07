@@ -134,9 +134,6 @@ vk::DescriptorImageInfo Texture::getDescriptorImageInfo(const Sampler& sampler
     );
 }
 
-vk::Format Texture::getFormat() const { return format; }
-vk::ImageView Texture::getImageView() const { return imageView; }
-
 void Texture::transitionLayout(
     const vk::Device& device,
     const vk::CommandPool& commandPool,

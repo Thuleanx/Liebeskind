@@ -4,6 +4,8 @@
 
 #include <cstddef>
 #include <glm/gtx/hash.hpp>
+
+#include "logger/assert.h"
 #include "private/buffer.h"
 
 namespace std {
@@ -106,24 +108,27 @@ VertexBuffer VertexBuffer::create(
         for (const auto& shape : shapes) {
             for (const auto& index : shape.mesh.indices) {
                 const Vertex vertex{
-                    .position = glm::vec3{
-                        attrib.vertices[3 * index.vertex_index + 0],
-                        attrib.vertices[3 * index.vertex_index + 1],
-                        attrib.vertices[3 * index.vertex_index + 2]
-                    },
-                    .normal = glm::vec3{
-                        attrib.normals[3 * index.normal_index + 0],
-                        attrib.normals[3 * index.normal_index + 1],
-                        attrib.normals[3 * index.normal_index + 2]
-                    },
+                    .position =
+                        glm::vec3{
+                            attrib.vertices[3 * index.vertex_index + 0],
+                            attrib.vertices[3 * index.vertex_index + 1],
+                            attrib.vertices[3 * index.vertex_index + 2]
+                        },
+                    .normal =
+                        glm::vec3{
+                            attrib.normals[3 * index.normal_index + 0],
+                            attrib.normals[3 * index.normal_index + 1],
+                            attrib.normals[3 * index.normal_index + 2]
+                        },
                     .color = glm::vec3{1.0, 1.0, 1.0},
                     // obj format coordinate system makes 0 the bottom of the
                     // image, which is different from vulkan which considers it
                     // the top
-                    .texCoord = glm::vec2{
-                        attrib.texcoords[2 * index.texcoord_index],
-                        1.0 - attrib.texcoords[2 * index.texcoord_index + 1]
-                    }
+                    .texCoord =
+                        glm::vec2{
+                            attrib.texcoords[2 * index.texcoord_index],
+                            1.0 - attrib.texcoords[2 * index.texcoord_index + 1]
+                        }
                 };
 
                 if (!unique_vertices.count(vertex)) {

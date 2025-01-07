@@ -4,8 +4,7 @@
 
 #include "low_level_renderer/sampler.h"
 
-class Texture {
-   public:
+struct Texture {
     [[nodiscard]]
     static Texture load(
         const char* filePath,
@@ -38,9 +37,12 @@ class Texture {
     vk::DescriptorImageInfo getDescriptorImageInfo(const Sampler& sampler
     ) const;
 
-    vk::ImageView getImageView() const;
-    vk::Format getFormat() const;
     void destroyBy(const vk::Device& device);
+
+    vk::Image image;
+    vk::ImageView imageView;
+    vk::DeviceMemory memory;
+    vk::Format format;
 
    private:
     Texture(
@@ -49,12 +51,6 @@ class Texture {
         vk::ImageView imageView,
         vk::Format format
     );
-
-   private:
-    vk::Image image;
-    vk::ImageView imageView;
-    vk::DeviceMemory memory;
-    vk::Format format;
 
     friend class GraphicsDeviceInterface;
 };

@@ -9,7 +9,6 @@ else ()
     target_compile_options(source PRIVATE -Wall -Wextra -Wpedantic)
 endif ()
 
-set(CMAKE_CXX_STANDARD 17)
 add_subdirectory(engine)
 add_subdirectory(game)
 

@@ -1,14 +1,14 @@
 // Disable implicit fallthrough warning
 #include "logger/logger.h"
-#include "low_level_renderer/graphics_device_interface.h"
+#include "scene_graph/scene_drawer.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
 
 int main() {
     Logging::initializeLogger();
-    GraphicsDeviceInterface GDI =
-        GraphicsDeviceInterface::createGraphicsDevice();
+
+    SceneDrawer sceneDrawer = SceneDrawer::create();
 
     while (true) {
         SDL_Event sdlEvent;
@@ -18,10 +18,10 @@ int main() {
             switch (sdlEvent.type) {
                 case SDL_EVENT_QUIT: shouldQuitGame = true; break;
             }
-            GDI.handleEvent(sdlEvent);
+            sceneDrawer.handleEvent(sdlEvent);
         }
 
-        if (!GDI.drawFrame()) break;
+        if (!sceneDrawer.drawFrame()) break;
 
         if (shouldQuitGame) break;
     }

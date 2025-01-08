@@ -5,13 +5,14 @@
 
 struct GPUSceneData {
     glm::mat4 view;
+    glm::mat4 inverseView;
     glm::mat4 projection;
     // for optimization, 1 less multiply in vertex shader
     glm::mat4 viewProjection;
     // lighting
-    glm::vec4 ambientColor;
-    glm::vec4 mainLightDirection;
-    glm::vec4 mainLightColor;
+    alignas(16) glm::vec3 ambientColor;
+    alignas(16) glm::vec3 mainLightDirection;
+    alignas(16) glm::vec3 mainLightColor;
 };
 
 struct GPUPushConstants {

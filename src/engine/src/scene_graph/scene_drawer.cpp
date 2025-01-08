@@ -11,13 +11,20 @@ SceneDrawer SceneDrawer::create() {
     TextureID albedo =
         sceneDrawer.device.loadTexture("textures/swordAlbedo.jpg");
     MeshID meshID = sceneDrawer.device.loadMesh("models/sword.obj");
-    MaterialInstanceID material =
-        sceneDrawer.device.loadMaterial(albedo, MaterialProperties {}, MaterialPass::OPAQUE);
+    MaterialInstanceID material = sceneDrawer.device.loadMaterial(
+        albedo,
+        MaterialProperties{
+            .specular = glm::vec3(8),
+            .diffuse = glm::vec3(.4),
+            .ambient = glm::vec3(1),
+            .shininess = 16.0f
+        },
+        MaterialPass::OPAQUE
+    );
 
-    sceneDrawer.renderObjects.push_back(RenderObject {
-        .mesh = meshID,
-        .transform = glm::mat4(1.0f)
-    });
+    sceneDrawer.renderObjects.push_back(
+        RenderObject{.mesh = meshID, .transform = glm::mat4(1.0f)}
+    );
     sceneDrawer.materials.push_back(material);
 
     return sceneDrawer;

@@ -570,6 +570,10 @@ void GraphicsDeviceInterface::recordCommandBuffer(
     );
 }
 
+float GraphicsDeviceInterface::getAspectRatio() const {
+    return swapchain->extent.width / (float)swapchain->extent.height;
+}
+
 void GraphicsDeviceInterface::submitDrawRenderObject(
     RenderObject renderObject, MaterialInstanceID materialInstance
 ) {
@@ -578,7 +582,7 @@ void GraphicsDeviceInterface::submitDrawRenderObject(
     renderObjects[materialInstance].push_back(std::move(renderObject));
 }
 
-bool GraphicsDeviceInterface::drawFrame() {
+bool GraphicsDeviceInterface::drawFrame(const GPUSceneData& gpuSceneData) {
     ASSERT(swapchain, "Attempt to draw frame without a swapchain");
 
     writeBuffer.batchWrite(device);
@@ -620,29 +624,7 @@ bool GraphicsDeviceInterface::drawFrame() {
         frameDatas[currentFrame].drawCommandBuffer;
     commandBuffer.reset();
 
-    GPUSceneData sceneData{
-        .view = glm::lookAt(
-            glm::vec3(10.0f, 10.0f, 10.0f),
-            glm::vec3(0.0f, 0.0f, 0.0f),
-            glm::vec3(0.0f, 0.0f, 1.0f)
-        ),
-        .inverseView = glm::mat4(1.0),
-        .projection = glm::perspective(
-            glm::radians(45.0f),
-            swapchain->extent.width / (float)swapchain->extent.height,
-            0.1f,
-            45.0f
-        ),
-        .viewProjection = {},
-        .ambientColor = glm::vec3(0.05),
-        .mainLightDirection = glm::normalize(glm::vec3(0.0, 1.0, -1)),
-        .mainLightColor = glm::vec3(1, 1, 1),
-    };
-    // accounts for difference between openGL and Vulkan clip space
-    sceneData.projection[1][1] *= -1;
-    sceneData.inverseView = glm::inverse(sceneData.view);
-    sceneData.viewProjection = sceneData.projection * sceneData.view;
-    frameDatas[currentFrame].sceneDataBuffer.update(sceneData);
+    frameDatas[currentFrame].sceneDataBuffer.update(gpuSceneData);
 
     recordCommandBuffer(commandBuffer, imageIndex.value);
     const vk::PipelineStageFlags waitStage =

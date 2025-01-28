@@ -43,6 +43,29 @@ bool SceneDrawer::drawFrame() {
     )
                      .count();
 
+    GPUSceneData sceneData{
+        .view = glm::lookAt(
+            glm::vec3(10.0f, 10.0f, 10.0f),
+            glm::vec3(0.0f, 0.0f, 0.0f),
+            glm::vec3(0.0f, 0.0f, 1.0f)
+        ),
+        .inverseView = glm::mat4(1.0),
+        .projection = glm::perspective(
+            glm::radians(45.0f),
+            device.getAspectRatio(),
+            0.1f,
+            45.0f
+        ),
+        .viewProjection = {},
+        .ambientColor = glm::vec3(0.05),
+        .mainLightDirection = glm::normalize(glm::vec3(0.0, 1.0, -1)),
+        .mainLightColor = glm::vec3(1, 1, 1),
+    };
+    // accounts for difference between openGL and Vulkan clip space
+    sceneData.projection[1][1] *= -1;
+    sceneData.inverseView = glm::inverse(sceneData.view);
+    sceneData.viewProjection = sceneData.projection * sceneData.view;
+
     for (size_t i = 0; i < renderObjects.size(); i++) {
         renderObjects[i].transform = glm::rotate(
             glm::mat4(1.0f),
@@ -51,5 +74,5 @@ bool SceneDrawer::drawFrame() {
         );
         device.submitDrawRenderObject(renderObjects[i], materials[i]);
     }
-    return device.drawFrame();
+    return device.drawFrame(sceneData);
 }

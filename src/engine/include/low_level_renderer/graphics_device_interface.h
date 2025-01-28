@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "low_level_renderer/config.h"
+#include "low_level_renderer/camera.h"
 #include "low_level_renderer/material_manager.h"
 #include "low_level_renderer/material_pipeline.h"
 #include "low_level_renderer/mesh_manager.h"
@@ -54,7 +55,7 @@ class GraphicsDeviceInterface {
     void submitDrawRenderObject(
         RenderObject renderObject, MaterialInstanceID materialInstance
     );
-    bool drawFrame();
+    bool drawFrame(const GPUSceneData& gpuSceneData);
     void handleEvent(const SDL_Event& sdlEvent);
 
     [[nodiscard]]
@@ -67,6 +68,8 @@ class GraphicsDeviceInterface {
     MaterialInstanceID loadMaterial(
         TextureID albedo, MaterialProperties properties, MaterialPass pass
     );
+
+    float getAspectRatio() const;
 
    private:
     std::array<FrameData, MAX_FRAMES_IN_FLIGHT> frameDatas;
@@ -94,7 +97,6 @@ class GraphicsDeviceInterface {
     vk::CommandPool commandPool;
     Sampler sampler;
 
-    GPUSceneData gpuSceneData = {};
     std::unordered_map<
         MaterialInstanceID,
         std::vector<RenderObject>,

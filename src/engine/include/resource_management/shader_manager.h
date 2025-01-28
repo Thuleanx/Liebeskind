@@ -2,6 +2,8 @@
 
 #include <vulkan/vulkan.hpp>
 
+constexpr uint32_t MAX_SHADERS = 1<<8;
+
 struct ShaderID {
     // surely we won't need that many shaders
     uint8_t index;
@@ -16,5 +18,5 @@ class ShaderManager {
 
    private:
     uint8_t numberOfShaders;
-    std::array<vk::ShaderModule, 1 << 8> shaders;
+    std::array<vk::ShaderModule, MAX_SHADERS> shaders;
 };

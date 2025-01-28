@@ -10,7 +10,8 @@ SceneDrawer SceneDrawer::create() {
 
     TextureID albedo =
         sceneDrawer.device.loadTexture("textures/swordAlbedo.jpg");
-    MeshID meshID = sceneDrawer.device.loadMesh("models/sword.obj");
+    MeshID meshID =
+        sceneDrawer.device.loadMesh("models/sword.obj");
     MaterialInstanceID material = sceneDrawer.device.loadMaterial(
         albedo,
         MaterialProperties{
@@ -51,10 +52,7 @@ bool SceneDrawer::drawFrame() {
         ),
         .inverseView = glm::mat4(1.0),
         .projection = glm::perspective(
-            glm::radians(45.0f),
-            device.getAspectRatio(),
-            0.1f,
-            45.0f
+            glm::radians(45.0f), device.getAspectRatio(), 0.1f, 45.0f
         ),
         .viewProjection = {},
         .ambientColor = glm::vec3(0.05),

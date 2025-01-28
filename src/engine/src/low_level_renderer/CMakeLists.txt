@@ -1,9 +1,5 @@
 set(SRC 
     material_pipeline.cpp
-    material_manager.cpp
-    texture_manager.cpp
-    shader_manager.cpp
-    mesh_manager.cpp
     graphics_device_interface.cpp 
     descriptor_write_buffer.cpp 
     descriptor_allocator.cpp 
@@ -30,6 +26,7 @@ set(SRC
 
 add_library(low_level_renderer ${SRC})
 
+target_link_libraries(low_level_renderer PRIVATE resource_management)
 target_link_libraries(low_level_renderer PRIVATE third_party)
 target_link_libraries(low_level_renderer PRIVATE logger)
 target_link_libraries(low_level_renderer PRIVATE file_system)

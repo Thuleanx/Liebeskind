@@ -3,11 +3,11 @@
 #include <vulkan/vulkan.hpp>
 #include <glm/glm.hpp>
 
+#include "resource_management/texture_manager.h"
+
 #include "low_level_renderer/descriptor_allocator.h"
 #include "low_level_renderer/descriptor_write_buffer.h"
-#include "low_level_renderer/texture_manager.h"
 #include "low_level_renderer/uniform_buffer.h"
-
 
 enum MaterialPass { OPAQUE, TRANSPARENT, MAX = TRANSPARENT };
 

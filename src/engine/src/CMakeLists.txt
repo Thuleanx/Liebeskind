@@ -1,4 +1,5 @@
 add_subdirectory(logger)
 add_subdirectory(low_level_renderer)
 add_subdirectory(file_system)
+add_subdirectory(resource_management)
 add_subdirectory(scene_graph)

@@ -1,4 +1,4 @@
-#include "low_level_renderer/material_manager.h"
+#include "resource_management/material_manager.h"
 
 #include "logger/assert.h"
 

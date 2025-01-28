@@ -1,5 +1,5 @@
 #include "queue_family.h"
-#include "helpful_defines.h"
+#include "logger/vulkan_ensures.h"
 
 bool QueueFamilyIndices::isComplete() {
     return this->graphicsFamily.has_value() && this->presentFamily.has_value();

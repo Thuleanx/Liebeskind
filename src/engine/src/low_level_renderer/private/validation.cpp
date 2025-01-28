@@ -1,7 +1,7 @@
 #include <vulkan/vulkan.hpp>
 #include "validation.h"
 #include "logger/logger.h"
-#include "helpful_defines.h"
+#include "logger/vulkan_ensures.h"
 
 const std::vector<const char*> Validation::validationLayers = {
 	"VK_LAYER_KHRONOS_validation"

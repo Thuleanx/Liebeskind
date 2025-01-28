@@ -1,6 +1,6 @@
 #include "low_level_renderer/descriptor_allocator.h"
 
-#include "private/helpful_defines.h"
+#include "logger/vulkan_ensures.h"
 
 constexpr uint32_t MAX_DESCRIPTOR_SETS_PER_POOL = 4096;
 

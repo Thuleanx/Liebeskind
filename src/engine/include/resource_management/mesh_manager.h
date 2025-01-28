@@ -15,6 +15,7 @@ struct Mesh {
 
 class MeshManager {
    public:
+    [[nodiscard]]
     MeshID load(
         const vk::Device &device,
         const vk::PhysicalDevice &physicalDevice,
@@ -23,8 +24,8 @@ class MeshManager {
         const char *meshFilePath
     );
 
-    void bind(vk::CommandBuffer commandBuffer, MeshID mesh);
-    void draw(vk::CommandBuffer commandBuffer, MeshID mesh);
+    void bind(vk::CommandBuffer commandBuffer, MeshID mesh) const;
+    void draw(vk::CommandBuffer commandBuffer, MeshID mesh) const;
     void destroyBy(vk::Device device);
 
    private:

@@ -1,4 +1,4 @@
-#include "low_level_renderer/texture_manager.h"
+#include "resource_management/texture_manager.h"
 
 TextureID TextureManager::load(
     const char* filePath,

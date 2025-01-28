@@ -2,7 +2,7 @@
 
 #include "low_level_renderer/shader_data.h"
 #include "low_level_renderer/vertex_buffer.h"
-#include "private/helpful_defines.h"
+#include "logger/vulkan_ensures.h"
 
 MaterialPipeline MaterialPipeline::create(
     vk::Device device,

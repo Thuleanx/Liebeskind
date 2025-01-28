@@ -9,7 +9,7 @@
 #include "logger/assert.h"
 #include "low_level_renderer/descriptor_write_buffer.h"
 #include "private/graphics_device_helper.h"
-#include "private/helpful_defines.h"
+#include "logger/vulkan_ensures.h"
 #include "private/queue_family.h"
 #include "private/swapchain.h"
 #include "private/validation.h"

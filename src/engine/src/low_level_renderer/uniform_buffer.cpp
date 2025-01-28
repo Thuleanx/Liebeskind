@@ -1,7 +1,5 @@
 #include "low_level_renderer/uniform_buffer.h"
 
-#include "low_level_renderer/material_manager.h"
-#include "low_level_renderer/shader_data.h"
 #include "private/buffer.h"
 
 template <typename T>
@@ -55,5 +53,8 @@ void UniformBuffer<T>::destroyBy(const vk::Device& device) {
     device.freeMemory(memory);
 }
 
+#include "low_level_renderer/shader_data.h"
 template struct UniformBuffer<GPUSceneData>;
+
+#include "resource_management/material_manager.h"
 template struct UniformBuffer<MaterialProperties>;

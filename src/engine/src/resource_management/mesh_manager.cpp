@@ -1,4 +1,4 @@
-#include "low_level_renderer/mesh_manager.h"
+#include "resource_management/mesh_manager.h"
 
 #include "logger/assert.h"
 
@@ -17,7 +17,7 @@ MeshID MeshManager::load(
     return id;
 }
 
-void MeshManager::bind(vk::CommandBuffer commandBuffer, MeshID mesh) {
+void MeshManager::bind(vk::CommandBuffer commandBuffer, MeshID mesh) const {
     ASSERT(
         mesh.index >= 0 && mesh.index < meshes.size(),
         "Mesh id is invalid: index out of range"
@@ -25,7 +25,7 @@ void MeshManager::bind(vk::CommandBuffer commandBuffer, MeshID mesh) {
     meshes[mesh.index].vertexBuffer.bind(commandBuffer);
 }
 
-void MeshManager::draw(vk::CommandBuffer commandBuffer, MeshID mesh) {
+void MeshManager::draw(vk::CommandBuffer commandBuffer, MeshID mesh) const {
     ASSERT(
         mesh.index >= 0 && mesh.index < meshes.size(),
         "Mesh id is invalid: index out of range"

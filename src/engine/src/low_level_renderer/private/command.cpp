@@ -1,6 +1,6 @@
 #include "command.h"
 
-#include "helpful_defines.h"
+#include "logger/vulkan_ensures.h"
 
 vk::CommandBuffer Command::beginSingleCommand(
     const vk::Device &device, const vk::CommandPool &commandPool

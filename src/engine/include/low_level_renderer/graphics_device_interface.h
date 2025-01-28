@@ -8,16 +8,16 @@
 #include <unordered_map>
 #include <vector>
 
+#include "resource_management/mesh_manager.h"
+#include "resource_management/shader_manager.h"
+#include "resource_management/texture_manager.h"
+#include "resource_management/material_manager.h"
+
 #include "low_level_renderer/config.h"
-#include "low_level_renderer/camera.h"
-#include "low_level_renderer/material_manager.h"
 #include "low_level_renderer/material_pipeline.h"
-#include "low_level_renderer/mesh_manager.h"
 #include "low_level_renderer/sampler.h"
 #include "low_level_renderer/shader_data.h"
-#include "low_level_renderer/shader_manager.h"
 #include "low_level_renderer/swapchain_data.h"
-#include "low_level_renderer/texture_manager.h"
 #include "low_level_renderer/uniform_buffer.h"
 
 constexpr char APP_SHORT_NAME[] = "Game";
@@ -58,6 +58,7 @@ class GraphicsDeviceInterface {
     bool drawFrame(const GPUSceneData& gpuSceneData);
     void handleEvent(const SDL_Event& sdlEvent);
 
+    // Resource management
     [[nodiscard]]
     TextureID loadTexture(const char* filePath);
 
@@ -136,4 +137,6 @@ class GraphicsDeviceInterface {
     [[nodiscard]]
     SwapchainData createSwapchain() const;
     void destroy(SwapchainData& swapchainData) const;
+
+    friend class MeshManager;
 };

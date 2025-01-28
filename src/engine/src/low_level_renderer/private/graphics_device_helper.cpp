@@ -5,10 +5,10 @@
 #include <set>
 #include <vulkan/vulkan.hpp>
 
-#include "helpful_defines.h"
+#include "logger/vulkan_ensures.h"
 #include "logger/logger.h"
-#include "queue_family.h"
 #include "swapchain.h"
+#include "queue_family.h"
 #include "validation.h"
 
 const std::vector<const char*> GraphicsHelper::deviceExtensions = {

@@ -1,7 +1,7 @@
 #include "buffer.h"
 
 #include "command.h"
-#include "helpful_defines.h"
+#include "logger/vulkan_ensures.h"
 
 namespace Buffer {
 

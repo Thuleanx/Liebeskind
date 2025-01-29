@@ -1,4 +1,5 @@
 set(SRC 
+    render_submission.cpp
     material_pipeline.cpp
     graphics_device_interface.cpp 
     descriptor_write_buffer.cpp 

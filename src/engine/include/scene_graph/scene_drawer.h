@@ -14,7 +14,7 @@ class SceneDrawer {
 
     SceneDrawer();
 
+    RenderSubmission renderSubmission;
     GraphicsDeviceInterface device;
     std::vector<RenderObject> renderObjects;
-    std::vector<MaterialInstanceID> materials;
 };

@@ -13,3 +13,4 @@ add_subdirectory(engine)
 add_subdirectory(game)
 
 target_link_libraries(source PUBLIC engine)
+target_link_libraries(source PUBLIC game)

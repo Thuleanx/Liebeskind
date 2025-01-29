@@ -5,28 +5,21 @@
 #include <SDL3/SDL_vulkan.h>
 
 #include <optional>
-#include <unordered_map>
-#include <vector>
-
-#include "resource_management/mesh_manager.h"
-#include "resource_management/shader_manager.h"
-#include "resource_management/texture_manager.h"
-#include "resource_management/material_manager.h"
 
 #include "low_level_renderer/config.h"
 #include "low_level_renderer/material_pipeline.h"
+#include "low_level_renderer/render_submission.h"
 #include "low_level_renderer/sampler.h"
 #include "low_level_renderer/shader_data.h"
 #include "low_level_renderer/swapchain_data.h"
 #include "low_level_renderer/uniform_buffer.h"
+#include "resource_management/material_manager.h"
+#include "resource_management/mesh_manager.h"
+#include "resource_management/shader_manager.h"
+#include "resource_management/texture_manager.h"
 
 constexpr char APP_SHORT_NAME[] = "Game";
 constexpr char ENGINE_NAME[] = "Liebeskind";
-
-struct RenderObject {
-    MeshID mesh;
-    glm::mat4 transform;
-};
 
 class GraphicsDeviceInterface {
     struct FrameData {
@@ -51,11 +44,10 @@ class GraphicsDeviceInterface {
     const GraphicsDeviceInterface& operator=(const GraphicsDeviceInterface&) =
         delete;
 
-    // Submits render object for the next draw call
-    void submitDrawRenderObject(
-        RenderObject renderObject, MaterialInstanceID materialInstance
+    bool drawFrame(
+        const RenderSubmission& renderSubmission,
+        const GPUSceneData& gpuSceneData
     );
-    bool drawFrame(const GPUSceneData& gpuSceneData);
     void handleEvent(const SDL_Event& sdlEvent);
 
     // Resource management
@@ -98,11 +90,6 @@ class GraphicsDeviceInterface {
     vk::CommandPool commandPool;
     Sampler sampler;
 
-    std::unordered_map<
-        MaterialInstanceID,
-        std::vector<RenderObject>,
-        MaterialInstanceIDHashFunction>
-        renderObjects;
     uint32_t currentFrame = 0;
     DescriptorWriteBuffer writeBuffer;
 
@@ -127,7 +114,11 @@ class GraphicsDeviceInterface {
         Sampler sampler
     );
 
-    void recordCommandBuffer(vk::CommandBuffer buffer, uint32_t imageIndex);
+    void recordCommandBuffer(
+        const RenderSubmission& renderSubmission,
+        vk::CommandBuffer buffer,
+        uint32_t imageIndex
+    );
     void recreateSwapchain();
     void cleanupSwapchain();
     void handleWindowResize(int width, int height);

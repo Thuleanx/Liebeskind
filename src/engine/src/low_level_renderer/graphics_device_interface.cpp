@@ -7,9 +7,9 @@
 #include <vector>
 
 #include "logger/assert.h"
+#include "logger/vulkan_ensures.h"
 #include "low_level_renderer/descriptor_write_buffer.h"
 #include "private/graphics_device_helper.h"
-#include "logger/vulkan_ensures.h"
 #include "private/queue_family.h"
 #include "private/swapchain.h"
 #include "private/validation.h"
@@ -505,7 +505,9 @@ GraphicsDeviceInterface::~GraphicsDeviceInterface() {
 }
 
 void GraphicsDeviceInterface::recordCommandBuffer(
-    vk::CommandBuffer buffer, uint32_t imageIndex
+    const RenderSubmission& renderSubmission,
+    vk::CommandBuffer buffer,
+    uint32_t imageIndex
 ) {
     ASSERT(swapchain, "Attempt to record command buffer");
     vk::CommandBufferBeginInfo beginInfo({}, nullptr);
@@ -547,22 +549,8 @@ void GraphicsDeviceInterface::recordCommandBuffer(
         0,
         nullptr
     );
-    for (const auto& [materialID, allRenderObjects] : renderObjects) {
-        materialManager.bind(buffer, pipeline.layout, materialID);
-        for (const RenderObject& renderObject : allRenderObjects) {
-            GPUPushConstants pushConstants = {.model = renderObject.transform};
-            buffer.pushConstants(
-                pipeline.layout,
-                vk::ShaderStageFlagBits::eVertex,
-                0,
-                sizeof(GPUPushConstants),
-                &pushConstants
-            );
-            meshManager.bind(buffer, renderObject.mesh);
-            meshManager.draw(buffer, renderObject.mesh);
-        }
-    }
-    renderObjects.clear();
+
+    renderSubmission.record(buffer, pipeline.layout, materialManager, meshManager);
 
     buffer.endRenderPass();
     VULKAN_ENSURE_SUCCESS_EXPR(
@@ -574,15 +562,9 @@ float GraphicsDeviceInterface::getAspectRatio() const {
     return swapchain->extent.width / (float)swapchain->extent.height;
 }
 
-void GraphicsDeviceInterface::submitDrawRenderObject(
-    RenderObject renderObject, MaterialInstanceID materialInstance
+bool GraphicsDeviceInterface::drawFrame(
+    const RenderSubmission& renderSubmission, const GPUSceneData& gpuSceneData
 ) {
-    if (!renderObjects.contains(materialInstance))
-        renderObjects[materialInstance] = std::vector<RenderObject>();
-    renderObjects[materialInstance].push_back(std::move(renderObject));
-}
-
-bool GraphicsDeviceInterface::drawFrame(const GPUSceneData& gpuSceneData) {
     ASSERT(swapchain, "Attempt to draw frame without a swapchain");
 
     writeBuffer.batchWrite(device);
@@ -626,7 +608,7 @@ bool GraphicsDeviceInterface::drawFrame(const GPUSceneData& gpuSceneData) {
 
     frameDatas[currentFrame].sceneDataBuffer.update(gpuSceneData);
 
-    recordCommandBuffer(commandBuffer, imageIndex.value);
+    recordCommandBuffer(renderSubmission, commandBuffer, imageIndex.value);
     const vk::PipelineStageFlags waitStage =
         vk::PipelineStageFlagBits::eColorAttachmentOutput;
     const vk::SubmitInfo submitInfo(
@@ -710,7 +692,8 @@ void GraphicsDeviceInterface::recreateSwapchain() {
     cleanupSwapchain();
     ASSERT(
         !swapchain.has_value(),
-        "Trying to recreate swapchain before cleaning up the previous swapchain"
+        "Trying to recreate swapchain before cleaning up the previous "
+        "swapchain"
     );
     swapchain = createSwapchain();
     LLOG_INFO << "Swapchain recreated";

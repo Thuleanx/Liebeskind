@@ -10,8 +10,7 @@ SceneDrawer SceneDrawer::create() {
 
     TextureID albedo =
         sceneDrawer.device.loadTexture("textures/swordAlbedo.jpg");
-    MeshID meshID =
-        sceneDrawer.device.loadMesh("models/sword.obj");
+    MeshID meshID = sceneDrawer.device.loadMesh("models/sword.obj");
     MaterialInstanceID material = sceneDrawer.device.loadMaterial(
         albedo,
         MaterialProperties{
@@ -23,10 +22,11 @@ SceneDrawer SceneDrawer::create() {
         MaterialPass::OPAQUE
     );
 
-    sceneDrawer.renderObjects.push_back(
-        RenderObject{.mesh = meshID, .transform = glm::mat4(1.0f)}
-    );
-    sceneDrawer.materials.push_back(material);
+    sceneDrawer.renderObjects.push_back(RenderObject{
+        .transform = glm::mat4(1.0f),
+        .materialInstance = material,
+        .mesh = meshID,
+    });
 
     return sceneDrawer;
 }
@@ -70,7 +70,10 @@ bool SceneDrawer::drawFrame() {
             time * glm::radians(90.0f),
             glm::vec3(0.0f, 0.0f, 1.0f)
         );
-        device.submitDrawRenderObject(renderObjects[i], materials[i]);
+        renderSubmission.submit(renderObjects[i]);
     }
-    return device.drawFrame(sceneData);
+
+    bool isRenderSuccessful = device.drawFrame(renderSubmission, sceneData);
+    renderSubmission.clear();
+    return isRenderSuccessful;
 }

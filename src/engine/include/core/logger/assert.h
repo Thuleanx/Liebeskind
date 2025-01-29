@@ -1,6 +1,6 @@
 #pragma once
 
-#include "logger/logger.h"
+#include "core/logger/logger.h"
 
 #ifdef NDEBUG
     #define ASSERT(condition, message) do { } while (false)

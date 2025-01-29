@@ -1,6 +1,6 @@
 #include "resource_management/material_manager.h"
 
-#include "logger/assert.h"
+#include "core/logger/assert.h"
 
 size_t MaterialInstanceIDHashFunction ::operator()(
     const MaterialInstanceID& materialInstanceID

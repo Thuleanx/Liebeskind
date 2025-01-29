@@ -2,7 +2,7 @@
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused"
-#include "logger/assert.h"
+#include "core/logger/assert.h"
 #pragma GCC diagnostic pop
 
 #define VULKAN_ENSURE_SUCCESS(name, msg) ASSERT(name == vk::Result::eSuccess, msg << " " << to_string(name))

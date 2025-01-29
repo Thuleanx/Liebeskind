@@ -1,8 +1,8 @@
 #include "resource_management/shader_manager.h"
 
-#include "file_system/file.h"
-#include "logger/assert.h"
-#include "logger/vulkan_ensures.h"
+#include "core/file_system/file.h"
+#include "core/logger/assert.h"
+#include "core/logger/vulkan_ensures.h"
 
 ShaderID ShaderManager::load(vk::Device device, const char* filePath) {
     const std::optional<std::vector<char>> shaderCode =

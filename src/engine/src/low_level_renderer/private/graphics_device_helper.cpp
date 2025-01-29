@@ -5,8 +5,8 @@
 #include <set>
 #include <vulkan/vulkan.hpp>
 
-#include "logger/vulkan_ensures.h"
-#include "logger/logger.h"
+#include "core/logger/vulkan_ensures.h"
+#include "core/logger/logger.h"
 #include "swapchain.h"
 #include "queue_family.h"
 #include "validation.h"

@@ -1,8 +1,8 @@
 #include "low_level_renderer/swapchain_data.h"
 
-#include "logger/logger.h"
+#include "core/logger/logger.h"
+#include "core/logger/vulkan_ensures.h"
 #include "low_level_renderer/graphics_device_interface.h"
-#include "logger/vulkan_ensures.h"
 #include "private/image.h"
 #include "private/queue_family.h"
 #include "private/swapchain.h"

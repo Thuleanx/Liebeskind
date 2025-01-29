@@ -1,6 +1,6 @@
-#include "file_system/file.h"
+#include "core/file_system/file.h"
 
-#include "logger/logger.h"
+#include "core/logger/logger.h"
 #include <fstream>
 
 namespace FileUtilities {

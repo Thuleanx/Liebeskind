@@ -1,6 +1,6 @@
 #include "resource_management/mesh_manager.h"
 
-#include "logger/assert.h"
+#include "core/logger/assert.h"
 
 MeshID MeshManager::load(
     const vk::Device &device,

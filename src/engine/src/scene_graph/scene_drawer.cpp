@@ -2,11 +2,24 @@
 
 #include <chrono>
 
-SceneDrawer::SceneDrawer() :
-    device(GraphicsDeviceInterface::createGraphicsDevice()) {}
+SceneDrawer::SceneDrawer(PerspectiveCamera camera) :
+    camera(camera), device(GraphicsDeviceInterface::createGraphicsDevice()) {
+    camera.setAspectRatio(device.getAspectRatio());
+}
 
 SceneDrawer SceneDrawer::create() {
-    SceneDrawer sceneDrawer;
+    PerspectiveCamera camera = PerspectiveCamera::create(
+        glm::lookAt(
+            glm::vec3(10.0f, 10.0f, 10.0f),
+            glm::vec3(0.0f, 0.0f, 0.0f),
+            glm::vec3(0.0f, 0.0f, 1.0f)
+        ),
+        glm::radians(45.0f),
+        16.0 / 9.0,
+        0.1f,
+        45.0f
+    );
+    SceneDrawer sceneDrawer(camera);
 
     TextureID albedo =
         sceneDrawer.device.loadTexture("textures/swordAlbedo.jpg");
@@ -33,6 +46,7 @@ SceneDrawer SceneDrawer::create() {
 
 void SceneDrawer::handleEvent(const SDL_Event& sdlEvent) {
     device.handleEvent(sdlEvent);
+    camera.setAspectRatio(device.getAspectRatio());
 }
 
 bool SceneDrawer::drawFrame() {
@@ -45,15 +59,9 @@ bool SceneDrawer::drawFrame() {
                      .count();
 
     GPUSceneData sceneData{
-        .view = glm::lookAt(
-            glm::vec3(10.0f, 10.0f, 10.0f),
-            glm::vec3(0.0f, 0.0f, 0.0f),
-            glm::vec3(0.0f, 0.0f, 1.0f)
-        ),
+        .view = camera.getView(),
         .inverseView = glm::mat4(1.0),
-        .projection = glm::perspective(
-            glm::radians(45.0f), device.getAspectRatio(), 0.1f, 45.0f
-        ),
+        .projection = camera.getProjection(),
         .viewProjection = {},
         .ambientColor = glm::vec3(0.05),
         .mainLightDirection = glm::normalize(glm::vec3(0.0, 1.0, -1)),

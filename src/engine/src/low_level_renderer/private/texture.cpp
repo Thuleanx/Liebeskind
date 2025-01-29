@@ -1,8 +1,8 @@
 #include "low_level_renderer/texture.h"
 
 #include "buffer.h"
+#include "core/logger/assert.h"
 #include "image.h"
-#include "logger/assert.h"
 #include "stb_image.h"
 
 Texture Texture::load(

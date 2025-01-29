@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <glm/gtx/hash.hpp>
 
-#include "logger/assert.h"
+#include "core/logger/assert.h"
 #include "private/buffer.h"
 
 namespace std {

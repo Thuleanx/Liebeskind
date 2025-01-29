@@ -1,4 +1,4 @@
-#include "logger/logger.h"
+#include "core/logger/logger.h"
 
 #include "plog/Appenders/ColorConsoleAppender.h"
 // Txt formatter prints out the timestamp which doesn't really make sense to me

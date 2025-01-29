@@ -6,8 +6,8 @@
 #include <set>
 #include <vector>
 
-#include "logger/assert.h"
-#include "logger/vulkan_ensures.h"
+#include "core/logger/assert.h"
+#include "core/logger/vulkan_ensures.h"
 #include "low_level_renderer/descriptor_write_buffer.h"
 #include "private/graphics_device_helper.h"
 #include "private/queue_family.h"

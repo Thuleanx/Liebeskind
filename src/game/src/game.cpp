@@ -1,6 +1,6 @@
 #include "game.h"
 
-#include "logger/logger.h"
+#include "core/logger/logger.h"
 #include "scene_graph/scene_drawer.h"
 
 #pragma GCC diagnostic push

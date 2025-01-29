@@ -5,7 +5,7 @@
 // not neccessary, only for LSP
 #include <vector>
 #include <vulkan/vulkan.hpp>
-#include "logger/vulkan_ensures.h"
+#include "core/logger/vulkan_ensures.h"
 
 namespace Buffer {
 template <typename T>

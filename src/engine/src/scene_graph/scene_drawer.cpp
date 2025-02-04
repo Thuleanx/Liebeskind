@@ -7,8 +7,8 @@ SceneDrawer::SceneDrawer(PerspectiveCamera camera) : camera(camera) {}
 SceneDrawer SceneDrawer::create() {
     PerspectiveCamera camera = PerspectiveCamera::create(
         glm::lookAt(
-            glm::vec3(20.0f, 20.0f, 100.0f),
-            glm::vec3(0.0f, 0.0f, 0.0f),
+            glm::vec3(-3.0f, 0.f, 0.5f),
+            glm::vec3(0.0f, 0.0f, 0.5f),
             glm::vec3(0.0f, 0.0f, 1.0f)
         ),
         glm::radians(45.0f),

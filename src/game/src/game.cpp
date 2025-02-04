@@ -17,15 +17,15 @@ void Game::run() {
     SceneDrawer sceneDrawer = SceneDrawer::create();
     sceneDrawer.handleResize(device.getAspectRatio());
 
-    TextureID albedo = device.loadTexture("textures/swordAlbedo.jpg");
-    MeshID meshID = device.loadMesh("models/sword.obj");
+    TextureID albedo = device.loadTexture("textures/ChibiPippa.png");
+    MeshID meshID = device.loadMesh("models/ChibiPippa.obj");
     MaterialInstanceID material = device.loadMaterial(
         albedo,
         MaterialProperties{
-            .specular = glm::vec3(8),
+            .specular = glm::vec3(1),
             .diffuse = glm::vec3(.4),
             .ambient = glm::vec3(1),
-            .shininess = 16.0f
+            .shininess = 1.0f
         },
         MaterialPass::OPAQUE
     );

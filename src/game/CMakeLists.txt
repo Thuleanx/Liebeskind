@@ -1,5 +1,6 @@
 set(SRC
     src/game.cpp
+    src/input_management.cpp
 )
 
 add_library(game ${SRC})

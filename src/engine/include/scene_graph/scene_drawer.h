@@ -5,9 +5,16 @@
 
 class SceneDrawer {
    public:
+    struct ObjectID {
+        uint32_t index;
+    };
     static SceneDrawer create();
-    void handleEvent(const SDL_Event& sdlEvent);
-    bool drawFrame();
+    void handleResize(int width, int height);
+    void handleResize(float aspectRatio);
+    bool drawFrame(GraphicsDeviceInterface& device);
+
+    void addObjects(std::span<RenderObject> renderObjects);
+    void updateObjects(std::vector<std::tuple<int, glm::mat4>>);
 
    private:
     SceneDrawer(SceneDrawer&& device) = default;
@@ -17,6 +24,5 @@ class SceneDrawer {
 
     PerspectiveCamera camera;
     RenderSubmission renderSubmission;
-    GraphicsDeviceInterface device;
     std::vector<RenderObject> renderObjects;
 };

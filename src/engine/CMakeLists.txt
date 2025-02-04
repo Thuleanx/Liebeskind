@@ -6,6 +6,7 @@ target_link_libraries(engine INTERFACE logger file_system low_level_renderer sce
 
 set(ENGINE_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/src/engine/include")
 
+target_include_directories(algo PUBLIC ${ENGINE_INCLUDE_DIR})
 target_include_directories(file_system PUBLIC ${ENGINE_INCLUDE_DIR})
 target_include_directories(cameras PUBLIC ${ENGINE_INCLUDE_DIR})
 target_include_directories(source PUBLIC ${ENGINE_INCLUDE_DIR})

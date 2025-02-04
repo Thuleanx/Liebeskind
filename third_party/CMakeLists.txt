@@ -1,16 +1,14 @@
 add_library(third_party INTERFACE)
 
-cmake_minimum_required(VERSION 3.15)
-project(stb_image LANGUAGES C CXX)
-add_library(stb_image)
-target_sources(stb_image PRIVATE "stb/src/stb_image.cpp")
-target_include_directories(stb_image PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/stb")
-
 set(SDL_STATIC ON CACHE INTERNAL "")
 add_subdirectory(Vulkan-Headers)
 add_subdirectory(SDL)
 add_subdirectory(plog)
 add_subdirectory(tinyobjloader)
+
+add_library(stb_image)
+target_sources(stb_image PRIVATE "stb/src/stb_image.cpp")
+target_include_directories(stb_image PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/stb")
 
 include(FindVulkan)
 if(NOT VULKAN_FOUND)

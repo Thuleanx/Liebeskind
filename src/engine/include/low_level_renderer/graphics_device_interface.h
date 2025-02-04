@@ -92,6 +92,7 @@ class GraphicsDeviceInterface {
 
     uint32_t currentFrame = 0;
     DescriptorWriteBuffer writeBuffer;
+    std::unordered_map<int, int> a;
 
    private:
     GraphicsDeviceInterface(
@@ -128,6 +129,4 @@ class GraphicsDeviceInterface {
     [[nodiscard]]
     SwapchainData createSwapchain() const;
     void destroy(SwapchainData& swapchainData) const;
-
-    friend class MeshManager;
 };

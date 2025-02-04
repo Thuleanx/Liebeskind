@@ -2,62 +2,45 @@
 
 #include <chrono>
 
-SceneDrawer::SceneDrawer(PerspectiveCamera camera) :
-    camera(camera), device(GraphicsDeviceInterface::createGraphicsDevice()) {
-    camera.setAspectRatio(device.getAspectRatio());
-}
+SceneDrawer::SceneDrawer(PerspectiveCamera camera) : camera(camera) {}
 
 SceneDrawer SceneDrawer::create() {
     PerspectiveCamera camera = PerspectiveCamera::create(
         glm::lookAt(
-            glm::vec3(10.0f, 10.0f, 10.0f),
+            glm::vec3(20.0f, 20.0f, 100.0f),
             glm::vec3(0.0f, 0.0f, 0.0f),
             glm::vec3(0.0f, 0.0f, 1.0f)
         ),
         glm::radians(45.0f),
         16.0 / 9.0,
         0.1f,
-        45.0f
+        145.0f
     );
-    SceneDrawer sceneDrawer(camera);
-
-    TextureID albedo =
-        sceneDrawer.device.loadTexture("textures/swordAlbedo.jpg");
-    MeshID meshID = sceneDrawer.device.loadMesh("models/sword.obj");
-    MaterialInstanceID material = sceneDrawer.device.loadMaterial(
-        albedo,
-        MaterialProperties{
-            .specular = glm::vec3(8),
-            .diffuse = glm::vec3(.4),
-            .ambient = glm::vec3(1),
-            .shininess = 16.0f
-        },
-        MaterialPass::OPAQUE
-    );
-
-    sceneDrawer.renderObjects.push_back(RenderObject{
-        .transform = glm::mat4(1.0f),
-        .materialInstance = material,
-        .mesh = meshID,
-    });
-
-    return sceneDrawer;
+    return camera;
 }
 
-void SceneDrawer::handleEvent(const SDL_Event& sdlEvent) {
-    device.handleEvent(sdlEvent);
-    camera.setAspectRatio(device.getAspectRatio());
+void SceneDrawer::handleResize(int width, int height) {
+    handleResize((float)width / height);
 }
 
-bool SceneDrawer::drawFrame() {
-    static auto startTime = std::chrono::high_resolution_clock::now();
+void SceneDrawer::handleResize(float aspectRatio) {
+    camera.setAspectRatio(aspectRatio);
+}
 
-    auto currentTime = std::chrono::high_resolution_clock::now();
-    float time = std::chrono::duration<float, std::chrono::seconds::period>(
-                     currentTime - startTime
-    )
-                     .count();
+void SceneDrawer::addObjects(std::span<RenderObject> renderObjects) {
+    this->renderObjects.insert(
+        this->renderObjects.end(),
+        renderObjects.begin(),
+        renderObjects.end()
+    );
+}
 
+void SceneDrawer::updateObjects(std::vector<std::tuple<int, glm::mat4>> updates) {
+    for (const auto& [index, transform] : updates)
+        this->renderObjects[index].transform = transform;
+}
+
+bool SceneDrawer::drawFrame(GraphicsDeviceInterface& device) {
     GPUSceneData sceneData{
         .view = camera.getView(),
         .inverseView = glm::mat4(1.0),
@@ -73,11 +56,6 @@ bool SceneDrawer::drawFrame() {
     sceneData.viewProjection = sceneData.projection * sceneData.view;
 
     for (size_t i = 0; i < renderObjects.size(); i++) {
-        renderObjects[i].transform = glm::rotate(
-            glm::mat4(1.0f),
-            time * glm::radians(90.0f),
-            glm::vec3(0.0f, 0.0f, 1.0f)
-        );
         renderSubmission.submit(renderObjects[i]);
     }
 

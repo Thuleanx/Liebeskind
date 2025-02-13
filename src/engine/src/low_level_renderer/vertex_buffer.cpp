@@ -66,21 +66,6 @@ vk::VertexInputBindingDescription Vertex::getBindingDescription() {
     return bindingDescription;
 }
 
-VertexBuffer::VertexBuffer(
-    vk::Buffer vertexBuffer,
-    vk::DeviceMemory vertexMemory,
-    vk::Buffer indexBuffer,
-    vk::DeviceMemory indexMemory,
-    uint32_t numberOfVertices,
-    uint32_t numberOfIndices
-) :
-    vertexBuffer(vertexBuffer),
-    vertexMemory(vertexMemory),
-    indexBuffer(indexBuffer),
-    indexMemory(indexMemory),
-    numberOfVertices(numberOfVertices),
-    numberOfIndices(numberOfIndices) {}
-
 VertexBuffer VertexBuffer::create(
     const char* filePath,
     const vk::Device& device,
@@ -164,12 +149,12 @@ VertexBuffer VertexBuffer::create(
         deviceMemory,
         indexBuffer,
         indexDeviceMemory,
-        vertices.size(),
-        indices.size()
+        static_cast<uint32_t>(vertices.size()),
+        static_cast<uint32_t>(indices.size())
     );
 }
 
-void VertexBuffer::destroyBy(const vk::Device& device) {
+void VertexBuffer::destroyBy(const vk::Device& device) const {
     device.destroyBuffer(vertexBuffer);
     device.freeMemory(vertexMemory);
     device.destroyBuffer(indexBuffer);
@@ -183,13 +168,5 @@ void VertexBuffer::bind(const vk::CommandBuffer& commandBuffer) const {
 }
 
 void VertexBuffer::draw(const vk::CommandBuffer& commandBuffer) const {
-    commandBuffer.drawIndexed(getNumberOfIndices(), 1, 0, 0, 0);
-}
-
-uint32_t VertexBuffer::getNumberOfVertices() const {
-    return static_cast<uint32_t>(numberOfVertices);
-}
-
-uint32_t VertexBuffer::getNumberOfIndices() const {
-    return static_cast<uint32_t>(numberOfIndices);
+    commandBuffer.drawIndexed(numberOfIndices, 1, 0, 0, 0);
 }

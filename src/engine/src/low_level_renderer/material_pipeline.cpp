@@ -1,5 +1,6 @@
 #include "low_level_renderer/material_pipeline.h"
 
+#include "low_level_renderer/config.h"
 #include "core/logger/vulkan_ensures.h"
 #include "low_level_renderer/shader_data.h"
 #include "low_level_renderer/vertex_buffer.h"
@@ -225,7 +226,7 @@ MaterialPipeline MaterialPipeline::create(
     };
 }
 
-void MaterialPipeline::destroyBy(vk::Device device) {
+void MaterialPipeline::destroyBy(vk::Device device) const {
     device.destroyPipeline(pipeline);
     device.destroyPipelineLayout(layout);
     globalDescriptorAllocator.destroyBy(device);

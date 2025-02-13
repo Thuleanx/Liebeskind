@@ -7,6 +7,10 @@
 #include "private/queue_family.h"
 #include "private/swapchain.h"
 
+float SwapchainData::getAspectRatio() const {
+    return extent.width / (float)extent.height;
+}
+
 SwapchainData GraphicsDeviceInterface::createSwapchain() const {
     QueueFamilyIndices queueFamily =
         QueueFamilyIndices::findQueueFamilies(physicalDevice, surface);

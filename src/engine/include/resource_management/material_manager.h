@@ -52,7 +52,7 @@ class MaterialManager {
         vk::CommandBuffer commandBuffer,
         vk::PipelineLayout pipelineLayout,
         MaterialInstanceID materialID
-    );
+    ) const;
     void destroyBy(vk::Device device);
 
    private:

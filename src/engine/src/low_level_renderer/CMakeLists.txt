@@ -1,4 +1,5 @@
 set(SRC 
+    graphics_module.cpp
     render_submission.cpp
     material_pipeline.cpp
     graphics_device_interface.cpp 

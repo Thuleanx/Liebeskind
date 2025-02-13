@@ -13,15 +13,12 @@
 #include "low_level_renderer/shader_data.h"
 #include "low_level_renderer/swapchain_data.h"
 #include "low_level_renderer/uniform_buffer.h"
-#include "resource_management/material_manager.h"
-#include "resource_management/mesh_manager.h"
-#include "resource_management/shader_manager.h"
-#include "resource_management/texture_manager.h"
+#include "resource_management/resource_manager.h"
 
 constexpr char APP_SHORT_NAME[] = "Game";
 constexpr char ENGINE_NAME[] = "Liebeskind";
 
-class GraphicsDeviceInterface {
+struct GraphicsDeviceInterface {
     struct FrameData {
         vk::DescriptorSet globalDescriptor;
         UniformBuffer<GPUSceneData> sceneDataBuffer;
@@ -30,41 +27,6 @@ class GraphicsDeviceInterface {
         vk::Semaphore isRenderingFinished;
         vk::Fence isRenderingInFlight;
     };
-
-   public:
-    static GraphicsDeviceInterface createGraphicsDevice();
-    ~GraphicsDeviceInterface();
-
-    // This makes the object move only (non copyable)
-    GraphicsDeviceInterface(GraphicsDeviceInterface&&) = default;
-    GraphicsDeviceInterface& operator=(GraphicsDeviceInterface&&) = default;
-
-    GraphicsDeviceInterface() = delete;
-    GraphicsDeviceInterface(const GraphicsDeviceInterface&) = delete;
-    const GraphicsDeviceInterface& operator=(const GraphicsDeviceInterface&) =
-        delete;
-
-    bool drawFrame(
-        const RenderSubmission& renderSubmission,
-        const GPUSceneData& gpuSceneData
-    );
-    void handleEvent(const SDL_Event& sdlEvent);
-
-    // Resource management
-    [[nodiscard]]
-    TextureID loadTexture(const char* filePath);
-
-    [[nodiscard]]
-    MeshID loadMesh(const char* filePath);
-
-    [[nodiscard]]
-    MaterialInstanceID loadMaterial(
-        TextureID albedo, MaterialProperties properties, MaterialPass pass
-    );
-
-    float getAspectRatio() const;
-
-   private:
     std::array<FrameData, MAX_FRAMES_IN_FLIGHT> frameDatas;
 
     SDL_Window* window;
@@ -72,16 +34,9 @@ class GraphicsDeviceInterface {
     vk::Instance instance;
     vk::DebugUtilsMessengerEXT debugUtilsMessenger;
     vk::SurfaceKHR surface;
-
     vk::Device device;
     vk::PhysicalDevice physicalDevice;
     vk::Queue graphicsQueue, presentQueue;
-
-    // Resource managers
-    MeshManager meshManager;
-    TextureManager textureManager;
-    ShaderManager shaderManager;
-    MaterialManager materialManager;
 
     vk::RenderPass renderPass;
     MaterialPipeline pipeline;
@@ -92,9 +47,38 @@ class GraphicsDeviceInterface {
 
     uint32_t currentFrame = 0;
     DescriptorWriteBuffer writeBuffer;
-    std::unordered_map<int, int> a;
+
+   public:
+    static GraphicsDeviceInterface createGraphicsDevice(ResourceManager& resources);
+    ~GraphicsDeviceInterface();
+
+    bool drawFrame(
+        const RenderSubmission& renderSubmission,
+        const ResourceManager& resources,
+        const GPUSceneData& gpuSceneData
+    );
+    void handleEvent(const SDL_Event& sdlEvent);
 
    private:
+    void recordCommandBuffer(
+        const RenderSubmission& renderSubmission,
+        const ResourceManager& resources,
+        vk::CommandBuffer buffer,
+        uint32_t imageIndex
+    );
+    void recreateSwapchain();
+    void cleanupSwapchain();
+    void handleWindowResize(int width, int height);
+
+    // This makes the object move only (non copyable)
+    GraphicsDeviceInterface(GraphicsDeviceInterface&&) = default;
+    GraphicsDeviceInterface& operator=(GraphicsDeviceInterface&&) = default;
+
+    GraphicsDeviceInterface() = delete;
+    GraphicsDeviceInterface(const GraphicsDeviceInterface&) = delete;
+    const GraphicsDeviceInterface& operator=(const GraphicsDeviceInterface&) =
+        delete;
+
     GraphicsDeviceInterface(
         std::array<FrameData, MAX_FRAMES_IN_FLIGHT> frameDatas,
         SDL_Window* window,
@@ -105,24 +89,24 @@ class GraphicsDeviceInterface {
         vk::PhysicalDevice physicalDevice,
         vk::Queue graphicsQueue,
         vk::Queue presentQueue,
-        MeshManager meshManager,
-        TextureManager textureManager,
-        ShaderManager shaderManager,
-        MaterialManager materialManager,
         vk::RenderPass renderPass,
         MaterialPipeline pipeline,
         vk::CommandPool commandPool,
         Sampler sampler
-    );
-
-    void recordCommandBuffer(
-        const RenderSubmission& renderSubmission,
-        vk::CommandBuffer buffer,
-        uint32_t imageIndex
-    );
-    void recreateSwapchain();
-    void cleanupSwapchain();
-    void handleWindowResize(int width, int height);
+    ) :
+        frameDatas(frameDatas),
+        window(window),
+        instance(instance),
+        debugUtilsMessenger(debugUtilsMessenger),
+        surface(surface),
+        device(device),
+        physicalDevice(physicalDevice),
+        graphicsQueue(graphicsQueue),
+        presentQueue(presentQueue),
+        renderPass(renderPass),
+        pipeline(pipeline),
+        commandPool(commandPool),
+        sampler(sampler) {};
 
    public:
     // Constructors

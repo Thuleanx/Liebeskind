@@ -1,7 +1,7 @@
 #pragma once
 
 #include "game_specific/cameras/perspective_camera.h"
-#include "low_level_renderer/graphics_device_interface.h"
+#include "low_level_renderer/graphics_module.h"
 
 class SceneDrawer {
    public:
@@ -11,7 +11,7 @@ class SceneDrawer {
     static SceneDrawer create();
     void handleResize(int width, int height);
     void handleResize(float aspectRatio);
-    bool drawFrame(GraphicsDeviceInterface& device);
+    bool drawFrame(GraphicsModule& graphics);
 
     void addObjects(std::span<RenderObject> renderObjects);
     void updateObjects(std::vector<std::tuple<int, glm::mat4>>);

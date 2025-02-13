@@ -4,6 +4,7 @@
 
 #include "core/logger/logger.h"
 #include "input_management.h"
+#include "low_level_renderer/graphics_module.h"
 #include "scene_graph/scene_drawer.h"
 
 #pragma GCC diagnostic push
@@ -12,14 +13,14 @@
 void Game::run() {
     Logging::initializeLogger();
 
-    GraphicsDeviceInterface device =
-        GraphicsDeviceInterface::createGraphicsDevice();
+    GraphicsModule graphics;
+    graphics.init();
     SceneDrawer sceneDrawer = SceneDrawer::create();
-    sceneDrawer.handleResize(device.getAspectRatio());
+    sceneDrawer.handleResize(graphics.device.swapchain->getAspectRatio());
 
-    TextureID albedo = device.loadTexture("textures/ChibiPippa.png");
-    MeshID meshID = device.loadMesh("models/ChibiPippa.obj");
-    MaterialInstanceID material = device.loadMaterial(
+    TextureID albedo = graphics.loadTexture("textures/ChibiPippa.png");
+    MeshID meshID = graphics.loadMesh("models/ChibiPippa.obj");
+    MaterialInstanceID material = graphics.loadMaterial(
         albedo,
         MaterialProperties{
             .specular = glm::vec3(1),
@@ -77,7 +78,7 @@ void Game::run() {
                     );
                     break;
             }
-            device.handleEvent(sdlEvent);
+            graphics.device.handleEvent(sdlEvent);
             inputManager.handleEvent(sdlEvent);
         }
 
@@ -88,9 +89,11 @@ void Game::run() {
 
         sceneDrawer.updateObjects({{0, swordTransform}});
 
-        if (!sceneDrawer.drawFrame(device)) break;
+        if (!sceneDrawer.drawFrame(graphics)) break;
         lastTime = time;
     }
+
+    graphics.destroy();
 }
 
 #pragma GCC diagnostic pop

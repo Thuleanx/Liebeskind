@@ -94,7 +94,7 @@ void DescriptorAllocator::clearPools(const vk::Device& device) {
     fullPools.clear();
 }
 
-void DescriptorAllocator::destroyBy(const vk::Device& device) {
+void DescriptorAllocator::destroyBy(const vk::Device& device) const {
     for (const vk::DescriptorPool& pool : readyPools)
         device.destroyDescriptorPool(pool);
     for (const vk::DescriptorPool& pool : fullPools)

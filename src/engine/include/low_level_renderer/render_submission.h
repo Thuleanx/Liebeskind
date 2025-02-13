@@ -14,17 +14,6 @@ struct RenderObject {
 };
 
 class RenderSubmission {
-   public:
-    void submit(RenderObject renderObject);
-    void record(
-        vk::CommandBuffer buffer,
-        vk::PipelineLayout pipelineLayout,
-        MaterialManager& materialManager,
-        MeshManager& meshManager
-    ) const;
-    void clear();
-
-   private:
     struct SubmittedRenderObject {
         glm::mat4 transform;
         MeshID mesh;
@@ -35,4 +24,18 @@ class RenderSubmission {
         std::vector<SubmittedRenderObject>,
         MaterialInstanceIDHashFunction>
         renderObjects;
+
+   public:
+    static RenderSubmission create();
+    void submit(RenderObject renderObject);
+    void record(
+        vk::CommandBuffer buffer,
+        vk::PipelineLayout pipelineLayout,
+        const MaterialManager& materialManager,
+        const MeshManager& meshManager
+    ) const;
+    void clear();
+
+   private:
+    RenderSubmission() = default;
 };

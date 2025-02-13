@@ -1,6 +1,10 @@
 #include "low_level_renderer/render_submission.h"
 #include "low_level_renderer/shader_data.h"
 
+RenderSubmission RenderSubmission::create() {
+    return RenderSubmission();
+}
+
 void RenderSubmission::submit(RenderObject renderObject) {
     const MaterialInstanceID materialInstanceID = renderObject.materialInstance;
     if (!renderObjects.contains(materialInstanceID))
@@ -15,8 +19,8 @@ void RenderSubmission::submit(RenderObject renderObject) {
 void RenderSubmission::record(
     vk::CommandBuffer buffer,
     vk::PipelineLayout pipelineLayout,
-    MaterialManager& materialManager,
-    MeshManager& meshManager
+    const MaterialManager& materialManager,
+    const MeshManager& meshManager
 ) const {
 
     for (const auto& [materialID, allRenderObjects] : renderObjects) {

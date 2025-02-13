@@ -2,7 +2,6 @@
 
 #include <vulkan/vulkan.hpp>
 
-#include "low_level_renderer/config.h"
 #include "low_level_renderer/descriptor_allocator.h"
 
 struct MaterialPipeline {
@@ -20,5 +19,5 @@ struct MaterialPipeline {
         vk::ShaderModule fragmentShader,
         vk::RenderPass renderPass
     );
-    void destroyBy(vk::Device device);
+    void destroyBy(vk::Device device) const;
 };

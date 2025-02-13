@@ -27,11 +27,6 @@ UniformBuffer<T> UniformBuffer<T>::create(
 }
 
 template <typename T>
-UniformBuffer<T>::UniformBuffer(
-    vk::Buffer buffer, vk::DeviceMemory deviceMemory, void* mappedMemory
-) : buffer(buffer), memory(deviceMemory), mappedMemory(mappedMemory) {}
-
-template <typename T>
 vk::DescriptorBufferInfo UniformBuffer<T>::getDescriptorBufferInfo() const {
     return vk::DescriptorBufferInfo(
         buffer,
@@ -47,7 +42,7 @@ void UniformBuffer<T>::update(const T& data) {
 }
 
 template <typename T>
-void UniformBuffer<T>::destroyBy(const vk::Device& device) {
+void UniformBuffer<T>::destroyBy(const vk::Device& device) const {
     device.unmapMemory(memory);
     device.destroyBuffer(buffer);
     device.freeMemory(memory);

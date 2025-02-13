@@ -60,7 +60,7 @@ void MaterialManager::bind(
     vk::CommandBuffer commandBuffer,
     vk::PipelineLayout pipelineLayout,
     MaterialInstanceID materialID
-) {
+) const {
     commandBuffer.bindDescriptorSets(
         vk::PipelineBindPoint::eGraphics,
         pipelineLayout,

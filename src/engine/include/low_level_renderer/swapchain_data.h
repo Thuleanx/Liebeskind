@@ -15,10 +15,11 @@ struct SwapchainData {
     vk::Format depthAttachmentFormat;
 
    public:
+    float getAspectRatio() const;
+
+   public:
     static vk::Format getSuitableColorAttachmentFormat(
-        const vk::PhysicalDevice& physicalDevice,
-        const vk::SurfaceKHR& surface
+        const vk::PhysicalDevice& physicalDevice, const vk::SurfaceKHR& surface
     );
-    static vk::Format getSuitableDepthAttachmentFormat(
-    );
+    static vk::Format getSuitableDepthAttachmentFormat();
 };

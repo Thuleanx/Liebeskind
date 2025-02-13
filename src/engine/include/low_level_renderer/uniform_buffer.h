@@ -4,23 +4,23 @@
 
 template <typename T>
 struct UniformBuffer {
+    vk::Buffer buffer;
+    vk::DeviceMemory memory;
+    void* mappedMemory;
+
+   public:
     static UniformBuffer create(
         const vk::Device& device, const vk::PhysicalDevice& physicalDevice
     );
     vk::DescriptorBufferInfo getDescriptorBufferInfo() const;
     void update(const T& data);
-    void destroyBy(const vk::Device& device);
+    void destroyBy(const vk::Device& device) const;
 
     UniformBuffer() = default;
-
-    vk::Buffer buffer;
-    vk::DeviceMemory memory;
-    void* mappedMemory;
 
    private:
     UniformBuffer(
         vk::Buffer buffer, vk::DeviceMemory deviceMemory, void* mappedMemory
-    );
-
-    friend class GraphicsDeviceInterface;
+    ) :
+        buffer(buffer), memory(deviceMemory), mappedMemory(mappedMemory) {}
 };

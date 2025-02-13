@@ -292,44 +292,7 @@ std::vector<UniformBuffer<T>> init_createUniformBuffers(
 
 }  // namespace
 
-GraphicsDeviceInterface::GraphicsDeviceInterface(
-    std::array<FrameData, MAX_FRAMES_IN_FLIGHT> frameDatas,
-    SDL_Window* window,
-    vk::Instance instance,
-    vk::DebugUtilsMessengerEXT debugUtilsMessenger,
-    vk::SurfaceKHR surface,
-    vk::Device device,
-    vk::PhysicalDevice physicalDevice,
-    vk::Queue graphicsQueue,
-    vk::Queue presentQueue,
-    MeshManager meshManager,
-    TextureManager textureManager,
-    ShaderManager shaderManager,
-    MaterialManager materialManager,
-    vk::RenderPass renderPass,
-    MaterialPipeline pipeline,
-    vk::CommandPool commandPool,
-    Sampler sampler
-) :
-    frameDatas(frameDatas),
-    window(window),
-    instance(instance),
-    debugUtilsMessenger(debugUtilsMessenger),
-    surface(surface),
-    device(device),
-    physicalDevice(physicalDevice),
-    graphicsQueue(graphicsQueue),
-    presentQueue(presentQueue),
-    meshManager(meshManager),
-    textureManager(textureManager),
-    shaderManager(shaderManager),
-    materialManager(materialManager),
-    renderPass(renderPass),
-    pipeline(pipeline),
-    commandPool(commandPool),
-    sampler(sampler) {}
-
-GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
+GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(ResourceManager& resources) {
     const SDL_InitFlags initFlags = SDL_INIT_VIDEO | SDL_INIT_EVENTS;
     const bool isSDLInitSuccessful = SDL_Init(initFlags);
     ASSERT(
@@ -357,14 +320,10 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
     const vk::CommandPool commandPool =
         init_createCommandPool(device, queueFamily);
 
-    MaterialManager materialManager;
-    MeshManager meshManager;
-    TextureManager textureManager;
-    ShaderManager shaderManager;
     ShaderID vertexShader =
-        shaderManager.load(device, "shaders/test_triangle.vert.glsl.spv");
+        resources.shaders.load(device, "shaders/test_triangle.vert.glsl.spv");
     ShaderID fragmentShader =
-        shaderManager.load(device, "shaders/test_triangle.frag.glsl.spv");
+        resources.shaders.load(device, "shaders/test_triangle.frag.glsl.spv");
 
     const std::vector<vk::CommandBuffer> commandBuffers =
         init_createCommandBuffers(device, commandPool, MAX_FRAMES_IN_FLIGHT);
@@ -383,8 +342,8 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
     DescriptorWriteBuffer writeBuffer;
     MaterialPipeline pipeline = MaterialPipeline::create(
         device,
-        shaderManager.getModule(vertexShader),
-        shaderManager.getModule(fragmentShader),
+        resources.shaders.getModule(vertexShader),
+        resources.shaders.getModule(fragmentShader),
         renderPass
     );
     std::vector<vk::DescriptorSet> globalDescriptors =
@@ -445,10 +404,6 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice() {
         physicalDevice,
         graphicsQueue,
         presentQueue,
-        meshManager,
-        textureManager,
-        shaderManager,
-        materialManager,
         renderPass,
         pipeline,
         commandPool,
@@ -485,12 +440,6 @@ GraphicsDeviceInterface::~GraphicsDeviceInterface() {
     device.destroyRenderPass(renderPass);
     LLOG_INFO << "Destroyed renderpass";
 
-    shaderManager.destroyBy(device);
-    materialManager.destroyBy(device);
-    textureManager.destroyBy(device);
-    meshManager.destroyBy(device);
-    LLOG_INFO << "Destroyed managers";
-
     device.destroy();
     LLOG_INFO << "Destroyed device";
 
@@ -506,6 +455,7 @@ GraphicsDeviceInterface::~GraphicsDeviceInterface() {
 
 void GraphicsDeviceInterface::recordCommandBuffer(
     const RenderSubmission& renderSubmission,
+    const ResourceManager& resources,
     vk::CommandBuffer buffer,
     uint32_t imageIndex
 ) {
@@ -550,7 +500,9 @@ void GraphicsDeviceInterface::recordCommandBuffer(
         nullptr
     );
 
-    renderSubmission.record(buffer, pipeline.layout, materialManager, meshManager);
+    renderSubmission.record(
+        buffer, pipeline.layout, resources.materials, resources.meshes
+    );
 
     buffer.endRenderPass();
     VULKAN_ENSURE_SUCCESS_EXPR(
@@ -558,12 +510,10 @@ void GraphicsDeviceInterface::recordCommandBuffer(
     );
 }
 
-float GraphicsDeviceInterface::getAspectRatio() const {
-    return swapchain->extent.width / (float)swapchain->extent.height;
-}
-
 bool GraphicsDeviceInterface::drawFrame(
-    const RenderSubmission& renderSubmission, const GPUSceneData& gpuSceneData
+    const RenderSubmission& renderSubmission,
+    const ResourceManager& resources,
+    const GPUSceneData& gpuSceneData
 ) {
     ASSERT(swapchain, "Attempt to draw frame without a swapchain");
 
@@ -608,7 +558,9 @@ bool GraphicsDeviceInterface::drawFrame(
 
     frameDatas[currentFrame].sceneDataBuffer.update(gpuSceneData);
 
-    recordCommandBuffer(renderSubmission, commandBuffer, imageIndex.value);
+    recordCommandBuffer(
+        renderSubmission, resources, commandBuffer, imageIndex.value
+    );
     const vk::PipelineStageFlags waitStage =
         vk::PipelineStageFlagBits::eColorAttachmentOutput;
     const vk::SubmitInfo submitInfo(
@@ -638,43 +590,12 @@ bool GraphicsDeviceInterface::drawFrame(
     switch (presentQueue.presentKHR(presentInfo)) {
         case vk::Result::eErrorOutOfDateKHR:
         case vk::Result::eSuboptimalKHR:     recreateSwapchain();
-
-        case vk::Result::eSuccess: break;
-
-        default: return false;
+        case vk::Result::eSuccess:           break;
+        default:                             return false;
     }
 
     currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
     return true;
-}
-
-TextureID GraphicsDeviceInterface::loadTexture(const char* filePath) {
-    return textureManager.load(
-        filePath, device, physicalDevice, commandPool, graphicsQueue
-    );
-}
-
-MeshID GraphicsDeviceInterface::loadMesh(const char* filePath) {
-    return meshManager.load(
-        device, physicalDevice, commandPool, graphicsQueue, filePath
-    );
-}
-
-MaterialInstanceID GraphicsDeviceInterface::loadMaterial(
-    TextureID albedo, MaterialProperties properties, MaterialPass pass
-) {
-    return materialManager.load(
-        device,
-        physicalDevice,
-        pipeline.materialDescriptorSetLayout,
-        pipeline.materialDescriptorAllocator,
-        sampler.sampler,
-        writeBuffer,
-        textureManager,
-        albedo,
-        properties,
-        pass
-    );
 }
 
 void GraphicsDeviceInterface::handleEvent(const SDL_Event& event) {

@@ -3,7 +3,12 @@
 #include <vector>
 #include <vulkan/vulkan.hpp>
 
-class DescriptorWriteBuffer {
+struct DescriptorWriteBuffer {
+   private:
+    std::vector<vk::DescriptorBufferInfo> buffers;
+    std::vector<vk::DescriptorImageInfo> images;
+    std::vector<vk::WriteDescriptorSet> writes;
+
    public:
     void writeBuffer(
         vk::DescriptorSet descriptorSet,
@@ -27,9 +32,4 @@ class DescriptorWriteBuffer {
         const vk::Device& device
     );
     void clear();
-
-   private:
-    std::vector<vk::DescriptorBufferInfo> buffers;
-    std::vector<vk::DescriptorImageInfo> images;
-    std::vector<vk::WriteDescriptorSet> writes;
 };

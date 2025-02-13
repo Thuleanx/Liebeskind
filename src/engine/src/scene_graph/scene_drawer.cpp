@@ -1,8 +1,7 @@
 #include "scene_graph/scene_drawer.h"
 
-#include <chrono>
-
-SceneDrawer::SceneDrawer(PerspectiveCamera camera) : camera(camera) {}
+SceneDrawer::SceneDrawer(PerspectiveCamera camera) :
+    camera(camera), renderSubmission(RenderSubmission::create()) {}
 
 SceneDrawer SceneDrawer::create() {
     PerspectiveCamera camera = PerspectiveCamera::create(
@@ -16,7 +15,7 @@ SceneDrawer SceneDrawer::create() {
         0.1f,
         145.0f
     );
-    return camera;
+    return SceneDrawer(camera);
 }
 
 void SceneDrawer::handleResize(int width, int height) {
@@ -29,18 +28,17 @@ void SceneDrawer::handleResize(float aspectRatio) {
 
 void SceneDrawer::addObjects(std::span<RenderObject> renderObjects) {
     this->renderObjects.insert(
-        this->renderObjects.end(),
-        renderObjects.begin(),
-        renderObjects.end()
+        this->renderObjects.end(), renderObjects.begin(), renderObjects.end()
     );
 }
 
-void SceneDrawer::updateObjects(std::vector<std::tuple<int, glm::mat4>> updates) {
+void SceneDrawer::updateObjects(std::vector<std::tuple<int, glm::mat4>> updates
+) {
     for (const auto& [index, transform] : updates)
         this->renderObjects[index].transform = transform;
 }
 
-bool SceneDrawer::drawFrame(GraphicsDeviceInterface& device) {
+bool SceneDrawer::drawFrame(GraphicsModule& graphics) {
     GPUSceneData sceneData{
         .view = camera.getView(),
         .inverseView = glm::mat4(1.0),
@@ -59,7 +57,7 @@ bool SceneDrawer::drawFrame(GraphicsDeviceInterface& device) {
         renderSubmission.submit(renderObjects[i]);
     }
 
-    bool isRenderSuccessful = device.drawFrame(renderSubmission, sceneData);
+    bool isRenderSuccessful = graphics.drawFrame(renderSubmission, sceneData);
     renderSubmission.clear();
     return isRenderSuccessful;
 }

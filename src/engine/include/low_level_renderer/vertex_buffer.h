@@ -11,6 +11,7 @@ struct Vertex {
     glm::vec3 color;
     glm::vec2 texCoord;
 
+   public:
     static vk::VertexInputBindingDescription getBindingDescription();
     static std::array<vk::VertexInputAttributeDescription, 4>
     getAttributeDescriptions();
@@ -18,7 +19,14 @@ struct Vertex {
     bool operator==(const Vertex& other) const;
 };
 
-class VertexBuffer {
+struct VertexBuffer {
+    vk::Buffer vertexBuffer;
+    vk::DeviceMemory vertexMemory;
+    vk::Buffer indexBuffer;
+    vk::DeviceMemory indexMemory;
+    uint32_t numberOfVertices;
+    uint32_t numberOfIndices;
+
    public:
     static VertexBuffer create(
         const char* filePath,
@@ -29,25 +37,21 @@ class VertexBuffer {
     );
     void bind(const vk::CommandBuffer& commandBuffer) const;
     void draw(const vk::CommandBuffer& commandBuffer) const;
-    void destroyBy(const vk::Device& device);
+    void destroyBy(const vk::Device& device) const;
 
    private:
     VertexBuffer(
-        vk::Buffer buffer,
-        vk::DeviceMemory memory,
+        vk::Buffer vertexBuffer,
+        vk::DeviceMemory vertexMemory,
         vk::Buffer indexBuffer,
         vk::DeviceMemory indexMemory,
         uint32_t numberOfVertices,
         uint32_t numberOfIndices
-    );
-    uint32_t getNumberOfVertices() const;
-    uint32_t getNumberOfIndices() const;
-
-   private:
-    vk::Buffer vertexBuffer;
-    vk::DeviceMemory vertexMemory;
-    vk::Buffer indexBuffer;
-    vk::DeviceMemory indexMemory;
-    uint32_t numberOfVertices;
-    uint32_t numberOfIndices;
+    ) :
+        vertexBuffer(vertexBuffer),
+        vertexMemory(vertexMemory),
+        indexBuffer(indexBuffer),
+        indexMemory(indexMemory),
+        numberOfVertices(numberOfVertices),
+        numberOfIndices(numberOfIndices) {}
 };

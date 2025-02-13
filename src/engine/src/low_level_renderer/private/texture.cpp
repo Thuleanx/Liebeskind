@@ -130,7 +130,7 @@ void Texture::destroyBy(const vk::Device& device) {
 vk::DescriptorImageInfo Texture::getDescriptorImageInfo(const Sampler& sampler
 ) const {
     return vk::DescriptorImageInfo(
-        sampler.getSampler(), imageView, vk::ImageLayout::eShaderReadOnlyOptimal
+        sampler.sampler, imageView, vk::ImageLayout::eShaderReadOnlyOptimal
     );
 }
 

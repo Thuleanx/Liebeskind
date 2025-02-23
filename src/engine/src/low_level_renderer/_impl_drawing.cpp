@@ -18,6 +18,10 @@ bool drawFrame(
         graphicsDevice.swapchain, "Attempt to draw frame without a swapchain"
     );
 
+    // Render ImGui. By this point all ImGui calls must be processed. If creating UI for debugging
+    // this draw frame process, then we would want to move this to another spot
+    ImGui::Render();
+
     graphicsDevice.writeBuffer.batchWrite(graphicsDevice.device);
 
     GraphicsDeviceInterface::FrameData& currentFrame =
@@ -212,9 +216,11 @@ void beginFrame(
     ImGui_ImplSDL3_NewFrame();
     ImGui::NewFrame();
 
-    ImGui::ShowDemoWindow();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
 
-    ImGui::Render();
+    ImGui::Begin("General debugging");
+    ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+    ImGui::End();
 }
 
 void endFrame(

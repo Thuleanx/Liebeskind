@@ -4,6 +4,10 @@
 #include "low_level_renderer/graphics_module.h"
 
 class SceneDrawer {
+    PerspectiveCamera camera;
+    RenderSubmission renderSubmission;
+    std::vector<RenderObject> renderObjects;
+
    public:
     struct ObjectID {
         uint32_t index;
@@ -21,8 +25,4 @@ class SceneDrawer {
     SceneDrawer& operator=(SceneDrawer&&) = default;
 
     SceneDrawer(PerspectiveCamera camera);
-
-    PerspectiveCamera camera;
-    RenderSubmission renderSubmission;
-    std::vector<RenderObject> renderObjects;
 };

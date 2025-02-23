@@ -6,11 +6,11 @@
 #include <set>
 #include <vector>
 
+#include "low_level_renderer/queue_family.h"
 #include "core/logger/assert.h"
 #include "core/logger/vulkan_ensures.h"
 #include "low_level_renderer/descriptor_write_buffer.h"
 #include "private/graphics_device_helper.h"
-#include "private/queue_family.h"
 #include "private/swapchain.h"
 #include "private/validation.h"
 
@@ -134,7 +134,9 @@ vk::RenderPass init_createRenderPass(
         vk::AttachmentLoadOp::eClear,
         vk::AttachmentStoreOp::eDontCare,
         vk::ImageLayout::eUndefined,
-        vk::ImageLayout::ePresentSrcKHR
+        vk::ImageLayout::eColorAttachmentOptimal
+        //vk::ImageLayout::ePresentSrcKHR         // we are expecting to pipe
+                                                // this into UI render pass
     );
     const vk::AttachmentDescription depthAttachment(
         {},
@@ -203,7 +205,7 @@ vk::CommandPool init_createCommandPool(
         queueFamilies.graphicsFamily.has_value(),
         "Calling create command pool on incomplete family indices"
     );
-    vk::CommandPoolCreateInfo poolInfo(
+    const vk::CommandPoolCreateInfo poolInfo(
         vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
         queueFamilies.graphicsFamily.value()
     );
@@ -292,7 +294,9 @@ std::vector<UniformBuffer<T>> init_createUniformBuffers(
 
 }  // namespace
 
-GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(ResourceManager& resources) {
+GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
+    ResourceManager& resources
+) {
     const SDL_InitFlags initFlags = SDL_INIT_VIDEO | SDL_INIT_EVENTS;
     const bool isSDLInitSuccessful = SDL_Init(initFlags);
     ASSERT(
@@ -332,7 +336,6 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(ResourceMa
     const Sampler sampler = Sampler::create(device, physicalDevice);
     const vk::SurfaceFormatKHR swapchainColorFormat =
         Swapchain::getSuitableColorAttachmentFormat(physicalDevice, surface);
-    LLOG_INFO << "Created descriptor pool and sets";
     const vk::RenderPass renderPass = init_createRenderPass(
         device,
         swapchainColorFormat.format,
@@ -402,6 +405,7 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(ResourceMa
         surface,
         device,
         physicalDevice,
+        queueFamily,
         graphicsQueue,
         presentQueue,
         renderPass,
@@ -415,7 +419,7 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(ResourceMa
     return deviceInterface;
 }
 
-GraphicsDeviceInterface::~GraphicsDeviceInterface() {
+void GraphicsDeviceInterface::destroy() {
     VULKAN_ENSURE_SUCCESS_EXPR(
         device.waitIdle(), "Can't wait for device idle:"
     );
@@ -561,6 +565,7 @@ bool GraphicsDeviceInterface::drawFrame(
     recordCommandBuffer(
         renderSubmission, resources, commandBuffer, imageIndex.value
     );
+
     const vk::PipelineStageFlags waitStage =
         vk::PipelineStageFlagBits::eColorAttachmentOutput;
     const vk::SubmitInfo submitInfo(

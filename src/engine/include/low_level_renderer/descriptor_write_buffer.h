@@ -4,7 +4,6 @@
 #include <vulkan/vulkan.hpp>
 
 struct DescriptorWriteBuffer {
-   private:
     std::vector<vk::DescriptorBufferInfo> buffers;
     std::vector<vk::DescriptorImageInfo> images;
     std::vector<vk::WriteDescriptorSet> writes;

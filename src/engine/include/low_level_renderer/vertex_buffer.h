@@ -38,20 +38,4 @@ struct VertexBuffer {
     void bind(const vk::CommandBuffer& commandBuffer) const;
     void draw(const vk::CommandBuffer& commandBuffer) const;
     void destroyBy(const vk::Device& device) const;
-
-   private:
-    VertexBuffer(
-        vk::Buffer vertexBuffer,
-        vk::DeviceMemory vertexMemory,
-        vk::Buffer indexBuffer,
-        vk::DeviceMemory indexMemory,
-        uint32_t numberOfVertices,
-        uint32_t numberOfIndices
-    ) :
-        vertexBuffer(vertexBuffer),
-        vertexMemory(vertexMemory),
-        indexBuffer(indexBuffer),
-        indexMemory(indexMemory),
-        numberOfVertices(numberOfVertices),
-        numberOfIndices(numberOfIndices) {}
 };

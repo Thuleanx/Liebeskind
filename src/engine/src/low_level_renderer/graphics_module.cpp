@@ -1,8 +1,16 @@
 #include "low_level_renderer/graphics_module.h"
+
 #include "core/logger/vulkan_ensures.h"
+#include "low_level_renderer/_impl_drawing.h"
 
-void GraphicsModule::init() {
-
+GraphicsModule GraphicsModule::create() {
+    ResourceManager resources;
+    GraphicsDeviceInterface device =
+        GraphicsDeviceInterface::createGraphicsDevice(resources);
+    GraphicsUserInterface ui = GraphicsUserInterface::create(device);
+    return GraphicsModule{
+        .resources = resources, .device = std::move(device), .ui = ui
+    };
 }
 
 void GraphicsModule::destroy() {
@@ -13,15 +21,33 @@ void GraphicsModule::destroy() {
     resources.materials.destroyBy(device.device);
     resources.textures.destroyBy(device.device);
     resources.shaders.destroyBy(device.device);
+    ui.destroy(device);
+    device.destroy();
 }
 
-bool GraphicsModule::drawFrame(const RenderSubmission& renderSubmission, GPUSceneData& sceneData) {
-    return device.drawFrame(renderSubmission, resources, sceneData);
+void GraphicsModule::beginFrame() {
+    Graphics::beginFrame(device, ui);
 }
 
-TextureID GraphicsModule::loadTexture(
-    const char* filePath
+void GraphicsModule::handleEvent(const SDL_Event& event) {
+    device.handleEvent(event);
+    ui.handleEvent(event, device);
+}
+
+bool GraphicsModule::drawAndEndFrame(
+    const RenderSubmission& renderSubmission, GPUSceneData& sceneData
 ) {
+    bool drawSuccess =
+        Graphics::drawFrame(device, ui, renderSubmission, resources, sceneData);
+
+    if (!drawSuccess) return false;
+
+    Graphics::endFrame(device, ui);
+
+    return true;
+}
+
+TextureID GraphicsModule::loadTexture(const char* filePath) {
     return resources.textures.load(
         filePath,
         device.device,
@@ -31,22 +57,19 @@ TextureID GraphicsModule::loadTexture(
     );
 }
 
-MeshID GraphicsModule::loadMesh(
-    const char* filePath
-) {
+MeshID GraphicsModule::loadMesh(const char* filePath) {
     return resources.meshes.load(
         device.device,
         device.physicalDevice,
         device.commandPool,
         device.graphicsQueue,
+
         filePath
     );
 }
 
 MaterialInstanceID GraphicsModule::loadMaterial(
-    TextureID albedo,
-    MaterialProperties properties,
-    MaterialPass pass
+    TextureID albedo, MaterialProperties properties, MaterialPass pass
 ) {
     return resources.materials.load(
         device.device,
@@ -61,4 +84,3 @@ MaterialInstanceID GraphicsModule::loadMaterial(
         pass
     );
 }
-

@@ -144,14 +144,14 @@ VertexBuffer VertexBuffer::create(
         vk::BufferUsageFlagBits::eIndexBuffer
     );
 
-    return VertexBuffer(
+    return VertexBuffer {
         vertexBuffer,
         deviceMemory,
         indexBuffer,
         indexDeviceMemory,
         static_cast<uint32_t>(vertices.size()),
         static_cast<uint32_t>(indices.size())
-    );
+    };
 }
 
 void VertexBuffer::destroyBy(const vk::Device& device) const {

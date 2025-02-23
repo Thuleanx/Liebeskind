@@ -4,7 +4,6 @@
 #include "core/logger/vulkan_ensures.h"
 #include "low_level_renderer/graphics_device_interface.h"
 #include "private/image.h"
-#include "private/queue_family.h"
 #include "private/swapchain.h"
 
 float SwapchainData::getAspectRatio() const {
@@ -142,6 +141,7 @@ SwapchainData GraphicsDeviceInterface::createSwapchain() const {
         .framebuffers = swapchainFramebuffers,
         .colorAttachmentFormat = colorAttachmentFormat.format,
         .depthAttachmentFormat = depthAttachmentFormat,
+        .imageCount = imageCount,
     };
 }
 

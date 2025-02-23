@@ -6,6 +6,7 @@
 #include "input_management.h"
 #include "low_level_renderer/graphics_module.h"
 #include "scene_graph/scene_drawer.h"
+#include "backends/imgui_impl_sdl3.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
@@ -13,8 +14,7 @@
 void Game::run() {
     Logging::initializeLogger();
 
-    GraphicsModule graphics;
-    graphics.init();
+    GraphicsModule graphics = GraphicsModule::create();
     SceneDrawer sceneDrawer = SceneDrawer::create();
     sceneDrawer.handleResize(graphics.device.swapchain->getAspectRatio());
 
@@ -60,6 +60,8 @@ void Game::run() {
     bool shouldQuitGame = false;
 
     while (!shouldQuitGame) {
+        graphics.beginFrame();
+
         SDL_Event sdlEvent;
 
         auto currentTime = std::chrono::high_resolution_clock::now();
@@ -78,7 +80,7 @@ void Game::run() {
                     );
                     break;
             }
-            graphics.device.handleEvent(sdlEvent);
+            graphics.handleEvent(sdlEvent);
             inputManager.handleEvent(sdlEvent);
         }
 

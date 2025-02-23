@@ -8,6 +8,7 @@
 
 #include "low_level_renderer/config.h"
 #include "low_level_renderer/material_pipeline.h"
+#include "low_level_renderer/queue_family.h"
 #include "low_level_renderer/render_submission.h"
 #include "low_level_renderer/sampler.h"
 #include "low_level_renderer/shader_data.h"
@@ -36,6 +37,7 @@ struct GraphicsDeviceInterface {
     vk::SurfaceKHR surface;
     vk::Device device;
     vk::PhysicalDevice physicalDevice;
+    QueueFamilyIndices queueFamily;
     vk::Queue graphicsQueue, presentQueue;
 
     vk::RenderPass renderPass;
@@ -50,7 +52,7 @@ struct GraphicsDeviceInterface {
 
    public:
     static GraphicsDeviceInterface createGraphicsDevice(ResourceManager& resources);
-    ~GraphicsDeviceInterface();
+    void destroy();
 
     bool drawFrame(
         const RenderSubmission& renderSubmission,
@@ -59,7 +61,6 @@ struct GraphicsDeviceInterface {
     );
     void handleEvent(const SDL_Event& sdlEvent);
 
-   private:
     void recordCommandBuffer(
         const RenderSubmission& renderSubmission,
         const ResourceManager& resources,
@@ -67,8 +68,6 @@ struct GraphicsDeviceInterface {
         uint32_t imageIndex
     );
     void recreateSwapchain();
-    void cleanupSwapchain();
-    void handleWindowResize(int width, int height);
 
     // This makes the object move only (non copyable)
     GraphicsDeviceInterface(GraphicsDeviceInterface&&) = default;
@@ -79,6 +78,10 @@ struct GraphicsDeviceInterface {
     const GraphicsDeviceInterface& operator=(const GraphicsDeviceInterface&) =
         delete;
 
+   private:
+    void cleanupSwapchain();
+    void handleWindowResize(int width, int height);
+
     GraphicsDeviceInterface(
         std::array<FrameData, MAX_FRAMES_IN_FLIGHT> frameDatas,
         SDL_Window* window,
@@ -87,6 +90,7 @@ struct GraphicsDeviceInterface {
         vk::SurfaceKHR surface,
         vk::Device device,
         vk::PhysicalDevice physicalDevice,
+        QueueFamilyIndices queueFamily,
         vk::Queue graphicsQueue,
         vk::Queue presentQueue,
         vk::RenderPass renderPass,
@@ -101,6 +105,7 @@ struct GraphicsDeviceInterface {
         surface(surface),
         device(device),
         physicalDevice(physicalDevice),
+        queueFamily(queueFamily),
         graphicsQueue(graphicsQueue),
         presentQueue(presentQueue),
         renderPass(renderPass),

@@ -1,13 +1,16 @@
 set(SRC 
+    _impl_drawing.cpp
     graphics_module.cpp
     render_submission.cpp
     material_pipeline.cpp
     graphics_device_interface.cpp 
+    graphics_user_interface.cpp 
     descriptor_write_buffer.cpp 
     descriptor_allocator.cpp 
     swapchain_data.cpp
     vertex_buffer.cpp
     uniform_buffer.cpp
+    queue_family.cpp
     private/sampler.cpp
     private/command.cpp
     private/command.h
@@ -16,8 +19,6 @@ set(SRC
     private/texture.cpp
     private/graphics_device_helper.h
     private/graphics_device_helper.cpp
-    private/queue_family.h
-    private/queue_family.cpp
     private/validation.h
     private/validation.cpp
     private/swapchain.h

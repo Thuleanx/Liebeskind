@@ -1,25 +1,29 @@
 #pragma once
 
+#include "SDL3/SDL_events.h"
 #include "low_level_renderer/graphics_device_interface.h"
+#include "low_level_renderer/graphics_user_interface.h"
 #include "resource_management/resource_manager.h"
 
 struct GraphicsModule {
     ResourceManager resources;
     GraphicsDeviceInterface device;
+    GraphicsUserInterface ui;
 
    public:
-    void init();
+    static GraphicsModule create();
     void destroy();
 
-    bool drawFrame(const RenderSubmission& renderSubmission, GPUSceneData& sceneData);
+    void beginFrame();
+    void handleEvent(const SDL_Event& event);
+    bool drawAndEndFrame(
+        const RenderSubmission& renderSubmission,
+        GPUSceneData& sceneData
+    );
 
     [[nodiscard]] TextureID loadTexture(const char* filePath);
     [[nodiscard]] MeshID loadMesh(const char* filePath);
     [[nodiscard]] MaterialInstanceID loadMaterial(
-            TextureID albedo, MaterialProperties properties, MaterialPass pass
-            );
-
-    GraphicsModule() :
-        resources(),
-        device(GraphicsDeviceInterface::createGraphicsDevice(resources)) {}
+        TextureID albedo, MaterialProperties properties, MaterialPass pass
+    );
 };

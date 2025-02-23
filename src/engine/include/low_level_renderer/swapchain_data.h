@@ -13,13 +13,9 @@ struct SwapchainData {
     std::vector<vk::Framebuffer> framebuffers;
     vk::Format colorAttachmentFormat;
     vk::Format depthAttachmentFormat;
+    uint32_t imageCount;
 
    public:
     float getAspectRatio() const;
-
-   public:
-    static vk::Format getSuitableColorAttachmentFormat(
-        const vk::PhysicalDevice& physicalDevice, const vk::SurfaceKHR& surface
-    );
-    static vk::Format getSuitableDepthAttachmentFormat();
 };
+

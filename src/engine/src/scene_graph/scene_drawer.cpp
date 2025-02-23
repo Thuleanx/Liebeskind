@@ -57,7 +57,7 @@ bool SceneDrawer::drawFrame(GraphicsModule& graphics) {
         renderSubmission.submit(renderObjects[i]);
     }
 
-    bool isRenderSuccessful = graphics.drawFrame(renderSubmission, sceneData);
+    bool isRenderSuccessful = graphics.drawAndEndFrame(renderSubmission, sceneData);
     renderSubmission.clear();
     return isRenderSuccessful;
 }

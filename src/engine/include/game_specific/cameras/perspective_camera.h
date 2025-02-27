@@ -6,6 +6,12 @@
 
 class PerspectiveCamera : public Camera {
    public:
+    float fieldOfView;
+    float aspectRatio;  // width over height
+    float nearPlaneDistance;
+    float farPlaneDistance;
+
+   public:
     static PerspectiveCamera create(
         glm::mat4 view,
         float fieldOfView = glm::radians(45.0f),
@@ -29,21 +35,4 @@ class PerspectiveCamera : public Camera {
 
    private:
     void recomputeProjection();
-
-   private:
-    PerspectiveCamera(
-        glm::mat4 transform,
-        glm::mat4 view,
-        glm::mat4 projection,
-        float fieldOfView,
-        float aspectRatio,
-        float nearPlaneDistance,
-        float farPlaneDistance
-    );
-
-    glm::mat4 transform;
-    float fieldOfView;
-    float aspectRatio;  // width over height
-    float nearPlaneDistance;
-    float farPlaneDistance;
 };

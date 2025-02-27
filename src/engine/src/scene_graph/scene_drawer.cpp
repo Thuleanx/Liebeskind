@@ -6,7 +6,7 @@ SceneDrawer::SceneDrawer(PerspectiveCamera camera) :
 SceneDrawer SceneDrawer::create() {
     PerspectiveCamera camera = PerspectiveCamera::create(
         glm::lookAt(
-            glm::vec3(-3.0f, 0.f, 0.5f),
+            glm::vec3(-3.0f, 3.f, 3.0f),
             glm::vec3(0.0f, 0.0f, 0.5f),
             glm::vec3(0.0f, 0.0f, 1.0f)
         ),
@@ -40,9 +40,9 @@ void SceneDrawer::updateObjects(std::vector<std::tuple<int, glm::mat4>> updates
 
 bool SceneDrawer::drawFrame(GraphicsModule& graphics) {
     GPUSceneData sceneData{
-        .view = camera.getView(),
+        .view = camera.view,
         .inverseView = glm::mat4(1.0),
-        .projection = camera.getProjection(),
+        .projection = camera.projection,
         .viewProjection = {},
         .ambientColor = glm::vec3(0.05),
         .mainLightDirection = glm::normalize(glm::vec3(0.0, 1.0, -1)),

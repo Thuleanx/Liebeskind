@@ -1,12 +1,13 @@
 #include "game.h"
 
 #include <chrono>
+#include <glm/gtx/string_cast.hpp>
 
+#include "backends/imgui_impl_sdl3.h"
 #include "core/logger/logger.h"
 #include "input_management.h"
 #include "low_level_renderer/graphics_module.h"
 #include "scene_graph/scene_drawer.h"
-#include "backends/imgui_impl_sdl3.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
@@ -31,10 +32,10 @@ void Game::run() {
         MaterialPass::OPAQUE
     );
 
-    glm::mat4 swordTransform = glm::mat4(1);
+    glm::mat4 modelTransform = glm::mat4(1);
 
     RenderObject sword{
-        .transform = swordTransform,
+        .transform = modelTransform,
         .materialInstance = material,
         .mesh = meshID,
     };
@@ -58,6 +59,12 @@ void Game::run() {
     float lastTime = 0;
 
     bool shouldQuitGame = false;
+
+    const glm::vec3 up = glm::vec3(0,0,1);
+    glm::vec3 right = sceneDrawer.camera.getRight();
+    right = glm::normalize(right - up * glm::dot(up, right));
+    glm::vec3 forward = sceneDrawer.camera.getForward();
+    forward = glm::normalize(forward - up * glm::dot(up, forward));
 
     while (!shouldQuitGame) {
         graphics.beginFrame();
@@ -85,11 +92,14 @@ void Game::run() {
         }
 
         glm::vec3 frameMovement =
-            speed * glm::vec3(movementX, movementY, 0) * deltaTime;
+            speed *
+            (movementX * right +
+             movementY * forward) *
+            deltaTime;
 
-        swordTransform = glm::translate(swordTransform, frameMovement);
+        modelTransform = glm::translate(modelTransform, frameMovement);
 
-        sceneDrawer.updateObjects({{0, swordTransform}});
+        sceneDrawer.updateObjects({{0, modelTransform}});
 
         if (!sceneDrawer.drawFrame(graphics)) break;
         lastTime = time;

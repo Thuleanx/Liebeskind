@@ -4,6 +4,7 @@
 #include "low_level_renderer/graphics_module.h"
 
 class SceneDrawer {
+   public:
     PerspectiveCamera camera;
     RenderSubmission renderSubmission;
     std::vector<RenderObject> renderObjects;

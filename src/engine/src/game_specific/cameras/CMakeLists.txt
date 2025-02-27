@@ -1,6 +1,7 @@
 set(SRC 
     camera.cpp
     perspective_camera.cpp
+    fixed_follow_camera.cpp
 )
 
 add_library(cameras ${SRC})

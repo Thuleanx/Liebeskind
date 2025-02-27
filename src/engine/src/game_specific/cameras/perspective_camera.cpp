@@ -11,34 +11,6 @@ PerspectiveCamera PerspectiveCamera::create(
     float nearPlaneDistance,
     float farPlaneDistance
 ) {
-    return PerspectiveCamera(
-        glm::inverse(view),
-        view,
-        glm::perspective(
-            fieldOfView, aspectRatio, nearPlaneDistance, farPlaneDistance
-        ),
-        fieldOfView,
-        aspectRatio,
-        nearPlaneDistance,
-        farPlaneDistance
-    );
-}
-
-PerspectiveCamera::PerspectiveCamera(
-    glm::mat4 transform,
-    glm::mat4 view,
-    glm::mat4 projection,
-    float fieldOfView,
-    float aspectRatio,
-    float nearPlaneDistance,
-    float farPlaneDistance
-) :
-    Camera(view, projection),
-    transform(transform),
-    fieldOfView(fieldOfView),
-    aspectRatio(aspectRatio),
-    nearPlaneDistance(nearPlaneDistance),
-    farPlaneDistance(farPlaneDistance) {
     ASSERT(
         nearPlaneDistance < farPlaneDistance,
         "Near plane distance " << nearPlaneDistance
@@ -55,6 +27,17 @@ PerspectiveCamera::PerspectiveCamera(
             << aspectRatio
             << " is invalid. This needs to be a positive quantity"
     );
+    glm::mat4 projection = glm::perspective(
+        fieldOfView, aspectRatio, nearPlaneDistance, farPlaneDistance
+    );
+    glm::mat4 transform = glm::inverse(view);
+    return PerspectiveCamera {
+        Camera::create(view, projection),
+        fieldOfView,
+        aspectRatio,
+        nearPlaneDistance,
+        farPlaneDistance
+    };
 }
 
 void PerspectiveCamera::setTransform(glm::mat4 newTransform) {

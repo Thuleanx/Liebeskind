@@ -6,7 +6,7 @@ SceneDrawer::SceneDrawer(PerspectiveCamera camera) :
 SceneDrawer SceneDrawer::create() {
     PerspectiveCamera camera = PerspectiveCamera::create(
         glm::lookAt(
-            glm::vec3(-3.0f, 3.f, 3.0f),
+            glm::vec3(-3.0f, 0.0f, 10.0f),
             glm::vec3(0.0f, 0.0f, 0.5f),
             glm::vec3(0.0f, 0.0f, 1.0f)
         ),

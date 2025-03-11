@@ -10,6 +10,7 @@ set(SRC
     swapchain_data.cpp
     vertex_buffer.cpp
     uniform_buffer.cpp
+    storage_buffer.cpp
     queue_family.cpp
     private/sampler.cpp
     private/command.cpp

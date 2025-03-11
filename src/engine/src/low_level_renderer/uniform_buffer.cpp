@@ -23,16 +23,12 @@ UniformBuffer<T> UniformBuffer<T>::create(
         mappedMemory.result, "Can't map staging buffer memory"
     );
 
-    return UniformBuffer(buffer, memory, mappedMemory.value);
+    return UniformBuffer{buffer, memory, mappedMemory.value};
 }
 
 template <typename T>
 vk::DescriptorBufferInfo UniformBuffer<T>::getDescriptorBufferInfo() const {
-    return vk::DescriptorBufferInfo(
-        buffer,
-        0,
-        sizeof(T)
-    );
+    return vk::DescriptorBufferInfo(buffer, 0, sizeof(T));
 }
 
 template <typename T>

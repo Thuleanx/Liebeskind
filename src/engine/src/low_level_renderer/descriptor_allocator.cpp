@@ -15,13 +15,8 @@ DescriptorAllocator DescriptorAllocator::create(
         allocatorPoolSizes.emplace_back(
             poolSize.type, poolSize.descriptorCount
         );
-    return DescriptorAllocator(allocatorPoolSizes, setsPerPool);
+    return DescriptorAllocator{allocatorPoolSizes, {}, {}, setsPerPool};
 }
-
-DescriptorAllocator::DescriptorAllocator(
-    std::vector<vk::DescriptorPoolSize> poolSizes, uint32_t setsPerPool
-) :
-    poolSizes(poolSizes), readyPools(), fullPools(), setsPerPool(setsPerPool) {}
 
 vk::DescriptorPool DescriptorAllocator::createPool(const vk::Device& device
 ) const {

@@ -74,8 +74,8 @@ MaterialInstanceID GraphicsModule::loadMaterial(
     return resources.materials.load(
         device.device,
         device.physicalDevice,
-        device.pipeline.materialDescriptorSetLayout,
-        device.pipeline.materialDescriptorAllocator,
+        device.pipeline.descriptorSetLayouts[static_cast<size_t>(PipelineSetType::MATERIAL)],
+        device.pipeline.descriptorAllocators[static_cast<size_t>(PipelineSetType::MATERIAL)],
         device.sampler.sampler,
         device.writeBuffer,
         resources.textures,

@@ -9,7 +9,7 @@
 #include "low_level_renderer/descriptor_write_buffer.h"
 #include "low_level_renderer/uniform_buffer.h"
 
-enum MaterialPass { OPAQUE, TRANSPARENT, MAX = TRANSPARENT };
+enum class MaterialPass { OPAQUE = 0, TRANSPARENT = 1, MAX = TRANSPARENT };
 
 struct MaterialInstanceID {
     uint32_t index;
@@ -56,10 +56,10 @@ class MaterialManager {
     void destroyBy(vk::Device device);
 
    private:
-    std::array<std::vector<MaterialInstance>, MaterialPass::MAX + 1>
+    std::array<std::vector<MaterialInstance>, static_cast<size_t>(MaterialPass::MAX) + 1>
         materialInstances;
     std::array<
         std::vector<UniformBuffer<MaterialProperties>>,
-        MaterialPass::MAX + 1>
+        static_cast<size_t>(MaterialPass::MAX) + 1>
         uniforms;
 };

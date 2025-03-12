@@ -26,7 +26,7 @@ MaterialInstanceID MaterialManager::load(
     MaterialPass materialPass
 ) {
     MaterialInstanceID id{
-        static_cast<uint32_t>(materialInstances[materialPass].size()),
+        static_cast<uint32_t>(materialInstances[static_cast<size_t>(materialPass)].size()),
         materialPass
     };
     UniformBuffer<MaterialProperties> uniformBuffer =
@@ -51,8 +51,8 @@ MaterialInstanceID MaterialManager::load(
     );
     // binding 1 is for albedo texture
     textureManager.bind(albedo, descriptorSet, 1, sampler, writeBuffer);
-    materialInstances[materialPass].push_back({descriptorSet});
-    uniforms[materialPass].push_back(uniformBuffer);
+    materialInstances[static_cast<size_t>(materialPass)].push_back({descriptorSet});
+    uniforms[static_cast<size_t>(materialPass)].push_back(uniformBuffer);
     return id;
 }
 
@@ -66,14 +66,14 @@ void MaterialManager::bind(
         pipelineLayout,
         1,
         1,
-        &materialInstances[materialID.pass][materialID.index].descriptor,
+        &materialInstances[static_cast<size_t>(materialID.pass)][materialID.index].descriptor,
         0,
         nullptr
     );
 }
 
 void MaterialManager::destroyBy(vk::Device device) {
-    for (uint32_t pass = 0; pass <= MaterialPass::MAX; pass++) {
+    for (uint32_t pass = 0; pass <= static_cast<size_t>(MaterialPass::MAX); pass++) {
         for (UniformBuffer<MaterialProperties>& uniformBuffers : uniforms[pass])
             uniformBuffers.destroyBy(device);
     }

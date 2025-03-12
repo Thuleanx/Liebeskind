@@ -6,10 +6,10 @@
 #include <set>
 #include <vector>
 
-#include "low_level_renderer/queue_family.h"
 #include "core/logger/assert.h"
 #include "core/logger/vulkan_ensures.h"
 #include "low_level_renderer/descriptor_write_buffer.h"
+#include "low_level_renderer/queue_family.h"
 #include "private/graphics_device_helper.h"
 #include "private/swapchain.h"
 #include "private/validation.h"
@@ -135,8 +135,8 @@ vk::RenderPass init_createRenderPass(
         vk::AttachmentStoreOp::eDontCare,
         vk::ImageLayout::eUndefined,
         vk::ImageLayout::eColorAttachmentOptimal
-        //vk::ImageLayout::ePresentSrcKHR         // we are expecting to pipe
-                                                // this into UI render pass
+        // vk::ImageLayout::ePresentSrcKHR         // we are expecting to pipe
+        //  this into UI render pass
     );
     const vk::AttachmentDescription depthAttachment(
         {},
@@ -344,15 +344,21 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
 
     DescriptorWriteBuffer writeBuffer;
     MaterialPipeline pipeline = MaterialPipeline::create(
+        PipelineType::REGULAR,
         device,
         resources.shaders.getModule(vertexShader),
         resources.shaders.getModule(fragmentShader),
         renderPass
     );
     std::vector<vk::DescriptorSet> globalDescriptors =
-        pipeline.globalDescriptorAllocator.allocate(
-            device, pipeline.globalDescriptorSetLayout, MAX_FRAMES_IN_FLIGHT
-        );
+        pipeline
+            .descriptorAllocators[static_cast<size_t>(PipelineSetType::GLOBAL)]
+            .allocate(
+                device,
+                pipeline.descriptorSetLayouts
+                    [static_cast<size_t>(PipelineSetType::GLOBAL)],
+                MAX_FRAMES_IN_FLIGHT
+            );
     ASSERT(
         globalDescriptors.size() == MAX_FRAMES_IN_FLIGHT,
         "Requested " << MAX_FRAMES_IN_FLIGHT

@@ -4,7 +4,6 @@
 #include <vulkan/vulkan.hpp>
 
 struct DescriptorAllocator {
-   private:
     std::vector<vk::DescriptorPoolSize> poolSizes;
     std::vector<vk::DescriptorPool> readyPools;
     std::vector<vk::DescriptorPool> fullPools;
@@ -29,8 +28,4 @@ struct DescriptorAllocator {
 
    private:
     vk::DescriptorPool createPool(const vk::Device& device) const;
-
-    DescriptorAllocator(
-        std::vector<vk::DescriptorPoolSize> poolSizes, uint32_t setsPerPool
-    );
 };

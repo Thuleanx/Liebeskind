@@ -11,6 +11,7 @@ bool drawFrame(
     GraphicsDeviceInterface& graphicsDevice,
     GraphicsUserInterface& ui,
     const RenderSubmission& renderSubmission,
+    const RenderInstanceManager& instanceManager,
     const ResourceManager& resources,
     const GPUSceneData& gpuSceneData
 ) {
@@ -18,8 +19,9 @@ bool drawFrame(
         graphicsDevice.swapchain, "Attempt to draw frame without a swapchain"
     );
 
-    // Render ImGui. By this point all ImGui calls must be processed. If creating UI for debugging
-    // this draw frame process, then we would want to move this to another spot
+    // Render ImGui. By this point all ImGui calls must be processed. If
+    // creating UI for debugging this draw frame process, then we would want to
+    // move this to another spot
     ImGui::Render();
 
     graphicsDevice.writeBuffer.batchWrite(graphicsDevice.device);
@@ -70,6 +72,7 @@ bool drawFrame(
         graphicsDevice,
         ui,
         renderSubmission,
+        instanceManager,
         resources,
         commandBuffer,
         imageIndex.value
@@ -117,6 +120,7 @@ void recordCommandBuffer(
     const GraphicsDeviceInterface& graphicsDevice,
     const GraphicsUserInterface& ui,
     const RenderSubmission& renderSubmission,
+    const RenderInstanceManager& instanceManager,
     const ResourceManager& resources,
     vk::CommandBuffer buffer,
     uint32_t imageIndex
@@ -145,7 +149,7 @@ void recordCommandBuffer(
         );
         buffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
         buffer.bindPipeline(
-            vk::PipelineBindPoint::eGraphics, graphicsDevice.pipeline.pipeline
+            vk::PipelineBindPoint::eGraphics, graphicsDevice.nonInstancedPipeline.pipeline
         );
 
         vk::Viewport viewport(
@@ -164,7 +168,7 @@ void recordCommandBuffer(
 
         buffer.bindDescriptorSets(
             vk::PipelineBindPoint::eGraphics,
-            graphicsDevice.pipeline.layout,
+            graphicsDevice.nonInstancedPipeline.layout,
             0,
             1,
             &graphicsDevice.frameDatas[graphicsDevice.currentFrame]
@@ -173,9 +177,32 @@ void recordCommandBuffer(
             nullptr
         );
 
-        renderSubmission.record(
+        renderSubmission.recordNonInstanced(
             buffer,
-            graphicsDevice.pipeline.layout,
+            graphicsDevice.nonInstancedPipeline.layout,
+            resources.materials,
+            resources.meshes
+        );
+
+        buffer.bindPipeline(
+            vk::PipelineBindPoint::eGraphics, graphicsDevice.instancedPipeline.pipeline
+        );
+
+        buffer.bindDescriptorSets(
+            vk::PipelineBindPoint::eGraphics,
+            graphicsDevice.instancedPipeline.layout,
+            0,
+            1,
+            &graphicsDevice.frameDatas[graphicsDevice.currentFrame]
+                 .globalDescriptor,
+            0,
+            nullptr
+        );
+
+        renderSubmission.recordInstanced(
+            buffer,
+            graphicsDevice.nonInstancedPipeline.layout,
+            instanceManager,
             resources.materials,
             resources.meshes
         );
@@ -216,10 +243,15 @@ void beginFrame(
     ImGui_ImplSDL3_NewFrame();
     ImGui::NewFrame();
 
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGuiIO& io = ImGui::GetIO();
+    (void)io;
 
     ImGui::Begin("General debugging");
-    ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+    ImGui::Text(
+        "Application average %.3f ms/frame (%.1f FPS)",
+        1000.0f / io.Framerate,
+        io.Framerate
+    );
     ImGui::End();
 }
 

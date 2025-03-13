@@ -15,6 +15,7 @@ bool drawFrame(
     GraphicsDeviceInterface& graphicsDevice,
     GraphicsUserInterface& ui,
     const RenderSubmission& renderSubmission,
+    const RenderInstanceManager& instanceManager,
     const ResourceManager& resources,
     const GPUSceneData& gpuSceneData
 );
@@ -23,6 +24,7 @@ void recordCommandBuffer(
     const GraphicsDeviceInterface& graphicsDevice,
     const GraphicsUserInterface& ui,
     const RenderSubmission& renderSubmission,
+    const RenderInstanceManager& instanceManager,
     const ResourceManager& resources,
     vk::CommandBuffer buffer,
     uint32_t imageIndex

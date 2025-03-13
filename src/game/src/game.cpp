@@ -31,6 +31,7 @@ void Game::run() {
         },
         MaterialPass::OPAQUE
     );
+    RenderInstanceID instance = graphics.registerInstance(10);
 
     glm::mat4 modelTransform = glm::mat4(1);
 
@@ -60,12 +61,13 @@ void Game::run() {
 
     bool shouldQuitGame = false;
 
-    const glm::vec3 up = glm::vec3(0,0,1);
+    const glm::vec3 up = glm::vec3(0, 0, 1);
     glm::vec3 right = sceneDrawer.camera.getRight();
     right = glm::normalize(right - up * glm::dot(up, right));
     glm::vec3 forward = sceneDrawer.camera.getForward();
     forward = glm::normalize(forward - up * glm::dot(up, forward));
 
+    int p = 0;
     while (!shouldQuitGame) {
         graphics.beginFrame();
 
@@ -92,10 +94,7 @@ void Game::run() {
         }
 
         glm::vec3 frameMovement =
-            speed *
-            (movementX * right +
-             movementY * forward) *
-            deltaTime;
+            speed * (movementX * right + movementY * forward) * deltaTime;
 
         modelTransform = glm::translate(modelTransform, frameMovement);
 

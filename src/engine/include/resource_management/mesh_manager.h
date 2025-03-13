@@ -25,7 +25,7 @@ class MeshManager {
     );
 
     void bind(vk::CommandBuffer commandBuffer, MeshID mesh) const;
-    void draw(vk::CommandBuffer commandBuffer, MeshID mesh) const;
+    void draw(vk::CommandBuffer commandBuffer, MeshID mesh, uint16_t instancesCount = 1) const;
     void destroyBy(vk::Device device);
 
    private:

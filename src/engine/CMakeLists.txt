@@ -17,6 +17,7 @@ target_include_directories(scene_graph PUBLIC ${ENGINE_INCLUDE_DIR})
 set(GLSL_SOURCE_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/test_triangle.frag.glsl
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/test_triangle.vert.glsl
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/test_triangle_instanced.vert.glsl
 )
 
 find_program(GLSL_VALIDATOR "glslangValidator")

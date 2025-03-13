@@ -25,7 +25,7 @@ layout(std140, binding = 0, set = 2) readonly buffer InstanceTransformBuffer {
 } instanceTransforms;
 
 void main() {
-    mat4 transform = instanceTransforms.model[gl_InstanceID];
+    mat4 transform = instanceTransforms.model[gl_InstanceIndex];
 
     mat4 mvp = gpuScene.projection * gpuScene.view * transform;
     normalWorld = vec3(transpose(inverse(transform))*vec4(inNormal, 0.0));

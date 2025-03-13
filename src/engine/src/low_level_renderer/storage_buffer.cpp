@@ -46,5 +46,5 @@ void StorageBuffer<T>::destroyBy(const vk::Device& device) const {
     device.freeMemory(memory);
 }
 
-#include <glm/glm.hpp>
-template struct StorageBuffer<glm::mat4>;
+#include "low_level_renderer/instance_rendering.h"
+template struct StorageBuffer<InstanceData>;

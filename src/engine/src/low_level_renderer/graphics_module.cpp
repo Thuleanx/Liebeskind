@@ -21,13 +21,12 @@ void GraphicsModule::destroy() {
     resources.materials.destroyBy(device.device);
     resources.textures.destroyBy(device.device);
     resources.shaders.destroyBy(device.device);
+    instances.destroyBy(device.device);
     ui.destroy(device);
     device.destroy();
 }
 
-void GraphicsModule::beginFrame() {
-    Graphics::beginFrame(device, ui);
-}
+void GraphicsModule::beginFrame() { Graphics::beginFrame(device, ui); }
 
 void GraphicsModule::handleEvent(const SDL_Event& event) {
     device.handleEvent(event);
@@ -37,8 +36,9 @@ void GraphicsModule::handleEvent(const SDL_Event& event) {
 bool GraphicsModule::drawAndEndFrame(
     const RenderSubmission& renderSubmission, GPUSceneData& sceneData
 ) {
-    bool drawSuccess =
-        Graphics::drawFrame(device, ui, renderSubmission, resources, sceneData);
+    bool drawSuccess = Graphics::drawFrame(
+        device, ui, renderSubmission, instances, resources, sceneData
+    );
 
     if (!drawSuccess) return false;
 
@@ -63,7 +63,6 @@ MeshID GraphicsModule::loadMesh(const char* filePath) {
         device.physicalDevice,
         device.commandPool,
         device.graphicsQueue,
-
         filePath
     );
 }
@@ -71,16 +70,30 @@ MeshID GraphicsModule::loadMesh(const char* filePath) {
 MaterialInstanceID GraphicsModule::loadMaterial(
     TextureID albedo, MaterialProperties properties, MaterialPass pass
 ) {
+    static size_t LAYOUT_INDEX = static_cast<size_t>(PipelineSetType::MATERIAL);
     return resources.materials.load(
         device.device,
         device.physicalDevice,
-        device.pipeline.descriptorSetLayouts[static_cast<size_t>(PipelineSetType::MATERIAL)],
-        device.pipeline.descriptorAllocators[static_cast<size_t>(PipelineSetType::MATERIAL)],
+        device.nonInstancedPipeline.descriptorSetLayouts[LAYOUT_INDEX],
+        device.nonInstancedPipeline.descriptorAllocators[LAYOUT_INDEX],
         device.sampler.sampler,
         device.writeBuffer,
         resources.textures,
         albedo,
         properties,
         pass
+    );
+}
+
+RenderInstanceID GraphicsModule::registerInstance(uint16_t numberOfEntries) {
+    static size_t LAYOUT_INDEX =
+        static_cast<size_t>(PipelineSetType::INSTANCE_RENDERING);
+    return instances.create(
+        device.device,
+        device.physicalDevice,
+        device.instancedPipeline.descriptorSetLayouts[LAYOUT_INDEX],
+        device.instancedPipeline.descriptorAllocators[LAYOUT_INDEX],
+        device.writeBuffer,
+        numberOfEntries
     );
 }

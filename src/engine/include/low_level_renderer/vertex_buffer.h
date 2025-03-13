@@ -36,6 +36,6 @@ struct VertexBuffer {
         const vk::Queue& graphicsQueue
     );
     void bind(const vk::CommandBuffer& commandBuffer) const;
-    void draw(const vk::CommandBuffer& commandBuffer) const;
+    void draw(const vk::CommandBuffer& commandBuffer, uint16_t instanceCount = 1) const;
     void destroyBy(const vk::Device& device) const;
 };

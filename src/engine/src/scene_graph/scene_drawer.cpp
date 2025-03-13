@@ -53,9 +53,7 @@ bool SceneDrawer::drawFrame(GraphicsModule& graphics) {
     sceneData.inverseView = glm::inverse(sceneData.view);
     sceneData.viewProjection = sceneData.projection * sceneData.view;
 
-    for (size_t i = 0; i < renderObjects.size(); i++) {
-        renderSubmission.submit(renderObjects[i]);
-    }
+    renderSubmission.submit(renderObjects);
 
     bool isRenderSuccessful = graphics.drawAndEndFrame(renderSubmission, sceneData);
     renderSubmission.clear();

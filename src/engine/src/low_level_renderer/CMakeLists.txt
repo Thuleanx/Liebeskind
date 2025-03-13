@@ -9,6 +9,7 @@ set(SRC
     descriptor_allocator.cpp 
     swapchain_data.cpp
     vertex_buffer.cpp
+    instance_rendering.cpp
     uniform_buffer.cpp
     storage_buffer.cpp
     queue_family.cpp

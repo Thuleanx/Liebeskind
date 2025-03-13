@@ -25,12 +25,14 @@ void MeshManager::bind(vk::CommandBuffer commandBuffer, MeshID mesh) const {
     meshes[mesh.index].vertexBuffer.bind(commandBuffer);
 }
 
-void MeshManager::draw(vk::CommandBuffer commandBuffer, MeshID mesh) const {
+void MeshManager::draw(
+    vk::CommandBuffer commandBuffer, MeshID mesh, uint16_t instancesCount
+) const {
     ASSERT(
         mesh.index >= 0 && mesh.index < meshes.size(),
         "Mesh id is invalid: index out of range"
     );
-    meshes[mesh.index].vertexBuffer.draw(commandBuffer);
+    meshes[mesh.index].vertexBuffer.draw(commandBuffer, instancesCount);
 }
 
 void MeshManager::destroyBy(vk::Device device) {

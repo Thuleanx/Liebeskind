@@ -9,7 +9,6 @@
 #include "low_level_renderer/config.h"
 #include "low_level_renderer/material_pipeline.h"
 #include "low_level_renderer/queue_family.h"
-#include "low_level_renderer/render_submission.h"
 #include "low_level_renderer/sampler.h"
 #include "low_level_renderer/shader_data.h"
 #include "low_level_renderer/swapchain_data.h"
@@ -41,7 +40,8 @@ struct GraphicsDeviceInterface {
     vk::Queue graphicsQueue, presentQueue;
 
     vk::RenderPass renderPass;
-    MaterialPipeline pipeline;
+    MaterialPipeline instancedPipeline;
+    MaterialPipeline nonInstancedPipeline;
     std::optional<SwapchainData> swapchain;
 
     vk::CommandPool commandPool;
@@ -54,64 +54,12 @@ struct GraphicsDeviceInterface {
     static GraphicsDeviceInterface createGraphicsDevice(ResourceManager& resources);
     void destroy();
 
-    bool drawFrame(
-        const RenderSubmission& renderSubmission,
-        const ResourceManager& resources,
-        const GPUSceneData& gpuSceneData
-    );
     void handleEvent(const SDL_Event& sdlEvent);
-
-    void recordCommandBuffer(
-        const RenderSubmission& renderSubmission,
-        const ResourceManager& resources,
-        vk::CommandBuffer buffer,
-        uint32_t imageIndex
-    );
     void recreateSwapchain();
-
-    // This makes the object move only (non copyable)
-    GraphicsDeviceInterface(GraphicsDeviceInterface&&) = default;
-    GraphicsDeviceInterface& operator=(GraphicsDeviceInterface&&) = default;
-
-    GraphicsDeviceInterface() = delete;
-    GraphicsDeviceInterface(const GraphicsDeviceInterface&) = delete;
-    const GraphicsDeviceInterface& operator=(const GraphicsDeviceInterface&) =
-        delete;
 
    private:
     void cleanupSwapchain();
     void handleWindowResize(int width, int height);
-
-    GraphicsDeviceInterface(
-        std::array<FrameData, MAX_FRAMES_IN_FLIGHT> frameDatas,
-        SDL_Window* window,
-        vk::Instance instance,
-        vk::DebugUtilsMessengerEXT debugUtilsMessenger,
-        vk::SurfaceKHR surface,
-        vk::Device device,
-        vk::PhysicalDevice physicalDevice,
-        QueueFamilyIndices queueFamily,
-        vk::Queue graphicsQueue,
-        vk::Queue presentQueue,
-        vk::RenderPass renderPass,
-        MaterialPipeline pipeline,
-        vk::CommandPool commandPool,
-        Sampler sampler
-    ) :
-        frameDatas(frameDatas),
-        window(window),
-        instance(instance),
-        debugUtilsMessenger(debugUtilsMessenger),
-        surface(surface),
-        device(device),
-        physicalDevice(physicalDevice),
-        queueFamily(queueFamily),
-        graphicsQueue(graphicsQueue),
-        presentQueue(presentQueue),
-        renderPass(renderPass),
-        pipeline(pipeline),
-        commandPool(commandPool),
-        sampler(sampler) {};
 
    public:
     // Constructors

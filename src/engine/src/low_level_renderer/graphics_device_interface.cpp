@@ -326,6 +326,9 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
 
     ShaderID vertexShader =
         resources.shaders.load(device, "shaders/test_triangle.vert.glsl.spv");
+    ShaderID instancedVertexShader = resources.shaders.load(
+        device, "shaders/test_triangle_instanced.vert.glsl.spv"
+    );
     ShaderID fragmentShader =
         resources.shaders.load(device, "shaders/test_triangle.frag.glsl.spv");
 
@@ -343,19 +346,27 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
     );
 
     DescriptorWriteBuffer writeBuffer;
-    MaterialPipeline pipeline = MaterialPipeline::create(
+    MaterialPipeline instancedPipeline = MaterialPipeline::create(
+        PipelineType::INSTANCED,
+        device,
+        resources.shaders.getModule(instancedVertexShader),
+        resources.shaders.getModule(fragmentShader),
+        renderPass
+    );
+    MaterialPipeline regularPipeline = MaterialPipeline::create(
         PipelineType::REGULAR,
         device,
         resources.shaders.getModule(vertexShader),
         resources.shaders.getModule(fragmentShader),
         renderPass
     );
+
     std::vector<vk::DescriptorSet> globalDescriptors =
-        pipeline
+        regularPipeline
             .descriptorAllocators[static_cast<size_t>(PipelineSetType::GLOBAL)]
             .allocate(
                 device,
-                pipeline.descriptorSetLayouts
+                regularPipeline.descriptorSetLayouts
                     [static_cast<size_t>(PipelineSetType::GLOBAL)],
                 MAX_FRAMES_IN_FLIGHT
             );
@@ -403,22 +414,26 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
         };
     }
 
-    GraphicsDeviceInterface deviceInterface(
-        frameDatas,
-        window,
-        instance,
-        debugUtilsMessenger,
-        surface,
-        device,
-        physicalDevice,
-        queueFamily,
-        graphicsQueue,
-        presentQueue,
-        renderPass,
-        pipeline,
-        commandPool,
-        sampler
-    );
+    GraphicsDeviceInterface deviceInterface{
+        .frameDatas = frameDatas,
+        .window = window,
+        .instance = instance,
+        .debugUtilsMessenger = debugUtilsMessenger,
+        .surface = surface,
+        .device = device,
+        .physicalDevice = physicalDevice,
+        .queueFamily = queueFamily,
+        .graphicsQueue = graphicsQueue,
+        .presentQueue = presentQueue,
+        .renderPass = renderPass,
+        .instancedPipeline = instancedPipeline,
+        .nonInstancedPipeline = regularPipeline,
+        .swapchain = {},
+        .commandPool = commandPool,
+        .sampler = sampler,
+        .currentFrame = 0,
+        .writeBuffer = writeBuffer
+    };
 
     deviceInterface.swapchain = deviceInterface.createSwapchain();
 
@@ -445,8 +460,9 @@ void GraphicsDeviceInterface::destroy() {
     LLOG_INFO << "Destroyed sampler";
     device.destroyCommandPool(commandPool);
     LLOG_INFO << "Destroyed command pool";
-    pipeline.destroyBy(device);
-    LLOG_INFO << "Destroyed material pipeline";
+    instancedPipeline.destroyBy(device);
+    nonInstancedPipeline.destroyBy(device);
+    LLOG_INFO << "Destroyed material pipelines";
     device.destroyRenderPass(renderPass);
     LLOG_INFO << "Destroyed renderpass";
 
@@ -461,152 +477,6 @@ void GraphicsDeviceInterface::destroy() {
     SDL_DestroyWindow(window);
     LLOG_INFO << "Destroyed window";
     SDL_Quit();
-}
-
-void GraphicsDeviceInterface::recordCommandBuffer(
-    const RenderSubmission& renderSubmission,
-    const ResourceManager& resources,
-    vk::CommandBuffer buffer,
-    uint32_t imageIndex
-) {
-    ASSERT(swapchain, "Attempt to record command buffer");
-    vk::CommandBufferBeginInfo beginInfo({}, nullptr);
-    VULKAN_ENSURE_SUCCESS_EXPR(
-        buffer.begin(beginInfo), "Can't begin recording command buffer:"
-    );
-    const std::array<vk::ClearValue, 2> clearColors{
-        vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f),
-        vk::ClearColorValue(1.0f, 0.0f, 0.0f, 0.0f)
-    };
-    const vk::RenderPassBeginInfo renderPassInfo(
-        renderPass,
-        swapchain->framebuffers[imageIndex],
-        vk::Rect2D(vk::Offset2D{0, 0}, swapchain->extent),
-        static_cast<uint32_t>(clearColors.size()),
-        clearColors.data()
-    );
-    buffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
-    buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.pipeline);
-
-    vk::Viewport viewport(
-        0.0f,
-        0.0f,
-        static_cast<float>(swapchain->extent.width),
-        static_cast<float>(swapchain->extent.height),
-        0.0f,
-        1.0f
-    );
-    buffer.setViewport(0, 1, &viewport);
-    vk::Rect2D scissor(vk::Offset2D(0.0f, 0.0f), swapchain->extent);
-    buffer.setScissor(0, 1, &scissor);
-
-    buffer.bindDescriptorSets(
-        vk::PipelineBindPoint::eGraphics,
-        pipeline.layout,
-        0,
-        1,
-        &frameDatas[currentFrame].globalDescriptor,
-        0,
-        nullptr
-    );
-
-    renderSubmission.record(
-        buffer, pipeline.layout, resources.materials, resources.meshes
-    );
-
-    buffer.endRenderPass();
-    VULKAN_ENSURE_SUCCESS_EXPR(
-        buffer.end(), "Can't end recording command buffer:"
-    );
-}
-
-bool GraphicsDeviceInterface::drawFrame(
-    const RenderSubmission& renderSubmission,
-    const ResourceManager& resources,
-    const GPUSceneData& gpuSceneData
-) {
-    ASSERT(swapchain, "Attempt to draw frame without a swapchain");
-
-    writeBuffer.batchWrite(device);
-
-    const uint64_t no_time_limit = std::numeric_limits<uint64_t>::max();
-    VULKAN_ENSURE_SUCCESS_EXPR(
-        device.waitForFences(
-            1,
-            &frameDatas[currentFrame].isRenderingInFlight,
-            vk::True,
-            no_time_limit
-        ),
-        "Can't wait for previous frame rendering:"
-    );
-    const vk::ResultValue<uint32_t> imageIndex = device.acquireNextImageKHR(
-        swapchain->swapchain,
-        no_time_limit,
-        frameDatas[currentFrame].isImageAvailable,
-        nullptr
-    );
-
-    switch (imageIndex.result) {
-        case vk::Result::eErrorOutOfDateKHR:
-            LLOG_INFO << "Out of date KHR";
-            recreateSwapchain();
-            return true;
-
-        case vk::Result::eSuccess:
-        case vk::Result::eSuboptimalKHR: break;
-
-        default: return false;
-    }
-
-    VULKAN_ENSURE_SUCCESS_EXPR(
-        device.resetFences(1, &frameDatas[currentFrame].isRenderingInFlight),
-        "Can't reset fence for render:"
-    );
-    vk::CommandBuffer commandBuffer =
-        frameDatas[currentFrame].drawCommandBuffer;
-    commandBuffer.reset();
-
-    frameDatas[currentFrame].sceneDataBuffer.update(gpuSceneData);
-
-    recordCommandBuffer(
-        renderSubmission, resources, commandBuffer, imageIndex.value
-    );
-
-    const vk::PipelineStageFlags waitStage =
-        vk::PipelineStageFlagBits::eColorAttachmentOutput;
-    const vk::SubmitInfo submitInfo(
-        1,
-        &frameDatas[currentFrame].isImageAvailable,
-        &waitStage,
-        1,
-        &frameDatas[currentFrame].drawCommandBuffer,
-        1,
-        &frameDatas[currentFrame].isRenderingFinished
-    );
-    VULKAN_ENSURE_SUCCESS_EXPR(
-        graphicsQueue.submit(
-            1, &submitInfo, frameDatas[currentFrame].isRenderingInFlight
-        ),
-        "Can't submit graphics queue:"
-    );
-    vk::PresentInfoKHR presentInfo(
-        1,
-        &frameDatas[currentFrame].isRenderingFinished,
-        1,
-        &swapchain->swapchain,
-        &imageIndex.value,
-        nullptr
-    );
-
-    switch (presentQueue.presentKHR(presentInfo)) {
-        case vk::Result::eErrorOutOfDateKHR:
-        case vk::Result::eSuboptimalKHR:     recreateSwapchain();
-        case vk::Result::eSuccess:           break;
-        default:                             return false;
-    }
-
-    currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
-    return true;
 }
 
 void GraphicsDeviceInterface::handleEvent(const SDL_Event& event) {

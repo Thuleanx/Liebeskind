@@ -167,6 +167,6 @@ void VertexBuffer::bind(const vk::CommandBuffer& commandBuffer) const {
     commandBuffer.bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint32);
 }
 
-void VertexBuffer::draw(const vk::CommandBuffer& commandBuffer) const {
-    commandBuffer.drawIndexed(numberOfIndices, 1, 0, 0, 0);
+void VertexBuffer::draw(const vk::CommandBuffer& commandBuffer, uint16_t instanceCount) const {
+    commandBuffer.drawIndexed(numberOfIndices, instanceCount, 0, 0, 0);
 }

@@ -154,7 +154,7 @@ MaterialPipeline MaterialPipeline::create(
         {},
         activeDescriptorSetLayouts.size(),
         activeDescriptorSetLayouts.data(),
-        1,
+        pipelineType != PipelineType::INSTANCED,
         pipelineType == PipelineType::INSTANCED ? nullptr : &pushConstantRange
     );
     const vk::ResultValue<vk::PipelineLayout> pipelineLayoutCreation =

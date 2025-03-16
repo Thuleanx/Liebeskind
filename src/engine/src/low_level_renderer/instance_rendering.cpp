@@ -1,6 +1,7 @@
 #include "low_level_renderer/instance_rendering.h"
 
 #include "core/logger/assert.h"
+#include "low_level_renderer/material_pipeline.h"
 
 RenderInstanceID RenderInstanceManager::create(
     vk::Device device,
@@ -11,7 +12,7 @@ RenderInstanceID RenderInstanceManager::create(
     uint16_t numberOfEntries
 ) {
     uint16_t index = renderInstances.size();
-    renderInstances.emplace_back();
+    std::array<RenderInstance, MAX_FRAMES_IN_FLIGHT> instance;
     auto descriptorSets =
         descriptorAllocator.allocate(device, setLayout, MAX_FRAMES_IN_FLIGHT);
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
@@ -19,13 +20,14 @@ RenderInstanceID RenderInstanceManager::create(
             StorageBuffer<InstanceData>::create(
                 device, physicalDevice, numberOfEntries
             );
-
+        storageBuffer.update(InstanceData{.transform = glm::mat4(1)});
         storageBuffer.bind(writeBuffer, descriptorSets[i], 0);
-        renderInstances[index][i] = {
+        instance[i] = {
             .storageBuffer = storageBuffer,
             .descriptorSet = descriptorSets[i],
         };
     }
+    renderInstances.push_back(instance);
     return {index};
 }
 
@@ -38,7 +40,7 @@ void RenderInstanceManager::bind(
     commandBuffer.bindDescriptorSets(
         vk::PipelineBindPoint::eGraphics,
         layout,
-        2,  // set
+        static_cast<int>(PipelineDescriptorSetBindingPoint::eInstanceRendering),
         1,
         &renderInstances.at(id.index).at(currentFrame).descriptorSet,
         0,

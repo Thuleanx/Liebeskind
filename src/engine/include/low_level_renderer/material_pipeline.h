@@ -5,9 +5,9 @@
 #include "low_level_renderer/descriptor_allocator.h"
 
 enum class PipelineDescriptorSetBindingPoint {
-    eGlobal,
-    eMaterial,
-    eInstanceRendering,
+    eGlobal = 0,
+    eMaterial = 1,
+    eInstanceRendering = 2,
 };
 
 struct PipelineData {

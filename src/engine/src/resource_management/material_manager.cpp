@@ -1,6 +1,7 @@
 #include "resource_management/material_manager.h"
 
 #include "core/logger/assert.h"
+#include "low_level_renderer/material_pipeline.h"
 
 size_t MaterialInstanceIDHashFunction ::operator()(
     const MaterialInstanceID& materialInstanceID
@@ -57,7 +58,7 @@ void MaterialManager::bind(
     commandBuffer.bindDescriptorSets(
         vk::PipelineBindPoint::eGraphics,
         pipelineLayout,
-        1,
+        static_cast<int>(PipelineDescriptorSetBindingPoint::eMaterial),
         1,
         &materialInstances[static_cast<size_t>(materialID.pass)][materialID.index].descriptor,
         0,

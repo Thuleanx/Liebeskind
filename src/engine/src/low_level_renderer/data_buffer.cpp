@@ -33,7 +33,7 @@ template <typename T, DataBufferType E>
 void DataBuffer<T, E>::bind(DescriptorWriteBuffer& writeBuffer, vk::DescriptorSet set, int binding) const {
     writeBuffer.writeBuffer(
         set,
-        0,
+        binding,
         buffer,
         E == DataBufferType::UNIFORM ? vk::DescriptorType::eUniformBuffer
                                      : vk::DescriptorType::eStorageBuffer,
@@ -51,7 +51,7 @@ void DataBuffer<T, E>::update(const T& data) const {
 template <typename T, DataBufferType E>
 void DataBuffer<T, E>::update(std::span<const T> data) const {
     size_t bufferSize = sizeof(T) * data.size();
-    memcpy(mappedMemory, &data, bufferSize);
+    memcpy(mappedMemory, data.data(), bufferSize);
 }
 
 template <typename T, DataBufferType E>

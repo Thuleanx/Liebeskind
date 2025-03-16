@@ -15,7 +15,10 @@ struct RenderObject {
 };
 
 struct InstancedRenderObject {
-    glm::mat4 transform;
+    RenderInstanceID instance;
+    MaterialInstanceID material;
+    MeshID mesh;
+    uint16_t count;
 };
 
 class RenderSubmission {
@@ -30,26 +33,15 @@ class RenderSubmission {
         MaterialInstanceIDHashFunction>
         renderObjects;
 
-    std::unordered_map<
-        RenderInstanceID,
-        MaterialInstanceID,
-        RenderInstanceIDHashFunction>
-        instanceMaterial;
-    std::unordered_map<RenderInstanceID, MeshID, RenderInstanceIDHashFunction>
-        instanceMesh;
-    std::unordered_map<RenderInstanceID, uint16_t, RenderInstanceIDHashFunction>
-        instanceNumber;
+    std::vector<InstancedRenderObject> instances;
+    std::vector<std::vector<InstanceData>> instanceData;
 
    public:
     static RenderSubmission create();
-    void setInstanceData(
-        RenderInstanceID instance,
-        MaterialInstanceID material,
-        MeshID mesh
+    void submit(
+        std::span<InstancedRenderObject> instances,
+        std::span<std::vector<InstanceData>> data
     );
-    void setInstanceNumber(RenderInstanceID instance, uint16_t number);
-
-    void submit(const RenderObject& renderObject);
     void submit(std::span<const RenderObject> renderObjects);
 
     void recordInstanced(
@@ -57,17 +49,16 @@ class RenderSubmission {
         vk::PipelineLayout pipelineLayout,
         const RenderInstanceManager& instanceManager,
         const MaterialManager& materialManager,
-        const MeshManager& meshManager
+        const MeshManager& meshManager,
+        uint32_t currentFrame
     ) const;
 
     void recordNonInstanced(
         vk::CommandBuffer buffer,
         vk::PipelineLayout pipelineLayout,
         const MaterialManager& materialManager,
-        const MeshManager& meshManager
+        const MeshManager& meshManager,
+        uint32_t currentFrame
     ) const;
     void clear();
-
-   private:
-    RenderSubmission() = default;
 };

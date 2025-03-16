@@ -1,27 +1,27 @@
 #include "low_level_renderer/render_submission.h"
 
+#include <glm/gtx/string_cast.hpp>
+
+#include "core/logger/assert.h"
 #include "low_level_renderer/shader_data.h"
 
 RenderSubmission RenderSubmission::create() { return RenderSubmission(); }
 
-void RenderSubmission::setInstanceData(
-    RenderInstanceID instance,
-    MaterialInstanceID material,
-    MeshID mesh
+void RenderSubmission::submit(
+    std::span<InstancedRenderObject> instances,
+    std::span<std::vector<InstanceData>> data
 ) {
-    instanceMaterial[instance] = material;
-    instanceMesh[instance] = mesh;
-}
-
-void RenderSubmission::setInstanceNumber(
-    RenderInstanceID instance,
-    uint16_t numberOfInstances
-) {
-    instanceNumber[instance] = numberOfInstances;
-}
-
-void RenderSubmission::submit(const RenderObject& renderObject) {
-    submit(std::span(&renderObject, 1));
+    ASSERT(
+        instances.size() == data.size(),
+        "Input number of instances "
+            << instances.size() << " is not the number of data" << data.size()
+    );
+    this->instances.insert(
+        this->instances.end(), instances.begin(), instances.end()
+    );
+    this->instanceData.insert(
+        this->instanceData.end(), data.begin(), data.end()
+    );
 }
 
 void RenderSubmission::submit(std::span<const RenderObject> renderObjects) {
@@ -42,12 +42,23 @@ void RenderSubmission::recordInstanced(
     vk::PipelineLayout pipelineLayout,
     const RenderInstanceManager& instanceManager,
     const MaterialManager& materialManager,
-    const MeshManager& meshManager
+    const MeshManager& meshManager,
+    uint32_t currentFrame
 ) const {
-    for (const auto& [id, instanceCount] : instanceNumber) {
-        materialManager.bind(buffer, pipelineLayout, instanceMaterial.at(id));
-        meshManager.bind(buffer, instanceMesh.at(id));
-        meshManager.draw(buffer, instanceMesh.at(id), instanceCount);
+    // update instance data
+    for (size_t i = 0; i < instances.size(); i++) {
+        instanceManager.update(
+            instances[i].instance, currentFrame, instanceData[i]
+        );
+    }
+
+    for (const InstancedRenderObject& instance : instances) {
+        instanceManager.bind(
+            buffer, pipelineLayout, instance.instance, currentFrame
+        );
+        materialManager.bind(buffer, pipelineLayout, instance.material);
+        meshManager.bind(buffer, instance.mesh);
+        meshManager.draw(buffer, instance.mesh, instance.count);
     }
 }
 
@@ -55,7 +66,8 @@ void RenderSubmission::recordNonInstanced(
     vk::CommandBuffer buffer,
     vk::PipelineLayout pipelineLayout,
     const MaterialManager& materialManager,
-    const MeshManager& meshManager
+    const MeshManager& meshManager,
+    [[maybe_unused]] uint32_t currentFrame
 ) const {
     for (const auto& [materialID, allRenderObjects] : renderObjects) {
         materialManager.bind(buffer, pipelineLayout, materialID);
@@ -74,4 +86,8 @@ void RenderSubmission::recordNonInstanced(
     }
 }
 
-void RenderSubmission::clear() { renderObjects.clear(); }
+void RenderSubmission::clear() {
+    instances.clear();
+    instanceData.clear();
+    renderObjects.clear();
+}

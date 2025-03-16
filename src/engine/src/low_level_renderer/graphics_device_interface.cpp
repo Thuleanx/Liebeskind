@@ -346,28 +346,19 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
     );
 
     DescriptorWriteBuffer writeBuffer;
-    MaterialPipeline instancedPipeline = MaterialPipeline::create(
-        PipelineType::INSTANCED,
-        device,
-        resources.shaders.getModule(instancedVertexShader),
-        resources.shaders.getModule(fragmentShader),
-        renderPass
-    );
-    MaterialPipeline regularPipeline = MaterialPipeline::create(
-        PipelineType::REGULAR,
+    MaterialPipeline pipeline = MaterialPipeline::create(
         device,
         resources.shaders.getModule(vertexShader),
+        resources.shaders.getModule(instancedVertexShader),
         resources.shaders.getModule(fragmentShader),
         renderPass
     );
 
     std::vector<vk::DescriptorSet> globalDescriptors =
-        regularPipeline
-            .descriptorAllocators[static_cast<size_t>(PipelineSetType::GLOBAL)]
+        pipeline.globalDescriptor.allocator
             .allocate(
                 device,
-                regularPipeline.descriptorSetLayouts
-                    [static_cast<size_t>(PipelineSetType::GLOBAL)],
+                pipeline.globalDescriptor.setLayout,
                 MAX_FRAMES_IN_FLIGHT
             );
     ASSERT(
@@ -386,16 +377,8 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
                           << " uniform buffers but allocator returned "
                           << uniformBuffers.size()
     );
-    for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        writeBuffer.writeBuffer(
-            globalDescriptors[i],
-            0,
-            uniformBuffers[i].buffer,
-            vk::DescriptorType::eUniformBuffer,
-            0,
-            sizeof(GPUSceneData)
-        );
-    }
+    for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+        uniformBuffers[i].bind(writeBuffer, globalDescriptors[i], 0);
     writeBuffer.batchWrite(device);
 
     const auto [isImageAvailable, isRenderingFinished, isRenderingInFlight] =
@@ -426,8 +409,7 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
         .graphicsQueue = graphicsQueue,
         .presentQueue = presentQueue,
         .renderPass = renderPass,
-        .instancedPipeline = instancedPipeline,
-        .nonInstancedPipeline = regularPipeline,
+        .pipeline = pipeline,
         .swapchain = {},
         .commandPool = commandPool,
         .sampler = sampler,
@@ -460,9 +442,8 @@ void GraphicsDeviceInterface::destroy() {
     LLOG_INFO << "Destroyed sampler";
     device.destroyCommandPool(commandPool);
     LLOG_INFO << "Destroyed command pool";
-    instancedPipeline.destroyBy(device);
-    nonInstancedPipeline.destroyBy(device);
-    LLOG_INFO << "Destroyed material pipelines";
+    pipeline.destroyBy(device);
+    LLOG_INFO << "Destroyed material pipeline";
     device.destroyRenderPass(renderPass);
     LLOG_INFO << "Destroyed renderpass";
 

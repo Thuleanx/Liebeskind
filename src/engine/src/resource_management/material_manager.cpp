@@ -41,14 +41,7 @@ MaterialInstanceID MaterialManager::load(
     );
     vk::DescriptorSet descriptorSet = descriptorSets[0];
     // binding 0 is for material specific properties
-    writeBuffer.writeBuffer(
-        descriptorSet,
-        0,
-        uniformBuffer.buffer,
-        vk::DescriptorType::eUniformBuffer,
-        0,
-        sizeof(MaterialProperties)
-    );
+    uniformBuffer.bind(writeBuffer, descriptorSet, 0);
     // binding 1 is for albedo texture
     textureManager.bind(albedo, descriptorSet, 1, sampler, writeBuffer);
     materialInstances[static_cast<size_t>(materialPass)].push_back({descriptorSet});

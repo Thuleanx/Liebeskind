@@ -1,5 +1,7 @@
 #include "scene_graph/scene_drawer.h"
 
+#include "core/logger/assert.h"
+
 SceneDrawer::SceneDrawer(PerspectiveCamera camera) :
     camera(camera), renderSubmission(RenderSubmission::create()) {}
 
@@ -24,6 +26,37 @@ void SceneDrawer::handleResize(int width, int height) {
 
 void SceneDrawer::handleResize(float aspectRatio) {
     camera.setAspectRatio(aspectRatio);
+}
+
+void SceneDrawer::addInstancedObjects(
+    std::span<InstancedRenderObject> instancedRenderObjects
+) {
+    this->instancedRenderObjects.insert(
+        this->instancedRenderObjects.end(),
+        instancedRenderObjects.begin(),
+        instancedRenderObjects.end()
+    );
+    instancedRenderData.resize(this->instancedRenderObjects.size());
+}
+
+void SceneDrawer::updateInstance(
+    std::span<int> indices, std::vector<std::span<InstanceData>> data
+) {
+    ASSERT(
+        indices.size() == data.size(),
+        "Indices size (" << indices.size() << ") and data size (" << data.size()
+                         << ") mismatched"
+    );
+    for (int i = 0; i < indices.size(); i++) {
+        ASSERT(
+            indices[i] >= 0 && indices[i] < instancedRenderData.size(),
+            "Index " << i << " is out of the range [0, "
+                     << instancedRenderData.size() << ")"
+        );
+        std::vector<InstanceData> copiedData;
+        copiedData.insert(copiedData.end(), data[i].begin(), data[i].end());
+        instancedRenderData[indices[i]] = copiedData;
+    }
 }
 
 void SceneDrawer::addObjects(std::span<RenderObject> renderObjects) {
@@ -54,8 +87,10 @@ bool SceneDrawer::drawFrame(GraphicsModule& graphics) {
     sceneData.viewProjection = sceneData.projection * sceneData.view;
 
     renderSubmission.submit(renderObjects);
+    renderSubmission.submit(instancedRenderObjects, instancedRenderData);
 
-    bool isRenderSuccessful = graphics.drawAndEndFrame(renderSubmission, sceneData);
+    bool isRenderSuccessful =
+        graphics.drawAndEndFrame(renderSubmission, sceneData);
     renderSubmission.clear();
     return isRenderSuccessful;
 }

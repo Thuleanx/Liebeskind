@@ -6,21 +6,13 @@
 #include "low_level_renderer/vertex_buffer.h"
 
 MaterialPipeline MaterialPipeline::create(
-    PipelineType pipelineType,
     vk::Device device,
     vk::ShaderModule vertexShader,
+    vk::ShaderModule instanceRenderingVertexShader,
     vk::ShaderModule fragmentShader,
     vk::RenderPass renderPass
 ) {
-    std::array<
-        vk::DescriptorSetLayout,
-        static_cast<size_t>(PipelineSetType::MAX) + 1>
-        descriptorSetLayouts;
-    std::array<
-        DescriptorAllocator,
-        static_cast<size_t>(PipelineSetType::MAX) + 1>
-        descriptorAllocators;
-
+    PipelineDescriptorData globalDescriptorData;
     {  // create global descriptor information
         const vk::DescriptorSetLayoutBinding globalSceneDataBinding(
             0,  // binding
@@ -43,16 +35,17 @@ MaterialPipeline MaterialPipeline::create(
             globalDescriptorSetLayoutCreation.result,
             "Can't create global descriptor set layout"
         );
-        descriptorSetLayouts[static_cast<size_t>(PipelineSetType::GLOBAL)] =
-            globalDescriptorSetLayoutCreation.value;
-        descriptorAllocators[static_cast<size_t>(PipelineSetType::GLOBAL)] =
-            DescriptorAllocator::create(
-                device,
-                {vk::DescriptorPoolSize(vk::DescriptorType::eUniformBuffer, 1)},
-                MAX_FRAMES_IN_FLIGHT
-            );
+        globalDescriptorData = {
+            .setLayout = globalDescriptorSetLayoutCreation.value,
+            .allocator = DescriptorAllocator::create(
+            device,
+            {vk::DescriptorPoolSize(vk::DescriptorType::eUniformBuffer, 1)},
+            MAX_FRAMES_IN_FLIGHT
+        )
+        };
     }
 
+    PipelineDescriptorData materialDescriptorData;
     {  // create material descriptor information
         const vk::DescriptorSetLayoutBinding materialPropertiesBinding(
             0,  // binding
@@ -80,10 +73,9 @@ MaterialPipeline MaterialPipeline::create(
             materialDescriptorSetLayoutCreation.result,
             "Can't create material descriptor set layout"
         );
-        descriptorSetLayouts[static_cast<size_t>(PipelineSetType::MATERIAL)] =
-            materialDescriptorSetLayoutCreation.value;
-        descriptorAllocators[static_cast<size_t>(PipelineSetType::MATERIAL)] =
-            DescriptorAllocator::create(
+        materialDescriptorData = {
+            .setLayout = materialDescriptorSetLayoutCreation.value,
+            .allocator = DescriptorAllocator::create(
                 device,
                 {
                     vk::DescriptorPoolSize(
@@ -94,10 +86,12 @@ MaterialPipeline MaterialPipeline::create(
                     ),
                 },
                 MAX_FRAMES_IN_FLIGHT
-            );
+            )
+        };
     }
 
-    if (pipelineType == PipelineType::INSTANCED) {
+    PipelineDescriptorData instanceRenderingDescriptorData;
+    {
         const vk::DescriptorSetLayoutBinding instancedRenderingBinding(
             0,  // binding
             vk::DescriptorType::eStorageBuffer,
@@ -118,58 +112,45 @@ MaterialPipeline MaterialPipeline::create(
             "Can't create instancedRendering descriptor set layout"
         );
 
-        descriptorSetLayouts[static_cast<size_t>(
-            PipelineSetType::INSTANCE_RENDERING
-        )] = instancedRenderingDescriptorSetLayoutCreation.value;
-        descriptorAllocators[static_cast<size_t>(
-            PipelineSetType::INSTANCE_RENDERING
-        )] =
-            DescriptorAllocator::create(
+        instanceRenderingDescriptorData = {
+            .setLayout = instancedRenderingDescriptorSetLayoutCreation.value,
+            .allocator = DescriptorAllocator::create(
                 device,
                 {vk::DescriptorPoolSize(vk::DescriptorType::eStorageBuffer, 1)},
                 MAX_FRAMES_IN_FLIGHT
-            );
+            )
+        };
     }
 
-    std::vector<vk::DescriptorSetLayout> activeDescriptorSetLayouts;
-    if (pipelineType == PipelineType::INSTANCED) {
-        activeDescriptorSetLayouts = {
-            descriptorSetLayouts[static_cast<size_t>(PipelineSetType::GLOBAL)],
-            descriptorSetLayouts[static_cast<size_t>(PipelineSetType::MATERIAL
-            )],
-            descriptorSetLayouts
-                [static_cast<size_t>(PipelineSetType::INSTANCE_RENDERING)],
-        };
-    } else {
-        activeDescriptorSetLayouts = {
-            descriptorSetLayouts[static_cast<size_t>(PipelineSetType::GLOBAL)],
-            descriptorSetLayouts[static_cast<size_t>(PipelineSetType::MATERIAL
-            )],
-        };
-    }
-    vk::PushConstantRange pushConstantRange(
+    const std::vector<vk::DescriptorSetLayout> instanceRenderingSetLayouts = {
+        globalDescriptorData.setLayout,
+        materialDescriptorData.setLayout,
+        instanceRenderingDescriptorData.setLayout,
+    };
+
+    const std::vector<vk::DescriptorSetLayout> regularSetLayouts = {
+        globalDescriptorData.setLayout,
+        materialDescriptorData.setLayout,
+    };
+
+    const vk::PushConstantRange pushConstantRange(
         vk::ShaderStageFlagBits::eVertex, 0, sizeof(GPUPushConstants)
     );
-    const vk::PipelineLayoutCreateInfo pipelineLayoutInfo(
-        {},
-        activeDescriptorSetLayouts.size(),
-        activeDescriptorSetLayouts.data(),
-        pipelineType != PipelineType::INSTANCED,
-        pipelineType == PipelineType::INSTANCED ? nullptr : &pushConstantRange
-    );
-    const vk::ResultValue<vk::PipelineLayout> pipelineLayoutCreation =
-        device.createPipelineLayout(pipelineLayoutInfo);
-    VULKAN_ENSURE_SUCCESS(
-        pipelineLayoutCreation.result, "Can't create pipeline layout:"
-    );
-    const vk::PipelineLayout pipelineLayout = pipelineLayoutCreation.value;
 
     const vk::PipelineShaderStageCreateInfo vertexShaderStageInfo(
         {}, vk::ShaderStageFlagBits::eVertex, vertexShader, "main"
     );
+    const vk::PipelineShaderStageCreateInfo
+        instanceRenderingVertexShaderStageInfo(
+            {},
+            vk::ShaderStageFlagBits::eVertex,
+            instanceRenderingVertexShader,
+            "main"
+        );
     const vk::PipelineShaderStageCreateInfo fragmentShaderStageInfo(
         {}, vk::ShaderStageFlagBits::eFragment, fragmentShader, "main"
     );
+
     const std::vector<vk::DynamicState> dynamicStates = {
         vk::DynamicState::eViewport,
         vk::DynamicState::eScissor,
@@ -177,9 +158,7 @@ MaterialPipeline MaterialPipeline::create(
     const vk::PipelineDynamicStateCreateInfo dynamicStateInfo(
         {}, static_cast<uint32_t>(dynamicStates.size()), dynamicStates.data()
     );
-    const vk::PipelineShaderStageCreateInfo shaderStages[] = {
-        vertexShaderStageInfo, fragmentShaderStageInfo
-    };
+
     const auto bindingDescription = Vertex::getBindingDescription();
     const auto attributeDescription = Vertex::getAttributeDescriptions();
     const vk::PipelineVertexInputStateCreateInfo vertexInputStateInfo(
@@ -253,50 +232,125 @@ MaterialPipeline MaterialPipeline::create(
         {},         // min depth bound
         {}          // max depth bound
     );
-    vk::GraphicsPipelineCreateInfo pipelineCreateInfo(
-        {},
-        2,
-        shaderStages,
-        &vertexInputStateInfo,
-        &inputAssemblyStateInfo,
-        nullptr,  // no tesselation viewport
-        &viewportStateInfo,
-        &rasterizerCreateInfo,
-        &multisamplingInfo,
-        &depthStencilState,
-        &colorBlendingInfo,
-        &dynamicStateInfo,
-        pipelineLayout,
-        renderPass,
-        0
-    );
-    const vk::ResultValue<vk::Pipeline> pipelineCreation =
-        device.createGraphicsPipeline(nullptr, pipelineCreateInfo);
-    VULKAN_ENSURE_SUCCESS(
-        pipelineCreation.result, "Can't create graphics pipeline:"
-    );
-    const vk::Pipeline pipeline = pipelineCreation.value;
+
+    PipelineData regularPipeline;
+    {
+        const vk::PipelineLayoutCreateInfo pipelineLayoutInfo(
+            {},
+            regularSetLayouts.size(),
+            regularSetLayouts.data(),
+            1,
+            &pushConstantRange
+        );
+        const vk::ResultValue<vk::PipelineLayout> pipelineLayoutCreation =
+            device.createPipelineLayout(pipelineLayoutInfo);
+        VULKAN_ENSURE_SUCCESS(
+            pipelineLayoutCreation.result, "Can't create pipeline layout:"
+        );
+        const vk::PipelineShaderStageCreateInfo shaderStages[] = {
+            vertexShaderStageInfo, fragmentShaderStageInfo
+        };
+        vk::GraphicsPipelineCreateInfo pipelineCreateInfo(
+            {},
+            2,
+            shaderStages,
+            &vertexInputStateInfo,
+            &inputAssemblyStateInfo,
+            nullptr,  // no tesselation viewport
+            &viewportStateInfo,
+            &rasterizerCreateInfo,
+            &multisamplingInfo,
+            &depthStencilState,
+            &colorBlendingInfo,
+            &dynamicStateInfo,
+            pipelineLayoutCreation.value,
+            renderPass,
+            0
+        );
+        const vk::ResultValue<vk::Pipeline> pipelineCreation =
+            device.createGraphicsPipeline(nullptr, pipelineCreateInfo);
+        VULKAN_ENSURE_SUCCESS(
+            pipelineCreation.result, "Can't create graphics pipeline:"
+        );
+
+        regularPipeline = {
+            .pipeline = pipelineCreation.value,
+            .layout = pipelineLayoutCreation.value,
+        };
+    }
+
+    PipelineData instanceRenderingPipeline;
+    {
+        const vk::PipelineLayoutCreateInfo pipelineLayoutInfo(
+            {},
+            instanceRenderingSetLayouts.size(),
+            instanceRenderingSetLayouts.data(),
+            0,
+            nullptr
+        );
+        const vk::ResultValue<vk::PipelineLayout> pipelineLayoutCreation =
+            device.createPipelineLayout(pipelineLayoutInfo);
+        VULKAN_ENSURE_SUCCESS(
+            pipelineLayoutCreation.result, "Can't create pipeline layout:"
+        );
+        const vk::PipelineShaderStageCreateInfo shaderStages[] = {
+            instanceRenderingVertexShaderStageInfo, fragmentShaderStageInfo
+        };
+        vk::GraphicsPipelineCreateInfo pipelineCreateInfo(
+            {},
+            2,
+            shaderStages,
+            &vertexInputStateInfo,
+            &inputAssemblyStateInfo,
+            nullptr,  // no tesselation viewport
+            &viewportStateInfo,
+            &rasterizerCreateInfo,
+            &multisamplingInfo,
+            &depthStencilState,
+            &colorBlendingInfo,
+            &dynamicStateInfo,
+            pipelineLayoutCreation.value,
+            renderPass,
+            0
+        );
+        const vk::ResultValue<vk::Pipeline> pipelineCreation =
+            device.createGraphicsPipeline(nullptr, pipelineCreateInfo);
+        VULKAN_ENSURE_SUCCESS(
+            pipelineCreation.result, "Can't create graphics pipeline:"
+        );
+
+        instanceRenderingPipeline = {
+            .pipeline = pipelineCreation.value,
+            .layout = pipelineLayoutCreation.value,
+        };
+    }
 
     return {
-        pipeline,
-        pipelineLayout,
-        descriptorSetLayouts,
-        descriptorAllocators,
-        pipelineType
+        .regularPipeline = regularPipeline,
+        .instanceRenderingPipeline = instanceRenderingPipeline,
+        .globalDescriptor = globalDescriptorData,
+        .instanceRenderingDescriptor = instanceRenderingDescriptorData,
+        .materialDescriptor = materialDescriptorData
     };
 }
 
 void MaterialPipeline::destroyBy(vk::Device device) const {
-    device.destroyPipeline(pipeline);
-    device.destroyPipelineLayout(layout);
-    for (size_t setType = 0;
-         setType <= static_cast<size_t>(PipelineSetType::MAX);
-         setType++) {
-        if (static_cast<PipelineSetType>(setType) ==
-                PipelineSetType::INSTANCE_RENDERING &&
-            pipelineType != PipelineType::INSTANCED)
-            continue;
-        descriptorAllocators[setType].destroyBy(device);
-        device.destroyDescriptorSetLayout(descriptorSetLayouts[setType]);
-    }
+    destroy(globalDescriptor, device);
+    destroy(instanceRenderingDescriptor, device);
+    destroy(materialDescriptor, device);
+
+    destroy(regularPipeline, device);
+    destroy(instanceRenderingPipeline, device);
+}
+
+void destroy(const PipelineData& pipelineData, vk::Device device) {
+    device.destroy(pipelineData.pipeline);
+    device.destroy(pipelineData.layout);
+}
+
+void destroy(
+    const PipelineDescriptorData& pipelineDescriptor, vk::Device device
+) {
+    pipelineDescriptor.allocator.destroyBy(device);
+    device.destroy(pipelineDescriptor.setLayout);
 }

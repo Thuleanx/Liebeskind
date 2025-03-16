@@ -4,35 +4,41 @@
 
 #include "low_level_renderer/descriptor_allocator.h"
 
-enum class PipelineType : uint8_t { REGULAR, INSTANCED };
+enum class PipelineDescriptorSetBindingPoint {
+    eGlobal,
+    eMaterial,
+    eInstanceRendering,
+};
 
-enum class PipelineSetType : uint8_t {
-    GLOBAL = 0,
-    MATERIAL = 1,
-    INSTANCE_RENDERING = 2,
-    MAX = INSTANCE_RENDERING,
+struct PipelineData {
+    vk::Pipeline pipeline;
+    vk::PipelineLayout layout;
+};
+
+struct PipelineDescriptorData {
+    vk::DescriptorSetLayout setLayout;
+    DescriptorAllocator allocator;
 };
 
 struct MaterialPipeline {
-    vk::Pipeline pipeline;
-    vk::PipelineLayout layout;
-    std::array<
-        vk::DescriptorSetLayout,
-        static_cast<size_t>(PipelineSetType::MAX) + 1>
-        descriptorSetLayouts;
-    std::array<
-        DescriptorAllocator,
-        static_cast<size_t>(PipelineSetType::MAX) + 1>
-        descriptorAllocators;
-    PipelineType pipelineType;
+    PipelineData regularPipeline;
+    PipelineData instanceRenderingPipeline;
+    PipelineDescriptorData globalDescriptor;
+    PipelineDescriptorData instanceRenderingDescriptor;
+    PipelineDescriptorData materialDescriptor;
 
    public:
     static MaterialPipeline create(
-        PipelineType pipelineType,
         vk::Device device,
         vk::ShaderModule vertexShader,
+        vk::ShaderModule instanceRenderingVertexShader,
         vk::ShaderModule fragmentShader,
         vk::RenderPass renderPass
     );
     void destroyBy(vk::Device device) const;
 };
+
+void destroy(const PipelineData& pipelineData, vk::Device device);
+void destroy(
+    const PipelineDescriptorData& pipelineDescriptor, vk::Device device
+);

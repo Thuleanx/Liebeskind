@@ -31,7 +31,8 @@ void Game::run() {
         },
         MaterialPass::OPAQUE
     );
-    RenderInstanceID instance = graphics.registerInstance(10);
+    RenderInstanceID instance = graphics.registerInstance(1);
+    graphics.device.writeBuffer.batchWrite(graphics.device.device);
 
     glm::mat4 modelTransform = glm::mat4(1);
 
@@ -41,7 +42,16 @@ void Game::run() {
         .mesh = meshID,
     };
 
+    InstancedRenderObject instanceRenderObject{
+        .instance = instance, .material = material, .mesh = meshID, .count = 9
+    };
+
+    std::vector<int> instanceIndices = {0};
+    std::array<InstanceData, 1> instancesTransforms = {{glm::mat4(1)}};
+
     sceneDrawer.addObjects({std::addressof(sword), 1});
+    sceneDrawer.addInstancedObjects({std::addressof(instanceRenderObject), 1});
+    sceneDrawer.updateInstance(instanceIndices, {{instancesTransforms}});
 
     float movementX = 0;
     float movementY = 0;

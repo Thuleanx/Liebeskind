@@ -134,6 +134,19 @@ void recordCommandBuffer(
     vk::Rect2D screenExtent(
         vk::Offset2D{0, 0}, graphicsDevice.swapchain->extent
     );
+    vk::Viewport viewport(
+        0.0f,
+        0.0f,
+        static_cast<float>(graphicsDevice.swapchain->extent.width),
+        static_cast<float>(graphicsDevice.swapchain->extent.height),
+        0.0f,
+        1.0f
+    );
+    buffer.setViewport(0, 1, &viewport);
+    vk::Rect2D scissor(
+        vk::Offset2D(0.0f, 0.0f), graphicsDevice.swapchain->extent
+    );
+    buffer.setScissor(0, 1, &scissor);
 
     {  // Main Renderpass
         const std::array<vk::ClearValue, 2> clearColors{
@@ -149,27 +162,14 @@ void recordCommandBuffer(
         );
         buffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
         buffer.bindPipeline(
-            vk::PipelineBindPoint::eGraphics, graphicsDevice.nonInstancedPipeline.pipeline
+            vk::PipelineBindPoint::eGraphics,
+            graphicsDevice.pipeline.regularPipeline.pipeline
         );
-
-        vk::Viewport viewport(
-            0.0f,
-            0.0f,
-            static_cast<float>(graphicsDevice.swapchain->extent.width),
-            static_cast<float>(graphicsDevice.swapchain->extent.height),
-            0.0f,
-            1.0f
-        );
-        buffer.setViewport(0, 1, &viewport);
-        vk::Rect2D scissor(
-            vk::Offset2D(0.0f, 0.0f), graphicsDevice.swapchain->extent
-        );
-        buffer.setScissor(0, 1, &scissor);
 
         buffer.bindDescriptorSets(
             vk::PipelineBindPoint::eGraphics,
-            graphicsDevice.nonInstancedPipeline.layout,
-            0,
+            graphicsDevice.pipeline.regularPipeline.layout,
+            static_cast<int>(PipelineDescriptorSetBindingPoint::eGlobal),
             1,
             &graphicsDevice.frameDatas[graphicsDevice.currentFrame]
                  .globalDescriptor,
@@ -179,19 +179,21 @@ void recordCommandBuffer(
 
         renderSubmission.recordNonInstanced(
             buffer,
-            graphicsDevice.nonInstancedPipeline.layout,
+            graphicsDevice.pipeline.regularPipeline.layout,
             resources.materials,
-            resources.meshes
+            resources.meshes,
+            graphicsDevice.currentFrame
         );
 
         buffer.bindPipeline(
-            vk::PipelineBindPoint::eGraphics, graphicsDevice.instancedPipeline.pipeline
+            vk::PipelineBindPoint::eGraphics,
+            graphicsDevice.pipeline.instanceRenderingPipeline.pipeline
         );
 
         buffer.bindDescriptorSets(
             vk::PipelineBindPoint::eGraphics,
-            graphicsDevice.instancedPipeline.layout,
-            0,
+            graphicsDevice.pipeline.instanceRenderingPipeline.layout,
+            static_cast<int>(PipelineDescriptorSetBindingPoint::eGlobal),
             1,
             &graphicsDevice.frameDatas[graphicsDevice.currentFrame]
                  .globalDescriptor,
@@ -201,10 +203,11 @@ void recordCommandBuffer(
 
         renderSubmission.recordInstanced(
             buffer,
-            graphicsDevice.nonInstancedPipeline.layout,
+            graphicsDevice.pipeline.instanceRenderingPipeline.layout,
             instanceManager,
             resources.materials,
-            resources.meshes
+            resources.meshes,
+            graphicsDevice.currentFrame
         );
 
         buffer.endRenderPass();

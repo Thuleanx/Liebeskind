@@ -7,7 +7,7 @@
 
 #include "low_level_renderer/descriptor_allocator.h"
 #include "low_level_renderer/descriptor_write_buffer.h"
-#include "low_level_renderer/uniform_buffer.h"
+#include "low_level_renderer/data_buffer.h"
 
 enum class MaterialPass { OPAQUE = 0, TRANSPARENT = 1, MAX = TRANSPARENT };
 

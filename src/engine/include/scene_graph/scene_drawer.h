@@ -8,6 +8,8 @@ class SceneDrawer {
     PerspectiveCamera camera;
     RenderSubmission renderSubmission;
     std::vector<RenderObject> renderObjects;
+    std::vector<InstancedRenderObject> instancedRenderObjects;
+    std::vector<std::vector<InstanceData>> instancedRenderData;
 
    public:
     struct ObjectID {
@@ -18,6 +20,13 @@ class SceneDrawer {
     void handleResize(float aspectRatio);
     bool drawFrame(GraphicsModule& graphics);
 
+    void addInstancedObjects(
+        std::span<InstancedRenderObject> instancedRenderObjects
+    );
+    void updateInstance(
+        std::span<int> indices,
+        std::vector<std::span<InstanceData>> data
+    );
     void addObjects(std::span<RenderObject> renderObjects);
     void updateObjects(std::vector<std::tuple<int, glm::mat4>>);
 

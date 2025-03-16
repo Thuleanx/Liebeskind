@@ -15,36 +15,56 @@ RenderInstanceID RenderInstanceManager::create(
     auto descriptorSets =
         descriptorAllocator.allocate(device, setLayout, MAX_FRAMES_IN_FLIGHT);
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        renderInstances[index][i] = {
-            .storageBuffer = StorageBuffer<InstanceData>::create(
+        StorageBuffer<InstanceData> storageBuffer =
+            StorageBuffer<InstanceData>::create(
                 device, physicalDevice, numberOfEntries
-            ),
+            );
+
+        storageBuffer.bind(writeBuffer, descriptorSets[i], 0);
+        renderInstances[index][i] = {
+            .storageBuffer = storageBuffer,
             .descriptorSet = descriptorSets[i],
         };
-        writeBuffer.writeBuffer(
-            renderInstances[index][i].descriptorSet,
-            0,
-            renderInstances[index][i].storageBuffer.buffer,
-            vk::DescriptorType::eStorageBuffer,
-            0,
-            sizeof(InstanceData)
-        );
     }
-    writeBuffer.batchWrite(device);
     return {index};
+}
+
+void RenderInstanceManager::bind(
+    vk::CommandBuffer commandBuffer,
+    vk::PipelineLayout layout,
+    RenderInstanceID id,
+    uint32_t currentFrame
+) const {
+    commandBuffer.bindDescriptorSets(
+        vk::PipelineBindPoint::eGraphics,
+        layout,
+        2,  // set
+        1,
+        &renderInstances.at(id.index).at(currentFrame).descriptorSet,
+        0,
+        nullptr
+    );
 }
 
 void RenderInstanceManager::update(
     RenderInstanceID id,
     uint32_t currentFrame,
-    std::span<InstanceData> instanceData
-) {
+    std::span<const InstanceData> instanceData
+) const {
     ASSERT(
         currentFrame < MAX_FRAMES_IN_FLIGHT,
         "Updating instance with frame "
             << currentFrame << " which is >= " << MAX_FRAMES_IN_FLIGHT
     );
-    renderInstances[id.index][currentFrame].storageBuffer.update(instanceData);
+    ASSERT(
+        getCapacity(id) >= instanceData.size(),
+        "Provided " << instanceData.size()
+                    << " instances which exceeds the capacity of "
+                    << getCapacity(id) << " for instance " << id.index
+    );
+    renderInstances.at(id.index)
+        .at(currentFrame)
+        .storageBuffer.update(instanceData);
 }
 
 uint16_t RenderInstanceManager::getCapacity(RenderInstanceID id) const {
@@ -57,7 +77,7 @@ uint16_t RenderInstanceManager::getCapacity(RenderInstanceID id) const {
         renderInstances[id.index].size() > 0,
         "Expects render instance to own at least one storage buffer"
     );
-    return renderInstances[id.index][0].storageBuffer.numberOfEntries;
+    return renderInstances[id.index][0].storageBuffer.dataCount;
 }
 
 void RenderInstanceManager::destroyBy(const vk::Device& device) const {

@@ -20,12 +20,16 @@ layout(binding = 0, set = 0) uniform GPUSceneData {
     vec3 mainLightColor;
 } gpuScene;
 
+struct InstanceData {
+    mat4 transform;
+};
+
 layout(std140, binding = 0, set = 2) readonly buffer InstanceTransformBuffer {
-    mat4 model[];
-} instanceTransforms;
+    InstanceData instances[];
+} objectBuffer;
 
 void main() {
-    mat4 transform = instanceTransforms.model[gl_InstanceIndex];
+    mat4 transform = objectBuffer.instances[gl_InstanceIndex].transform;
 
     mat4 mvp = gpuScene.projection * gpuScene.view * transform;
     normalWorld = vec3(transpose(inverse(transform))*vec4(inNormal, 0.0));

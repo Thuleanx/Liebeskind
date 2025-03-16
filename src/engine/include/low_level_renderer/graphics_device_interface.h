@@ -7,12 +7,12 @@
 #include <optional>
 
 #include "low_level_renderer/config.h"
+#include "low_level_renderer/data_buffer.h"
 #include "low_level_renderer/material_pipeline.h"
 #include "low_level_renderer/queue_family.h"
 #include "low_level_renderer/sampler.h"
 #include "low_level_renderer/shader_data.h"
 #include "low_level_renderer/swapchain_data.h"
-#include "low_level_renderer/uniform_buffer.h"
 #include "resource_management/resource_manager.h"
 
 constexpr char APP_SHORT_NAME[] = "Game";
@@ -40,8 +40,7 @@ struct GraphicsDeviceInterface {
     vk::Queue graphicsQueue, presentQueue;
 
     vk::RenderPass renderPass;
-    MaterialPipeline instancedPipeline;
-    MaterialPipeline nonInstancedPipeline;
+    MaterialPipeline pipeline;
     std::optional<SwapchainData> swapchain;
 
     vk::CommandPool commandPool;
@@ -51,7 +50,9 @@ struct GraphicsDeviceInterface {
     DescriptorWriteBuffer writeBuffer;
 
    public:
-    static GraphicsDeviceInterface createGraphicsDevice(ResourceManager& resources);
+    static GraphicsDeviceInterface createGraphicsDevice(
+        ResourceManager& resources
+    );
     void destroy();
 
     void handleEvent(const SDL_Event& sdlEvent);

@@ -70,12 +70,11 @@ MeshID GraphicsModule::loadMesh(const char* filePath) {
 MaterialInstanceID GraphicsModule::loadMaterial(
     TextureID albedo, MaterialProperties properties, MaterialPass pass
 ) {
-    static size_t LAYOUT_INDEX = static_cast<size_t>(PipelineSetType::MATERIAL);
     return resources.materials.load(
         device.device,
         device.physicalDevice,
-        device.nonInstancedPipeline.descriptorSetLayouts[LAYOUT_INDEX],
-        device.nonInstancedPipeline.descriptorAllocators[LAYOUT_INDEX],
+        device.pipeline.materialDescriptor.setLayout,
+        device.pipeline.materialDescriptor.allocator,
         device.sampler.sampler,
         device.writeBuffer,
         resources.textures,
@@ -86,13 +85,11 @@ MaterialInstanceID GraphicsModule::loadMaterial(
 }
 
 RenderInstanceID GraphicsModule::registerInstance(uint16_t numberOfEntries) {
-    static size_t LAYOUT_INDEX =
-        static_cast<size_t>(PipelineSetType::INSTANCE_RENDERING);
     return instances.create(
         device.device,
         device.physicalDevice,
-        device.instancedPipeline.descriptorSetLayouts[LAYOUT_INDEX],
-        device.instancedPipeline.descriptorAllocators[LAYOUT_INDEX],
+        device.pipeline.instanceRenderingDescriptor.setLayout,
+        device.pipeline.instanceRenderingDescriptor.allocator,
         device.writeBuffer,
         numberOfEntries
     );

@@ -68,14 +68,19 @@ MeshID GraphicsModule::loadMesh(const char* filePath) {
 }
 
 MaterialInstanceID GraphicsModule::loadMaterial(
-    TextureID albedo, MaterialProperties properties, MaterialPass pass
+    TextureID albedo,
+    MaterialProperties properties,
+    MaterialPass pass,
+    Graphics::SamplerType samplerType
 ) {
+    vk::Sampler sampler = samplerType == Graphics::SamplerType::eLinear ?
+        device.samplers.linear : device.samplers.point;
     return resources.materials.load(
         device.device,
         device.physicalDevice,
         device.pipeline.materialDescriptor.setLayout,
         device.pipeline.materialDescriptor.allocator,
-        device.sampler.sampler,
+        sampler,
         device.writeBuffer,
         resources.textures,
         albedo,

@@ -2,13 +2,12 @@
 
 #include "core/logger/vulkan_ensures.h"
 
-Sampler Sampler::create(
+Graphics::Samplers Graphics::Samplers::create(
     const vk::Device &device, const vk::PhysicalDevice &physicalDevice
 ) {
     const vk::PhysicalDeviceProperties properties =
         physicalDevice.getProperties();
-
-    const vk::SamplerCreateInfo samplerInfo(
+    const vk::SamplerCreateInfo linearSamplerInfo(
         {},
         vk::Filter::eLinear,
         vk::Filter::eLinear,
@@ -22,21 +21,49 @@ Sampler Sampler::create(
         vk::False,  // compare enable
         vk::CompareOp::eAlways,
         0,
-        0,
+        VK_LOD_CLAMP_NONE,
         vk::BorderColor::eIntOpaqueBlack,
         vk::False
     );
+    const vk::SamplerCreateInfo pointSamplerInfo(
+        {},
+        vk::Filter::eNearest,
+        vk::Filter::eNearest,
+        vk::SamplerMipmapMode::eNearest,
+        vk::SamplerAddressMode::eRepeat,
+        vk::SamplerAddressMode::eRepeat,
+        vk::SamplerAddressMode::eRepeat,
+        0,         // mip lod bias
+        vk::True,  // enable anisotropy
+        properties.limits.maxSamplerAnisotropy,
+        vk::False,  // compare enable
+        vk::CompareOp::eAlways,
+        0,
+        VK_LOD_CLAMP_NONE,
+        vk::BorderColor::eIntOpaqueBlack,
+        vk::False
+    );
+    const vk::ResultValue<vk::Sampler> linearSamplerCreation =
+        device.createSampler(linearSamplerInfo);
 
-    const vk::ResultValue<vk::Sampler> samplerCreation =
-        device.createSampler(samplerInfo);
+    VULKAN_ENSURE_SUCCESS(
+        linearSamplerCreation.result, "Can't create linear sampler"
+    );
 
-    VULKAN_ENSURE_SUCCESS(samplerCreation.result, "Can't create sampler");
+    const vk::ResultValue<vk::Sampler> pointSamplerCreation =
+        device.createSampler(pointSamplerInfo);
 
-    return Sampler(samplerCreation.value);
+    VULKAN_ENSURE_SUCCESS(
+        pointSamplerCreation.result, "Can't create point sampler"
+    );
+
+    return Samplers {
+        .linear = linearSamplerCreation.value,
+        .point = pointSamplerCreation.value
+    };
 }
 
-void Sampler::destroyBy(const vk::Device &device) const {
-    device.destroySampler(sampler);
+void Graphics::destroy(vk::Device device, const Samplers& samplers) {
+    device.destroySampler(samplers.linear);
+    device.destroySampler(samplers.point);
 }
-
-Sampler::Sampler(vk::Sampler sampler) : sampler(sampler) {}

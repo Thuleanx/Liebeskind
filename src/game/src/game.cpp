@@ -29,9 +29,10 @@ void Game::run() {
             .ambient = glm::vec3(1),
             .shininess = 1.0f
         },
-        MaterialPass::OPAQUE
+        MaterialPass::OPAQUE,
+        Graphics::SamplerType::eLinear
     );
-    RenderInstanceID instance = graphics.registerInstance(1);
+    RenderInstanceID instance = graphics.registerInstance(10);
     graphics.device.writeBuffer.batchWrite(graphics.device.device);
 
     glm::mat4 modelTransform = glm::mat4(1);
@@ -47,7 +48,13 @@ void Game::run() {
     };
 
     std::vector<int> instanceIndices = {0};
-    std::array<InstanceData, 1> instancesTransforms = {{glm::mat4(1)}};
+    std::array<InstanceData, 9> instancesTransforms;
+    for (int dx = -1; dx <= 1; dx++)
+        for (int dy = -1; dy <= 1; dy++)
+            instancesTransforms[dx + 1 + (dy + 1) * 3] = InstanceData{
+                .transform =
+                    glm::translate(glm::mat4(1), glm::vec3(dx, dy, 0) * 3.0f)
+            };
 
     sceneDrawer.addObjects({std::addressof(sword), 1});
     sceneDrawer.addInstancedObjects({std::addressof(instanceRenderObject), 1});

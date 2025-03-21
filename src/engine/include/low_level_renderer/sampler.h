@@ -2,16 +2,18 @@
 
 #include <vulkan/vulkan.hpp>
 
-struct Sampler {
-    vk::Sampler sampler;
+namespace Graphics {
+enum class SamplerType { eLinear, ePoint };
+
+struct Samplers {
+    vk::Sampler linear;
+    vk::Sampler point;
 
    public:
-    [[nodiscard]]
-    static Sampler create(
+    static Samplers create(
         const vk::Device& device, const vk::PhysicalDevice& physicalDevice
     );
-    void destroyBy(const vk::Device& device) const;
-
-   private:
-    Sampler(vk::Sampler sampler);
 };
+
+void destroy(vk::Device device, const Samplers& samplers);
+}  // namespace Graphics

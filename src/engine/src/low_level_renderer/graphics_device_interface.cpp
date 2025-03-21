@@ -336,7 +336,7 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
         init_createCommandBuffers(device, commandPool, MAX_FRAMES_IN_FLIGHT);
     LLOG_INFO << "Created command pool and buffers";
 
-    const Sampler sampler = Sampler::create(device, physicalDevice);
+    const Graphics::Samplers allSamplers = Graphics::Samplers::create(device, physicalDevice);
     const vk::SurfaceFormatKHR swapchainColorFormat =
         Swapchain::getSuitableColorAttachmentFormat(physicalDevice, surface);
     const vk::RenderPass renderPass = init_createRenderPass(
@@ -412,7 +412,7 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
         .pipeline = pipeline,
         .swapchain = {},
         .commandPool = commandPool,
-        .sampler = sampler,
+        .samplers = allSamplers,
         .currentFrame = 0,
         .writeBuffer = writeBuffer
     };
@@ -438,7 +438,7 @@ void GraphicsDeviceInterface::destroy() {
 
     cleanupSwapchain();
     LLOG_INFO << "Destroyed swapchain";
-    sampler.destroyBy(device);
+    Graphics::destroy(device, samplers);
     LLOG_INFO << "Destroyed sampler";
     device.destroyCommandPool(commandPool);
     LLOG_INFO << "Destroyed command pool";

@@ -2,8 +2,6 @@
 
 #include <vulkan/vulkan.hpp>
 
-#include "low_level_renderer/sampler.h"
-
 struct Texture {
     vk::Image image;
     vk::ImageView imageView;
@@ -40,9 +38,7 @@ struct Texture {
         vk::ImageLayout newLayout
     );
 
-    vk::DescriptorImageInfo getDescriptorImageInfo(const Sampler& sampler
-    ) const;
-
+    vk::DescriptorImageInfo getDescriptorImageInfo(vk::Sampler sampler) const;
     void destroyBy(const vk::Device& device);
 
    private:

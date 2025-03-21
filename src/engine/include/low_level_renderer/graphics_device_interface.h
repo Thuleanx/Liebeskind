@@ -44,7 +44,7 @@ struct GraphicsDeviceInterface {
     std::optional<SwapchainData> swapchain;
 
     vk::CommandPool commandPool;
-    Sampler sampler;
+    Graphics::Samplers samplers;
 
     uint32_t currentFrame = 0;
     DescriptorWriteBuffer writeBuffer;

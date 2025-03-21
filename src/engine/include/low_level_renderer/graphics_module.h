@@ -20,14 +20,16 @@ struct GraphicsModule {
     void beginFrame();
     void handleEvent(const SDL_Event& event);
     bool drawAndEndFrame(
-        const RenderSubmission& renderSubmission,
-        GPUSceneData& sceneData
+        const RenderSubmission& renderSubmission, GPUSceneData& sceneData
     );
 
     [[nodiscard]] TextureID loadTexture(const char* filePath);
     [[nodiscard]] MeshID loadMesh(const char* filePath);
     [[nodiscard]] MaterialInstanceID loadMaterial(
-        TextureID albedo, MaterialProperties properties, MaterialPass pass
+        TextureID albedo,
+        MaterialProperties properties,
+        MaterialPass pass,
+        Graphics::SamplerType samplerType
     );
     [[nodiscard]] RenderInstanceID registerInstance(uint16_t numberOfEntries);
 };

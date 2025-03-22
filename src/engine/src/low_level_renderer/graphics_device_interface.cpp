@@ -2,7 +2,6 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include <limits>
 #include <set>
 #include <vector>
 
@@ -13,6 +12,8 @@
 #include "private/graphics_device_helper.h"
 #include "private/swapchain.h"
 #include "private/validation.h"
+
+namespace graphics {
 
 namespace {
 
@@ -25,7 +26,7 @@ std::tuple<vk::Instance, vk::DebugUtilsMessengerEXT> init_createInstance() {
         VK_API_VERSION_1_3
     );
     std::vector<const char*> instanceExtensions =
-        GraphicsHelper::getInstanceExtensions();
+        getInstanceExtensions();
     ASSERT(instanceExtensions.size(), "No supported extensions found");
     ASSERT(
         !Validation::shouldEnableValidationLayers ||
@@ -72,7 +73,7 @@ vk::PhysicalDevice init_createPhysicalDevice(
     const vk::Instance& instance, const vk::SurfaceKHR& surface
 ) {
     std::optional<vk::PhysicalDevice> bestDevice =
-        GraphicsHelper::getBestPhysicalDevice(instance, surface);
+        getBestPhysicalDevice(instance, surface);
     ASSERT(bestDevice.has_value(), "No suitable device found");
     return bestDevice.value_or(vk::PhysicalDevice());
 }
@@ -293,7 +294,6 @@ std::vector<UniformBuffer<T>> init_createUniformBuffers(
 }
 
 }  // namespace
-
 GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
     ResourceManager& resources
 ) {
@@ -336,7 +336,8 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
         init_createCommandBuffers(device, commandPool, MAX_FRAMES_IN_FLIGHT);
     LLOG_INFO << "Created command pool and buffers";
 
-    const Graphics::Samplers allSamplers = Graphics::Samplers::create(device, physicalDevice);
+    const Samplers allSamplers =
+        Samplers::create(device, physicalDevice);
     const vk::SurfaceFormatKHR swapchainColorFormat =
         Swapchain::getSuitableColorAttachmentFormat(physicalDevice, surface);
     const vk::RenderPass renderPass = init_createRenderPass(
@@ -355,12 +356,9 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
     );
 
     std::vector<vk::DescriptorSet> globalDescriptors =
-        pipeline.globalDescriptor.allocator
-            .allocate(
-                device,
-                pipeline.globalDescriptor.setLayout,
-                MAX_FRAMES_IN_FLIGHT
-            );
+        pipeline.globalDescriptor.allocator.allocate(
+            device, pipeline.globalDescriptor.setLayout, MAX_FRAMES_IN_FLIGHT
+        );
     ASSERT(
         globalDescriptors.size() == MAX_FRAMES_IN_FLIGHT,
         "Requested " << MAX_FRAMES_IN_FLIGHT
@@ -438,7 +436,7 @@ void GraphicsDeviceInterface::destroy() {
 
     cleanupSwapchain();
     LLOG_INFO << "Destroyed swapchain";
-    Graphics::destroy(device, samplers);
+    graphics::destroy(device, samplers);
     LLOG_INFO << "Destroyed sampler";
     device.destroyCommandPool(commandPool);
     LLOG_INFO << "Destroyed command pool";
@@ -493,3 +491,4 @@ void GraphicsDeviceInterface::handleWindowResize(
 ) {
     recreateSwapchain();
 }
+}  // namespace graphics

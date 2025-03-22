@@ -4,6 +4,7 @@
 
 #include "low_level_renderer/texture.h"
 
+namespace graphics {
 struct SwapchainData {
     Texture depth;
     vk::SwapchainKHR swapchain;
@@ -19,3 +20,4 @@ struct SwapchainData {
     float getAspectRatio() const;
 };
 
+}  // namespace graphics

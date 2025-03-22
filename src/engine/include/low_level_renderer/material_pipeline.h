@@ -4,6 +4,7 @@
 
 #include "low_level_renderer/descriptor_allocator.h"
 
+namespace graphics {
 enum class PipelineDescriptorSetBindingPoint {
     eGlobal = 0,
     eMaterial = 1,
@@ -42,3 +43,4 @@ void destroy(const PipelineData& pipelineData, vk::Device device);
 void destroy(
     const PipelineDescriptorData& pipelineDescriptor, vk::Device device
 );
+}  // namespace Graphics

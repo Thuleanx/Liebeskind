@@ -2,7 +2,8 @@
 
 #include "core/logger/vulkan_ensures.h"
 
-Graphics::Samplers Graphics::Samplers::create(
+namespace graphics {
+Samplers Samplers::create(
     const vk::Device &device, const vk::PhysicalDevice &physicalDevice
 ) {
     const vk::PhysicalDeviceProperties properties =
@@ -57,13 +58,14 @@ Graphics::Samplers Graphics::Samplers::create(
         pointSamplerCreation.result, "Can't create point sampler"
     );
 
-    return Samplers {
+    return Samplers{
         .linear = linearSamplerCreation.value,
         .point = pointSamplerCreation.value
     };
 }
 
-void Graphics::destroy(vk::Device device, const Samplers& samplers) {
+void destroy(vk::Device device, const Samplers &samplers) {
     device.destroySampler(samplers.linear);
     device.destroySampler(samplers.point);
 }
+}  // namespace graphics

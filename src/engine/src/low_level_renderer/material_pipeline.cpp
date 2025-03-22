@@ -5,6 +5,7 @@
 #include "low_level_renderer/shader_data.h"
 #include "low_level_renderer/vertex_buffer.h"
 
+namespace graphics {
 MaterialPipeline MaterialPipeline::create(
     vk::Device device,
     vk::ShaderModule vertexShader,
@@ -38,10 +39,10 @@ MaterialPipeline MaterialPipeline::create(
         globalDescriptorData = {
             .setLayout = globalDescriptorSetLayoutCreation.value,
             .allocator = DescriptorAllocator::create(
-            device,
-            {vk::DescriptorPoolSize(vk::DescriptorType::eUniformBuffer, 1)},
-            MAX_FRAMES_IN_FLIGHT
-        )
+                device,
+                {vk::DescriptorPoolSize(vk::DescriptorType::eUniformBuffer, 1)},
+                MAX_FRAMES_IN_FLIGHT
+            )
         };
     }
 
@@ -354,3 +355,4 @@ void destroy(
     pipelineDescriptor.allocator.destroyBy(device);
     device.destroy(pipelineDescriptor.setLayout);
 }
+}  // namespace Graphics

@@ -8,7 +8,7 @@ TextureID TextureManager::load(
     vk::Queue graphicsQueue
 ) {
     TextureID id{static_cast<uint32_t>(textures.size())};
-    textures.push_back(Texture::load(
+    textures.push_back(graphics::Texture::load(
         filePath, device, physicalDevice, commandPool, graphicsQueue
     ));
     return id;
@@ -19,7 +19,7 @@ void TextureManager::bind(
     vk::DescriptorSet descriptorSet,
     int binding,
     vk::Sampler sampler,
-    DescriptorWriteBuffer& writeBuffer
+    graphics::DescriptorWriteBuffer& writeBuffer
 ) const {
     writeBuffer.writeImage(
         descriptorSet,
@@ -32,5 +32,5 @@ void TextureManager::bind(
 }
 
 void TextureManager::destroyBy(vk::Device device) {
-    for (Texture& texture : textures) texture.destroyBy(device);
+    for (graphics::Texture& texture : textures) texture.destroyBy(device);
 }

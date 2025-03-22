@@ -3,6 +3,7 @@
 #include <vector>
 #include <vulkan/vulkan.hpp>
 
+namespace graphics {
 struct DescriptorWriteBuffer {
     std::vector<vk::DescriptorBufferInfo> buffers;
     std::vector<vk::DescriptorImageInfo> images;
@@ -27,8 +28,7 @@ struct DescriptorWriteBuffer {
         vk::ImageLayout layout
     );
 
-    void batchWrite(
-        const vk::Device& device
-    );
+    void batchWrite(const vk::Device& device);
     void clear();
 };
+}  // namespace Graphics

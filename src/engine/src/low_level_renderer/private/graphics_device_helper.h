@@ -5,7 +5,7 @@
 
 #include <vulkan/vulkan.hpp>
 
-namespace GraphicsHelper {
+namespace graphics {
     extern const std::vector<const char*> deviceExtensions;
 
     std::vector<const char*> getInstanceExtensions();

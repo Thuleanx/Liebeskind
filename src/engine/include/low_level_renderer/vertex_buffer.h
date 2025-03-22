@@ -5,6 +5,7 @@
 #include <glm/vec3.hpp>
 #include <vulkan/vulkan.hpp>
 
+namespace graphics {
 struct Vertex {
     glm::vec3 position;
     glm::vec3 normal;
@@ -36,6 +37,9 @@ struct VertexBuffer {
         const vk::Queue& graphicsQueue
     );
     void bind(const vk::CommandBuffer& commandBuffer) const;
-    void draw(const vk::CommandBuffer& commandBuffer, uint16_t instanceCount = 1) const;
+    void draw(
+        const vk::CommandBuffer& commandBuffer, uint16_t instanceCount = 1
+    ) const;
     void destroyBy(const vk::Device& device) const;
 };
+};  // namespace graphics

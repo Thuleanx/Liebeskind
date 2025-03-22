@@ -6,6 +6,7 @@
 #include "private/image.h"
 #include "private/swapchain.h"
 
+namespace graphics {
 float SwapchainData::getAspectRatio() const {
     return extent.width / (float)extent.height;
 }
@@ -155,3 +156,4 @@ void GraphicsDeviceInterface::destroy(SwapchainData& swapchainData) const {
     device.destroySwapchainKHR(swapchainData.swapchain);
     swapchainData.depth.destroyBy(device);
 }
+}  // namespace Graphics

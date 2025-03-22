@@ -18,6 +18,7 @@
 constexpr char APP_SHORT_NAME[] = "Game";
 constexpr char ENGINE_NAME[] = "Liebeskind";
 
+namespace graphics {
 struct GraphicsDeviceInterface {
     struct FrameData {
         vk::DescriptorSet globalDescriptor;
@@ -44,7 +45,7 @@ struct GraphicsDeviceInterface {
     std::optional<SwapchainData> swapchain;
 
     vk::CommandPool commandPool;
-    Graphics::Samplers samplers;
+    Samplers samplers;
 
     uint32_t currentFrame = 0;
     DescriptorWriteBuffer writeBuffer;
@@ -68,3 +69,4 @@ struct GraphicsDeviceInterface {
     SwapchainData createSwapchain() const;
     void destroy(SwapchainData& swapchainData) const;
 };
+}  // namespace Graphics

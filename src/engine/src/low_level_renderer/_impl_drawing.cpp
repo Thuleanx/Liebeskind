@@ -6,7 +6,7 @@
 #include "core/logger/vulkan_ensures.h"
 #include "imgui.h"
 
-namespace Graphics {
+namespace graphics {
 bool drawFrame(
     GraphicsDeviceInterface& graphicsDevice,
     GraphicsUserInterface& ui,

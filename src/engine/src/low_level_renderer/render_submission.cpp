@@ -5,6 +5,7 @@
 #include "core/logger/assert.h"
 #include "low_level_renderer/shader_data.h"
 
+namespace graphics {
 RenderSubmission RenderSubmission::create() { return RenderSubmission(); }
 
 void RenderSubmission::submit(
@@ -91,3 +92,4 @@ void RenderSubmission::clear() {
     instanceData.clear();
     renderObjects.clear();
 }
+}  // namespace Graphics

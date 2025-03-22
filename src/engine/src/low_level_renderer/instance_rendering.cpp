@@ -3,6 +3,7 @@
 #include "core/logger/assert.h"
 #include "low_level_renderer/material_pipeline.h"
 
+namespace graphics {
 RenderInstanceID RenderInstanceManager::create(
     vk::Device device,
     vk::PhysicalDevice physicalDevice,
@@ -96,3 +97,4 @@ size_t RenderInstanceIDHashFunction::operator()(const RenderInstanceID& id
 ) const {
     return id.index;
 }
+}  // namespace Graphics

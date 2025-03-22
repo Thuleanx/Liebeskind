@@ -2,6 +2,7 @@
 
 #include "core/logger/vulkan_ensures.h"
 
+namespace graphics {
 bool QueueFamilyIndices::isComplete() {
     return this->graphicsFamily.has_value() && this->presentFamily.has_value();
 }
@@ -28,4 +29,5 @@ QueueFamilyIndices QueueFamilyIndices::findQueueFamilies(
     }
 
     return indices;
+}
 }

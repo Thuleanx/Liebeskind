@@ -3,6 +3,7 @@
 #include <vector>
 #include <vulkan/vulkan.hpp>
 
+namespace graphics {
 struct DescriptorAllocator {
     std::vector<vk::DescriptorPoolSize> poolSizes;
     std::vector<vk::DescriptorPool> readyPools;
@@ -29,3 +30,4 @@ struct DescriptorAllocator {
    private:
     vk::DescriptorPool createPool(const vk::Device& device) const;
 };
+}  // namespace graphics

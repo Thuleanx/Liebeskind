@@ -7,6 +7,7 @@
 #include "low_level_renderer/render_submission.h"
 #include "resource_management/resource_manager.h"
 
+namespace graphics {
 struct GraphicsModule {
     ResourceManager resources;
     GraphicsDeviceInterface device;
@@ -29,7 +30,8 @@ struct GraphicsModule {
         TextureID albedo,
         MaterialProperties properties,
         MaterialPass pass,
-        Graphics::SamplerType samplerType
+        SamplerType samplerType
     );
     [[nodiscard]] RenderInstanceID registerInstance(uint16_t numberOfEntries);
 };
+}  // namespace Graphics

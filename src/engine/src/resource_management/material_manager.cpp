@@ -18,20 +18,24 @@ MaterialInstanceID MaterialManager::load(
     vk::Device device,
     vk::PhysicalDevice physicalDevice,
     vk::DescriptorSetLayout setLayout,
-    DescriptorAllocator& descriptorAllocator,
+    graphics::DescriptorAllocator& descriptorAllocator,
     vk::Sampler sampler,
-    DescriptorWriteBuffer& writeBuffer,
+    graphics::DescriptorWriteBuffer& writeBuffer,
     TextureManager& textureManager,
     TextureID albedo,
     MaterialProperties materialProperties,
     MaterialPass materialPass
 ) {
     MaterialInstanceID id{
-        static_cast<uint32_t>(materialInstances[static_cast<size_t>(materialPass)].size()),
+        static_cast<uint32_t>(
+            materialInstances[static_cast<size_t>(materialPass)].size()
+        ),
         materialPass
     };
-    UniformBuffer<MaterialProperties> uniformBuffer =
-        UniformBuffer<MaterialProperties>::create(device, physicalDevice);
+    graphics::UniformBuffer<MaterialProperties> uniformBuffer =
+        graphics::UniformBuffer<MaterialProperties>::create(
+            device, physicalDevice
+        );
     uniformBuffer.update(materialProperties);
     std::vector<vk::DescriptorSet> descriptorSets =
         descriptorAllocator.allocate(device, setLayout, 1);
@@ -45,7 +49,9 @@ MaterialInstanceID MaterialManager::load(
     uniformBuffer.bind(writeBuffer, descriptorSet, 0);
     // binding 1 is for albedo texture
     textureManager.bind(albedo, descriptorSet, 1, sampler, writeBuffer);
-    materialInstances[static_cast<size_t>(materialPass)].push_back({descriptorSet});
+    materialInstances[static_cast<size_t>(materialPass)].push_back(
+        {descriptorSet}
+    );
     uniforms[static_cast<size_t>(materialPass)].push_back(uniformBuffer);
     return id;
 }
@@ -58,17 +64,22 @@ void MaterialManager::bind(
     commandBuffer.bindDescriptorSets(
         vk::PipelineBindPoint::eGraphics,
         pipelineLayout,
-        static_cast<int>(PipelineDescriptorSetBindingPoint::eMaterial),
+        static_cast<int>(graphics::PipelineDescriptorSetBindingPoint::eMaterial
+        ),
         1,
-        &materialInstances[static_cast<size_t>(materialID.pass)][materialID.index].descriptor,
+        &materialInstances[static_cast<size_t>(materialID.pass)]
+                          [materialID.index]
+                              .descriptor,
         0,
         nullptr
     );
 }
 
 void MaterialManager::destroyBy(vk::Device device) {
-    for (uint32_t pass = 0; pass <= static_cast<size_t>(MaterialPass::MAX); pass++) {
-        for (UniformBuffer<MaterialProperties>& uniformBuffers : uniforms[pass])
+    for (uint32_t pass = 0; pass <= static_cast<size_t>(MaterialPass::MAX);
+         pass++) {
+        for (graphics::UniformBuffer<MaterialProperties>& uniformBuffers :
+             uniforms[pass])
             uniformBuffers.destroyBy(device);
     }
 }

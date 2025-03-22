@@ -10,7 +10,7 @@ struct MeshID {
 };
 
 struct Mesh {
-    VertexBuffer vertexBuffer;
+    graphics::VertexBuffer vertexBuffer;
 };
 
 class MeshManager {

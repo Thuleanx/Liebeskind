@@ -5,7 +5,7 @@
 #include "low_level_renderer/render_submission.h"
 #include "low_level_renderer/shader_data.h"
 
-namespace Graphics {
+namespace graphics {
 void beginFrame(
     const GraphicsDeviceInterface& graphicsDevice,
     const GraphicsUserInterface& ui
@@ -31,8 +31,7 @@ void recordCommandBuffer(
 );
 
 void endFrame(
-    GraphicsDeviceInterface& graphicsDevice,
-    GraphicsUserInterface& ui
+    GraphicsDeviceInterface& graphicsDevice, GraphicsUserInterface& ui
 );
 
-}  // namespace Graphics
+}  // namespace graphics

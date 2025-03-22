@@ -1,5 +1,6 @@
 #include "low_level_renderer/descriptor_write_buffer.h"
 
+namespace graphics {
 void DescriptorWriteBuffer::writeBuffer(
     vk::DescriptorSet descriptorSet,
     int binding,
@@ -11,13 +12,7 @@ void DescriptorWriteBuffer::writeBuffer(
     buffers.emplace_back(buffer, offset, range);
 
     const vk::WriteDescriptorSet write(
-        descriptorSet,
-        binding,
-        0,
-        1,
-        type,
-        nullptr,
-        &buffers.back()
+        descriptorSet, binding, 0, 1, type, nullptr, &buffers.back()
     );
     writes.push_back(std::move(write));
 }
@@ -32,12 +27,7 @@ void DescriptorWriteBuffer::writeImage(
 ) {
     images.emplace_back(sampler, imageView, layout);
     const vk::WriteDescriptorSet write(
-        descriptorSet,
-        binding,
-        0,
-        1,
-        type,
-        &images.back()
+        descriptorSet, binding, 0, 1, type, &images.back()
     );
     writes.push_back(std::move(write));
 }
@@ -54,3 +44,4 @@ void DescriptorWriteBuffer::clear() {
     buffers.clear();
     images.clear();
 }
+}  // namespace Graphics

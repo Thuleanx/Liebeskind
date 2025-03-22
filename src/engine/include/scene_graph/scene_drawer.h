@@ -6,10 +6,10 @@
 class SceneDrawer {
    public:
     PerspectiveCamera camera;
-    RenderSubmission renderSubmission;
-    std::vector<RenderObject> renderObjects;
-    std::vector<InstancedRenderObject> instancedRenderObjects;
-    std::vector<std::vector<InstanceData>> instancedRenderData;
+    graphics::RenderSubmission renderSubmission;
+    std::vector<graphics::RenderObject> renderObjects;
+    std::vector<graphics::InstancedRenderObject> instancedRenderObjects;
+    std::vector<std::vector<graphics::InstanceData>> instancedRenderData;
 
    public:
     struct ObjectID {
@@ -18,16 +18,16 @@ class SceneDrawer {
     static SceneDrawer create();
     void handleResize(int width, int height);
     void handleResize(float aspectRatio);
-    bool drawFrame(GraphicsModule& graphics);
+    bool drawFrame(graphics::GraphicsModule& graphics);
 
     void addInstancedObjects(
-        std::span<InstancedRenderObject> instancedRenderObjects
+        std::span<graphics::InstancedRenderObject> instancedRenderObjects
     );
     void updateInstance(
         std::span<int> indices,
-        std::vector<std::span<InstanceData>> data
+        std::vector<std::span<graphics::InstanceData>> data
     );
-    void addObjects(std::span<RenderObject> renderObjects);
+    void addObjects(std::span<graphics::RenderObject> renderObjects);
     void updateObjects(std::vector<std::tuple<int, glm::mat4>>);
 
    private:

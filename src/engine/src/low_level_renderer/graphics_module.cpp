@@ -3,6 +3,7 @@
 #include "core/logger/vulkan_ensures.h"
 #include "low_level_renderer/_impl_drawing.h"
 
+namespace graphics {
 GraphicsModule GraphicsModule::create() {
     ResourceManager resources;
     GraphicsDeviceInterface device =
@@ -26,7 +27,7 @@ void GraphicsModule::destroy() {
     device.destroy();
 }
 
-void GraphicsModule::beginFrame() { Graphics::beginFrame(device, ui); }
+void GraphicsModule::beginFrame() { ::graphics::beginFrame(device, ui); }
 
 void GraphicsModule::handleEvent(const SDL_Event& event) {
     device.handleEvent(event);
@@ -36,13 +37,13 @@ void GraphicsModule::handleEvent(const SDL_Event& event) {
 bool GraphicsModule::drawAndEndFrame(
     const RenderSubmission& renderSubmission, GPUSceneData& sceneData
 ) {
-    bool drawSuccess = Graphics::drawFrame(
+    bool drawSuccess = drawFrame(
         device, ui, renderSubmission, instances, resources, sceneData
     );
 
     if (!drawSuccess) return false;
 
-    Graphics::endFrame(device, ui);
+    endFrame(device, ui);
 
     return true;
 }
@@ -71,10 +72,11 @@ MaterialInstanceID GraphicsModule::loadMaterial(
     TextureID albedo,
     MaterialProperties properties,
     MaterialPass pass,
-    Graphics::SamplerType samplerType
+    SamplerType samplerType
 ) {
-    vk::Sampler sampler = samplerType == Graphics::SamplerType::eLinear ?
-        device.samplers.linear : device.samplers.point;
+    vk::Sampler sampler = samplerType == SamplerType::eLinear
+                              ? device.samplers.linear
+                              : device.samplers.point;
     return resources.materials.load(
         device.device,
         device.physicalDevice,
@@ -99,3 +101,4 @@ RenderInstanceID GraphicsModule::registerInstance(uint16_t numberOfEntries) {
         numberOfEntries
     );
 }
+}  // namespace Graphics

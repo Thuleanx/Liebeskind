@@ -10,8 +10,8 @@
 
 namespace std {
 template <>
-struct hash<Vertex> {
-    size_t operator()(Vertex const& vertex) const {
+struct hash<graphics::Vertex> {
+    size_t operator()(graphics::Vertex const& vertex) const {
         size_t hash_value = 0;
         hash_value = (hash_value << 1) ^ hash<glm::vec3>()(vertex.position);
         hash_value = (hash_value << 1) ^ hash<glm::vec3>()(vertex.normal);
@@ -22,6 +22,7 @@ struct hash<Vertex> {
 };
 }  // namespace std
 
+namespace graphics {
 bool Vertex::operator==(const Vertex& other) const {
     return position == other.position && color == other.color &&
            texCoord == other.texCoord;
@@ -144,7 +145,7 @@ VertexBuffer VertexBuffer::create(
         vk::BufferUsageFlagBits::eIndexBuffer
     );
 
-    return VertexBuffer {
+    return VertexBuffer{
         vertexBuffer,
         deviceMemory,
         indexBuffer,
@@ -167,6 +168,9 @@ void VertexBuffer::bind(const vk::CommandBuffer& commandBuffer) const {
     commandBuffer.bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint32);
 }
 
-void VertexBuffer::draw(const vk::CommandBuffer& commandBuffer, uint16_t instanceCount) const {
+void VertexBuffer::draw(
+    const vk::CommandBuffer& commandBuffer, uint16_t instanceCount
+) const {
     commandBuffer.drawIndexed(numberOfIndices, instanceCount, 0, 0, 0);
 }
+};  // namespace Graphics

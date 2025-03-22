@@ -2,6 +2,7 @@
 
 #include <vulkan/vulkan.hpp>
 
+namespace graphics {
 struct Texture {
     vk::Image image;
     vk::ImageView imageView;
@@ -49,3 +50,4 @@ struct Texture {
         vk::Format format
     );
 };
+}  // namespace Graphics

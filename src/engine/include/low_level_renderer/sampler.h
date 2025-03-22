@@ -2,7 +2,7 @@
 
 #include <vulkan/vulkan.hpp>
 
-namespace Graphics {
+namespace graphics {
 enum class SamplerType { eLinear, ePoint };
 
 struct Samplers {

@@ -5,6 +5,7 @@
 #include "image.h"
 #include "stb_image.h"
 
+namespace graphics {
 Texture Texture::load(
     const char* filePath,
     const vk::Device& device,
@@ -145,3 +146,4 @@ void Texture::transitionLayout(
         device, commandPool, graphicsQueue, image, format, oldLayout, newLayout
     );
 }
+}  // namespace Graphics

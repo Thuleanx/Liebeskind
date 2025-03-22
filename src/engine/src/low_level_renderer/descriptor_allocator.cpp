@@ -2,8 +2,11 @@
 
 #include "core/logger/vulkan_ensures.h"
 
+namespace {
 constexpr uint32_t MAX_DESCRIPTOR_SETS_PER_POOL = 4096;
+}
 
+namespace graphics {
 DescriptorAllocator DescriptorAllocator::create(
     [[maybe_unused]] const vk::Device& device,
     const std::vector<vk::DescriptorPoolSize>& poolSizes,
@@ -95,3 +98,4 @@ void DescriptorAllocator::destroyBy(const vk::Device& device) const {
     for (const vk::DescriptorPool& pool : fullPools)
         device.destroyDescriptorPool(pool);
 }
+}  // namespace Graphics

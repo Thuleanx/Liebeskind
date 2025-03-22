@@ -6,7 +6,8 @@
 #include "core/logger/vulkan_ensures.h"
 #include "imgui.h"
 
-vk::DescriptorPool Graphics::createUIDescriptorPool(
+namespace graphics {
+vk::DescriptorPool createUIDescriptorPool(
     const GraphicsDeviceInterface& device
 ) {
     const int SETS_PER_POOL = 1000;
@@ -37,7 +38,7 @@ vk::DescriptorPool Graphics::createUIDescriptorPool(
     return descriptorPoolCreation.value;
 }
 
-vk::RenderPass Graphics::createUIRenderPass(
+vk::RenderPass createUIRenderPass(
     const GraphicsDeviceInterface& device
 ) {
     ASSERT(
@@ -92,7 +93,7 @@ vk::RenderPass Graphics::createUIRenderPass(
     return renderPassCreation.value;
 }
 
-vk::CommandPool Graphics::createUICommandPool(
+vk::CommandPool createUICommandPool(
     const GraphicsDeviceInterface& graphicsDevice
 ) {
     ASSERT(
@@ -111,7 +112,7 @@ vk::CommandPool Graphics::createUICommandPool(
     return commandPoolCreation.value;
 }
 
-std::vector<vk::CommandBuffer> Graphics::createUICommandBuffers(
+std::vector<vk::CommandBuffer> createUICommandBuffers(
     const GraphicsDeviceInterface& device, vk::CommandPool pool
 ) {
     const vk::CommandBufferAllocateInfo allocateInfo(
@@ -132,7 +133,7 @@ std::vector<vk::CommandBuffer> Graphics::createUICommandBuffers(
     return commandBuffersAllocation.value;
 }
 
-std::vector<vk::Framebuffer> Graphics::createUIFramebuffers(
+std::vector<vk::Framebuffer> createUIFramebuffers(
     const GraphicsDeviceInterface& device, const vk::RenderPass renderPass
 ) {
     ASSERT(
@@ -178,13 +179,13 @@ GraphicsUserInterface GraphicsUserInterface::create(
     ImGui_ImplSDL3_InitForVulkan(device.window);
 
     const vk::DescriptorPool descriptorPool =
-        Graphics::createUIDescriptorPool(device);
-    const vk::RenderPass renderPass = Graphics::createUIRenderPass(device);
-    const vk::CommandPool commandPool = Graphics::createUICommandPool(device);
+        createUIDescriptorPool(device);
+    const vk::RenderPass renderPass = createUIRenderPass(device);
+    const vk::CommandPool commandPool = createUICommandPool(device);
     const std::vector<vk::CommandBuffer> commandBuffers =
-        Graphics::createUICommandBuffers(device, commandPool);
+        createUICommandBuffers(device, commandPool);
     const std::vector<vk::Framebuffer> framebuffers =
-        Graphics::createUIFramebuffers(device, renderPass);
+        createUIFramebuffers(device, renderPass);
 
     ImGui_ImplVulkan_InitInfo initInfo{
         .Instance = device.instance,
@@ -211,7 +212,9 @@ GraphicsUserInterface GraphicsUserInterface::create(
     };
 }
 
-void GraphicsUserInterface::handleEvent(const SDL_Event& event, const GraphicsDeviceInterface& device) {
+void GraphicsUserInterface::handleEvent(
+    const SDL_Event& event, const GraphicsDeviceInterface& device
+) {
     ImGui_ImplSDL3_ProcessEvent(&event);
     switch (event.type) {
         case SDL_EVENT_WINDOW_RESIZED:
@@ -220,13 +223,15 @@ void GraphicsUserInterface::handleEvent(const SDL_Event& event, const GraphicsDe
     }
 }
 
-void GraphicsUserInterface::recreateRenderpassAndFramebuffers(const GraphicsDeviceInterface& device) {
+void GraphicsUserInterface::recreateRenderpassAndFramebuffers(
+    const GraphicsDeviceInterface& device
+) {
     for (const vk::Framebuffer& framebuffer : framebuffers)
         device.device.destroyFramebuffer(framebuffer);
     device.device.destroyRenderPass(renderPass);
 
-    renderPass = Graphics::createUIRenderPass(device);
-    framebuffers = Graphics::createUIFramebuffers(device, renderPass);
+    renderPass = createUIRenderPass(device);
+    framebuffers = createUIFramebuffers(device, renderPass);
 }
 
 void GraphicsUserInterface::destroy(GraphicsDeviceInterface& device) {
@@ -242,3 +247,4 @@ void GraphicsUserInterface::destroy(GraphicsDeviceInterface& device) {
     ImGui_ImplSDL3_Shutdown();
     ImGui::DestroyContext();
 }
+}  // namespace Graphics

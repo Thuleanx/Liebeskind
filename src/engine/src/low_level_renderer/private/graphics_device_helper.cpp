@@ -5,17 +5,18 @@
 #include <set>
 #include <vulkan/vulkan.hpp>
 
-#include "core/logger/vulkan_ensures.h"
 #include "core/logger/logger.h"
-#include "swapchain.h"
+#include "core/logger/vulkan_ensures.h"
 #include "low_level_renderer/queue_family.h"
+#include "swapchain.h"
 #include "validation.h"
 
-const std::vector<const char*> GraphicsHelper::deviceExtensions = {
+namespace graphics {
+const std::vector<const char*> deviceExtensions = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
 
-std::vector<const char*> GraphicsHelper::getInstanceExtensions() {
+std::vector<const char*> getInstanceExtensions() {
     uint32_t count;
     const char* const* extensions = SDL_Vulkan_GetInstanceExtensions(&count);
     LLOG_INFO << "Query for instance extensions yields:";
@@ -40,7 +41,7 @@ std::vector<const char*> GraphicsHelper::getInstanceExtensions() {
     return allExtensions;
 }
 
-std::optional<vk::PhysicalDevice> GraphicsHelper::getBestPhysicalDevice(
+std::optional<vk::PhysicalDevice> getBestPhysicalDevice(
     const vk::Instance& instance, const vk::SurfaceKHR& surface
 ) {
     const vk::ResultValue<std::vector<vk::PhysicalDevice>> allPhysicalDevices =
@@ -53,7 +54,7 @@ std::optional<vk::PhysicalDevice> GraphicsHelper::getBestPhysicalDevice(
     return {};
 }
 
-bool GraphicsHelper::isDeviceSuitable(
+bool isDeviceSuitable(
     const vk::PhysicalDevice& physicalDevice, const vk::SurfaceKHR& surface
 ) {
     vk::PhysicalDeviceProperties deviceProperties =
@@ -81,7 +82,7 @@ bool GraphicsHelper::isDeviceSuitable(
            isAnisotropicFilteringSupported;
 }
 
-bool GraphicsHelper::areRequiredDeviceExtensionsSupported(
+bool areRequiredDeviceExtensionsSupported(
     const vk::PhysicalDevice& device
 ) {
     std::set<std::string> requiredExtensions(
@@ -99,3 +100,4 @@ bool GraphicsHelper::areRequiredDeviceExtensionsSupported(
 
     return requiredExtensions.empty();
 }
+}  // namespace graphics

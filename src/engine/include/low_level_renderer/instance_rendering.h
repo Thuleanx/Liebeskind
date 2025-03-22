@@ -4,10 +4,11 @@
 #include <glm/glm.hpp>
 
 #include "low_level_renderer/config.h"
+#include "low_level_renderer/data_buffer.h"
 #include "low_level_renderer/descriptor_allocator.h"
 #include "low_level_renderer/descriptor_write_buffer.h"
-#include "low_level_renderer/data_buffer.h"
 
+namespace graphics {
 struct InstanceData {
     alignas(16) glm::mat4 transform;
 };
@@ -59,3 +60,4 @@ struct RenderInstanceManager {
 
     void destroyBy(const vk::Device& device) const;
 };
+}  // namespace Graphics

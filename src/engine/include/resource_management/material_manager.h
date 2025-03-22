@@ -40,9 +40,9 @@ class MaterialManager {
         vk::Device device,
         vk::PhysicalDevice physicalDevice,
         vk::DescriptorSetLayout setLayout,
-        DescriptorAllocator& descriptorAllocator,
+        graphics::DescriptorAllocator& descriptorAllocator,
         vk::Sampler sampler,
-        DescriptorWriteBuffer& writeBuffer,
+        graphics::DescriptorWriteBuffer& writeBuffer,
         TextureManager& textureManager,
         TextureID albedo,
         MaterialProperties materialProperties,
@@ -59,7 +59,7 @@ class MaterialManager {
     std::array<std::vector<MaterialInstance>, static_cast<size_t>(MaterialPass::MAX) + 1>
         materialInstances;
     std::array<
-        std::vector<UniformBuffer<MaterialProperties>>,
+        std::vector<graphics::UniformBuffer<MaterialProperties>>,
         static_cast<size_t>(MaterialPass::MAX) + 1>
         uniforms;
 };

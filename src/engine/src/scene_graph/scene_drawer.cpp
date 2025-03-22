@@ -3,7 +3,7 @@
 #include "core/logger/assert.h"
 
 SceneDrawer::SceneDrawer(PerspectiveCamera camera) :
-    camera(camera), renderSubmission(RenderSubmission::create()) {}
+    camera(camera), renderSubmission(graphics::RenderSubmission::create()) {}
 
 SceneDrawer SceneDrawer::create() {
     PerspectiveCamera camera = PerspectiveCamera::create(
@@ -29,7 +29,7 @@ void SceneDrawer::handleResize(float aspectRatio) {
 }
 
 void SceneDrawer::addInstancedObjects(
-    std::span<InstancedRenderObject> instancedRenderObjects
+    std::span<graphics::InstancedRenderObject> instancedRenderObjects
 ) {
     this->instancedRenderObjects.insert(
         this->instancedRenderObjects.end(),
@@ -40,7 +40,7 @@ void SceneDrawer::addInstancedObjects(
 }
 
 void SceneDrawer::updateInstance(
-    std::span<int> indices, std::vector<std::span<InstanceData>> data
+    std::span<int> indices, std::vector<std::span<graphics::InstanceData>> data
 ) {
     ASSERT(
         indices.size() == data.size(),
@@ -53,13 +53,13 @@ void SceneDrawer::updateInstance(
             "Index " << i << " is out of the range [0, "
                      << instancedRenderData.size() << ")"
         );
-        std::vector<InstanceData> copiedData;
+        std::vector<graphics::InstanceData> copiedData;
         copiedData.insert(copiedData.end(), data[i].begin(), data[i].end());
         instancedRenderData[indices[i]] = copiedData;
     }
 }
 
-void SceneDrawer::addObjects(std::span<RenderObject> renderObjects) {
+void SceneDrawer::addObjects(std::span<graphics::RenderObject> renderObjects) {
     this->renderObjects.insert(
         this->renderObjects.end(), renderObjects.begin(), renderObjects.end()
     );
@@ -71,8 +71,8 @@ void SceneDrawer::updateObjects(std::vector<std::tuple<int, glm::mat4>> updates
         this->renderObjects[index].transform = transform;
 }
 
-bool SceneDrawer::drawFrame(GraphicsModule& graphics) {
-    GPUSceneData sceneData{
+bool SceneDrawer::drawFrame(graphics::GraphicsModule& graphics) {
+    graphics::GPUSceneData sceneData{
         .view = camera.view,
         .inverseView = glm::mat4(1.0),
         .projection = camera.projection,

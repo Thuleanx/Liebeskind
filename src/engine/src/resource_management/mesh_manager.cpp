@@ -9,7 +9,7 @@ MeshID MeshManager::load(
     const vk::Queue &graphicsQueue,
     const char *meshFilePath
 ) {
-    VertexBuffer vertexBuffer = VertexBuffer::create(
+    graphics::VertexBuffer vertexBuffer = graphics::VertexBuffer::create(
         meshFilePath, device, physicalDevice, commandPool, graphicsQueue
     );
     MeshID id{static_cast<uint32_t>(meshes.size())};

@@ -3,6 +3,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+namespace graphics {
 struct GPUSceneData {
     alignas(16) glm::mat4 view;
     alignas(16) glm::mat4 inverseView;
@@ -18,3 +19,4 @@ struct GPUSceneData {
 struct GPUPushConstants {
     alignas(16) glm::mat4 model;
 };
+}  // namespace Graphics

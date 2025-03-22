@@ -8,6 +8,7 @@
 #include "resource_management/material_manager.h"
 #include "resource_management/mesh_manager.h"
 
+namespace graphics {
 struct RenderObject {
     glm::mat4 transform;
     MaterialInstanceID materialInstance;
@@ -62,3 +63,4 @@ class RenderSubmission {
     ) const;
     void clear();
 };
+}  // namespace Graphics

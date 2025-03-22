@@ -24,10 +24,10 @@ class TextureManager {
         vk::DescriptorSet descriptorSet,
         int binding,
         vk::Sampler sampler,
-        DescriptorWriteBuffer& writeBuffer
+        graphics::DescriptorWriteBuffer& writeBuffer
     ) const;
     void destroyBy(vk::Device device);
 
    private:
-    std::vector<Texture> textures;
+    std::vector<graphics::Texture> textures;
 };

@@ -30,4 +30,4 @@ QueueFamilyIndices QueueFamilyIndices::findQueueFamilies(
 
     return indices;
 }
-}
+}  // namespace graphics

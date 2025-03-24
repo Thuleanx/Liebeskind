@@ -21,8 +21,8 @@ MaterialInstanceID MaterialManager::load(
     graphics::DescriptorAllocator& descriptorAllocator,
     vk::Sampler sampler,
     graphics::DescriptorWriteBuffer& writeBuffer,
-    TextureManager& textureManager,
-    TextureID albedo,
+    graphics::TextureStorage& textureManager,
+    graphics::TextureID albedo,
     MaterialProperties materialProperties,
     MaterialPass materialPass
 ) {
@@ -48,7 +48,9 @@ MaterialInstanceID MaterialManager::load(
     // binding 0 is for material specific properties
     uniformBuffer.bind(writeBuffer, descriptorSet, 0);
     // binding 1 is for albedo texture
-    textureManager.bind(albedo, descriptorSet, 1, sampler, writeBuffer);
+    graphics::bindTextureToDescriptor(
+        textureManager, albedo, descriptorSet, 1, sampler, writeBuffer
+    );
     materialInstances[static_cast<size_t>(materialPass)].push_back(
         {descriptorSet}
     );

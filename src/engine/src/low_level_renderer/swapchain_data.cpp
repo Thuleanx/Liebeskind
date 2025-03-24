@@ -86,7 +86,7 @@ SwapchainData GraphicsDeviceInterface::createSwapchain() const {
     const vk::Format depthAttachmentFormat =
         Swapchain::getSuitableDepthAttachmentFormat(physicalDevice);
 
-    Texture depthTexture = Texture::create(
+    Texture depthTexture = createTexture(
         device,
         physicalDevice,
         depthAttachmentFormat,
@@ -96,12 +96,13 @@ SwapchainData GraphicsDeviceInterface::createSwapchain() const {
         vk::ImageUsageFlagBits::eDepthStencilAttachment,
         vk::ImageAspectFlagBits::eDepth
     );
-    depthTexture.transitionLayout(
+    transitionLayout(
+        depthTexture,
+        vk::ImageLayout::eUndefined,
+        vk::ImageLayout::eDepthStencilAttachmentOptimal,
         device,
         commandPool,
-        graphicsQueue,
-        vk::ImageLayout::eUndefined,
-        vk::ImageLayout::eDepthStencilAttachmentOptimal
+        graphicsQueue
     );
 
     std::vector<vk::Framebuffer> swapchainFramebuffers(
@@ -154,6 +155,6 @@ void GraphicsDeviceInterface::destroy(SwapchainData& swapchainData) const {
         device.destroyImageView(imageView);
 
     device.destroySwapchainKHR(swapchainData.swapchain);
-    swapchainData.depth.destroyBy(device);
+    graphics::destroy({std::addressof(swapchainData.depth), 1}, device);
 }
-}  // namespace Graphics
+}  // namespace graphics

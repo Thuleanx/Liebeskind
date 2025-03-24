@@ -3,11 +3,10 @@
 #include <vulkan/vulkan.hpp>
 #include <glm/glm.hpp>
 
-#include "resource_management/texture_manager.h"
-
 #include "low_level_renderer/descriptor_allocator.h"
 #include "low_level_renderer/descriptor_write_buffer.h"
 #include "low_level_renderer/data_buffer.h"
+#include "low_level_renderer/texture.h"
 
 enum class MaterialPass { OPAQUE = 0, TRANSPARENT = 1, MAX = TRANSPARENT };
 
@@ -43,8 +42,8 @@ class MaterialManager {
         graphics::DescriptorAllocator& descriptorAllocator,
         vk::Sampler sampler,
         graphics::DescriptorWriteBuffer& writeBuffer,
-        TextureManager& textureManager,
-        TextureID albedo,
+        graphics::TextureStorage& textureManager,
+        graphics::TextureID albedo,
         MaterialProperties materialProperties,
         MaterialPass materialPass
     );

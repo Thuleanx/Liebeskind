@@ -71,7 +71,7 @@ void SceneDrawer::updateObjects(std::vector<std::tuple<int, glm::mat4>> updates
         this->renderObjects[index].transform = transform;
 }
 
-bool SceneDrawer::drawFrame(graphics::GraphicsModule& graphics) {
+bool SceneDrawer::drawFrame(graphics::Module& graphics) {
     graphics::GPUSceneData sceneData{
         .view = camera.view,
         .inverseView = glm::mat4(1.0),

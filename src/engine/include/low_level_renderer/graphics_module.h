@@ -8,14 +8,15 @@
 #include "resource_management/resource_manager.h"
 
 namespace graphics {
-struct GraphicsModule {
+struct Module {
     ResourceManager resources;
     GraphicsDeviceInterface device;
     GraphicsUserInterface ui;
     RenderInstanceManager instances;
+    TextureStorage textures;
 
    public:
-    static GraphicsModule create();
+    static Module create();
     void destroy();
 
     void beginFrame();

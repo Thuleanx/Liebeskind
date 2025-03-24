@@ -1,7 +1,6 @@
 set(SRC 
     mesh_manager.cpp
     shader_manager.cpp
-    texture_manager.cpp
     material_manager.cpp
 )
 

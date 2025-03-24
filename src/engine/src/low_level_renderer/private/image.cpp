@@ -12,8 +12,14 @@ std::tuple<vk::Image, vk::DeviceMemory> Image::createImage(
     vk::Format format,
     vk::ImageTiling tiling,
     vk::ImageUsageFlags usage,
-    vk::MemoryPropertyFlags properties
+    vk::MemoryPropertyFlags properties,
+    uint32_t mipLevels
 ) {
+    // To generate the mip maps, we need to blit the image onto itself, hence
+    // this usage flag
+    if (mipLevels > 0)
+        usage |= vk::ImageUsageFlagBits::eTransferDst |
+                 vk::ImageUsageFlagBits::eTransferSrc;
     const vk::ImageCreateInfo imageCreateInfo(
         {},
         vk::ImageType::e2D,
@@ -21,7 +27,7 @@ std::tuple<vk::Image, vk::DeviceMemory> Image::createImage(
         vk::Extent3D(
             static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1
         ),
-        1,                            // mip levels
+        mipLevels,                    // mip levels
         1,                            // array layers
         vk::SampleCountFlagBits::e1,  // sample count
         tiling,
@@ -73,7 +79,8 @@ void Image::transitionImageLayout(
     const vk::Image &image,
     vk::Format format,
     vk::ImageLayout oldLayout,
-    vk::ImageLayout newLayout
+    vk::ImageLayout newLayout,
+    uint32_t mipLevels
 ) {
     const vk::CommandBuffer commandBuffer =
         Command::beginSingleCommand(device, commandPool);
@@ -125,7 +132,7 @@ void Image::transitionImageLayout(
         vk::QueueFamilyIgnored,
         vk::QueueFamilyIgnored,
         image,
-        vk::ImageSubresourceRange(imageAspect, 0, 1, 0, 1)
+        vk::ImageSubresourceRange(imageAspect, 0, mipLevels, 0, 1)
     );
 
     commandBuffer.pipelineBarrier(
@@ -208,6 +215,124 @@ std::optional<vk::Format> Image::findSupportedFormat(
             return format;
     }
     return std::nullopt;
+}
+
+void Image::generateMipMaps(
+	vk::Device device,
+	vk::CommandPool commandPool,
+	vk::Queue graphicsQueue,
+	vk::Image image,
+	uint32_t width,
+	uint32_t height,
+	uint32_t mipLevels
+) {
+	vk::CommandBuffer commandBuffer =
+		Command::beginSingleCommand(device, commandPool);
+
+	vk::ImageMemoryBarrier mipBarrier(
+		vk::AccessFlagBits::eTransferWrite,
+		vk::AccessFlagBits::eTransferRead,
+		vk::ImageLayout::eTransferDstOptimal,
+		vk::ImageLayout::eTransferSrcOptimal,
+		vk::QueueFamilyIgnored,
+		vk::QueueFamilyIgnored,
+		image,
+		vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1)
+	);
+
+	vk::ImageMemoryBarrier toShaderBarrier(
+		vk::AccessFlagBits::eTransferRead,
+		vk::AccessFlagBits::eShaderRead,
+		vk::ImageLayout::eTransferSrcOptimal,
+		vk::ImageLayout::eShaderReadOnlyOptimal,
+		vk::QueueFamilyIgnored,
+		vk::QueueFamilyIgnored,
+		image,
+		vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1)
+	);
+
+	uint32_t mipWidth = width;
+	uint32_t mipHeight = height;
+
+	for (uint32_t i = 1; i < mipLevels; i++) {
+		mipBarrier.subresourceRange.setBaseMipLevel(i - 1);
+	    toShaderBarrier.subresourceRange.setBaseMipLevel(i - 1);
+
+		commandBuffer.pipelineBarrier(
+			vk::PipelineStageFlagBits::eTransfer,
+			vk::PipelineStageFlagBits::eTransfer,
+			{},
+			0,
+			nullptr,
+			0,
+			nullptr,
+			1,
+			&mipBarrier
+		);
+
+		const int nextMipWidth = std::max(mipWidth / 2, {1});
+		const int nextMipHeight = std::max(mipHeight / 2, {1});
+
+		const vk::ImageBlit imageBlit(
+			vk::ImageSubresourceLayers(
+				vk::ImageAspectFlagBits::eColor, i - 1, 0, 1
+			),
+			std::array<vk::Offset3D, 2>{
+				{{0, 0, 0},
+				 {static_cast<int>(mipWidth), static_cast<int>(mipHeight), 1}}
+			},
+			vk::ImageSubresourceLayers(
+				vk::ImageAspectFlagBits::eColor, i, 0, 1
+			),
+			std::array<vk::Offset3D, 2>{
+				{{0, 0, 0}, {nextMipWidth, nextMipHeight, 1}}
+			}
+		);
+
+		commandBuffer.blitImage(
+			image,
+			vk::ImageLayout::eTransferSrcOptimal,
+			image,
+			vk::ImageLayout::eTransferDstOptimal,
+			1,
+			&imageBlit,
+			vk::Filter::eLinear
+		);
+
+		commandBuffer.pipelineBarrier(
+			vk::PipelineStageFlagBits::eTransfer,
+			vk::PipelineStageFlagBits::eFragmentShader,
+			{},
+			0,
+			nullptr,
+			0,
+			nullptr,
+			1,
+			&toShaderBarrier
+		);
+
+		mipWidth = nextMipWidth;
+		mipHeight = nextMipHeight;
+	}
+
+	toShaderBarrier.subresourceRange.setBaseMipLevel(mipLevels - 1);
+    toShaderBarrier.setOldLayout(vk::ImageLayout::eTransferDstOptimal);
+
+	commandBuffer.pipelineBarrier(
+		vk::PipelineStageFlagBits::eTransfer,
+		vk::PipelineStageFlagBits::eFragmentShader,
+		{},
+		0,
+		nullptr,
+		0,
+		nullptr,
+		1,
+		&toShaderBarrier
+	);
+
+	Command::submitSingleCommand(
+		device, graphicsQueue, commandPool, commandBuffer
+	);
 }
 
 bool Image::hasStencilComponent(vk::Format format) {

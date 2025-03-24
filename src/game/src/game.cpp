@@ -15,11 +15,11 @@
 void Game::run() {
     Logging::initializeLogger();
 
-    graphics::GraphicsModule graphics = graphics::GraphicsModule::create();
+    graphics::Module graphics = graphics::Module::create();
     SceneDrawer sceneDrawer = SceneDrawer::create();
     sceneDrawer.handleResize(graphics.device.swapchain->getAspectRatio());
 
-    TextureID albedo = graphics.loadTexture("textures/ChibiPippa.png");
+    graphics::TextureID albedo = graphics.loadTexture("textures/ChibiPippa.png");
     MeshID meshID = graphics.loadMesh("models/ChibiPippa.obj");
     MaterialInstanceID material = graphics.loadMaterial(
         albedo,

@@ -18,7 +18,7 @@ class SceneDrawer {
     static SceneDrawer create();
     void handleResize(int width, int height);
     void handleResize(float aspectRatio);
-    bool drawFrame(graphics::GraphicsModule& graphics);
+    bool drawFrame(graphics::Module& graphics);
 
     void addInstancedObjects(
         std::span<graphics::InstancedRenderObject> instancedRenderObjects

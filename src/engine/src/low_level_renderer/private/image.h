@@ -12,7 +12,17 @@ std::tuple<vk::Image, vk::DeviceMemory> createImage(
     vk::Format format,
     vk::ImageTiling tiling,
     vk::ImageUsageFlags usage,
-    vk::MemoryPropertyFlags properties
+    vk::MemoryPropertyFlags properties,
+    uint32_t mipLevels = 1
+);
+void generateMipMaps(
+    vk::Device device,
+    vk::CommandPool commandPool,
+    vk::Queue graphicsQueue,
+    vk::Image image,
+    uint32_t width,
+    uint32_t height,
+    uint32_t mipLevels
 );
 void copyBufferToImage(
     const vk::Device& device,
@@ -30,7 +40,8 @@ void transitionImageLayout(
     const vk::Image& image,
     vk::Format format,
     vk::ImageLayout oldLayout,
-    vk::ImageLayout newLayout
+    vk::ImageLayout newLayout,
+    uint32_t mipLevels
 );
 vk::ImageView createImageView(
     const vk::Device& device,
@@ -40,7 +51,7 @@ vk::ImageView createImageView(
 );
 std::optional<vk::Format> findSupportedFormat(
     const vk::PhysicalDevice& physicalDevice,
-    const std::vector<vk::Format> &candidates,
+    const std::vector<vk::Format>& candidates,
     vk::ImageTiling imageTiling,
     vk::FormatFeatureFlags features
 );

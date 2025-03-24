@@ -2,52 +2,73 @@
 
 #include <vulkan/vulkan.hpp>
 
+#include "low_level_renderer/descriptor_write_buffer.h"
+
 namespace graphics {
+
+struct TextureID {
+    uint32_t index;
+};
+
 struct Texture {
     vk::Image image;
     vk::ImageView imageView;
     vk::DeviceMemory memory;
     vk::Format format;
-
-   public:
-    [[nodiscard]]
-    static Texture load(
-        const char* filePath,
-        const vk::Device& device,
-        const vk::PhysicalDevice& physicalDevice,
-        const vk::CommandPool& commandPool,
-        const vk::Queue& graphicsQueue
-    );
-
-    [[nodiscard]]
-    static Texture create(
-        const vk::Device& device,
-        const vk::PhysicalDevice& physicalDevice,
-        vk::Format format,
-        uint32_t width,
-        uint32_t height,
-        vk::ImageTiling tiling,
-        vk::ImageUsageFlags usage,
-        vk::ImageAspectFlags aspect
-    );
-
-    void transitionLayout(
-        const vk::Device& device,
-        const vk::CommandPool& commandPool,
-        const vk::Queue& graphicsQueue,
-        vk::ImageLayout oldLayout,
-        vk::ImageLayout newLayout
-    );
-
-    vk::DescriptorImageInfo getDescriptorImageInfo(vk::Sampler sampler) const;
-    void destroyBy(const vk::Device& device);
-
-   private:
-    Texture(
-        vk::Image image,
-        vk::DeviceMemory deviceMemory,
-        vk::ImageView imageView,
-        vk::Format format
-    );
+    uint32_t mipLevels;
 };
-}  // namespace Graphics
+
+struct TextureStorage {
+    std::vector<Texture> data;
+};
+
+Texture loadTextureFromFile(
+    const char* filePath,
+    vk::Device device,
+    vk::PhysicalDevice physicalDevice,
+    vk::CommandPool commandPool,
+    vk::Queue graphicsQueue
+);
+
+Texture createTexture(
+    vk::Device device,
+    vk::PhysicalDevice physicalDevice,
+    vk::Format format,
+    uint32_t width,
+    uint32_t height,
+    vk::ImageTiling tiling,
+    vk::ImageUsageFlags usage,
+    vk::ImageAspectFlags aspect
+);
+
+TextureID pushTextureFromFile(
+    TextureStorage& textureStorage,
+    const char* filePath,
+    vk::Device device,
+    vk::PhysicalDevice physicalDevice,
+    vk::CommandPool commandPool,
+    vk::Queue graphicsQueue
+);
+
+void bindTextureToDescriptor(
+    const TextureStorage& textureStorage,
+    TextureID texture,
+    vk::DescriptorSet descriptorSet,
+    int binding,
+    vk::Sampler sampler,
+    DescriptorWriteBuffer& writeBuffer
+);
+
+void transitionLayout(
+    const Texture& texture,
+    vk::ImageLayout oldLayout,
+    vk::ImageLayout newLayout,
+    vk::Device device,
+    vk::CommandPool commandPool,
+    vk::Queue graphicsQueue
+);
+
+void destroy(TextureStorage& textures, vk::Device device);
+void destroy(std::span<const Texture> textures, vk::Device device);
+
+}  // namespace graphics

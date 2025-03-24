@@ -12,12 +12,12 @@ set(SRC
     data_buffer.cpp
     instance_rendering.cpp
     queue_family.cpp
+    texture.cpp
     private/sampler.cpp
     private/command.cpp
     private/command.h
     private/image.cpp
     private/image.h
-    private/texture.cpp
     private/graphics_device_helper.h
     private/graphics_device_helper.cpp
     private/validation.h

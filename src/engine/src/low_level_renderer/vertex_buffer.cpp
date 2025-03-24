@@ -23,11 +23,6 @@ struct hash<graphics::Vertex> {
 }  // namespace std
 
 namespace graphics {
-bool Vertex::operator==(const Vertex& other) const {
-    return position == other.position && color == other.color &&
-           texCoord == other.texCoord;
-}
-
 std::array<vk::VertexInputAttributeDescription, 4>
 Vertex::getAttributeDescriptions() {
     static std::array<vk::VertexInputAttributeDescription, 4>
@@ -58,13 +53,6 @@ Vertex::getAttributeDescriptions() {
             )
         };
     return attributeDescriptions;
-}
-
-vk::VertexInputBindingDescription Vertex::getBindingDescription() {
-    static vk::VertexInputBindingDescription bindingDescription(
-        0, sizeof(Vertex), vk::VertexInputRate::eVertex
-    );
-    return bindingDescription;
 }
 
 VertexBuffer VertexBuffer::create(
@@ -155,22 +143,32 @@ VertexBuffer VertexBuffer::create(
     };
 }
 
-void VertexBuffer::destroyBy(const vk::Device& device) const {
-    device.destroyBuffer(vertexBuffer);
-    device.freeMemory(vertexMemory);
-    device.destroyBuffer(indexBuffer);
-    device.freeMemory(indexMemory);
-}
-
-void VertexBuffer::bind(const vk::CommandBuffer& commandBuffer) const {
+void bind(
+    vk::CommandBuffer commandBuffer, const VertexBuffer& vertexBuffer
+) {
     vk::DeviceSize offsets[] = {0};
-    commandBuffer.bindVertexBuffers(0, 1, &vertexBuffer, offsets);
-    commandBuffer.bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint32);
+    commandBuffer.bindVertexBuffers(0, 1, &vertexBuffer.vertexBuffer, offsets);
+    commandBuffer.bindIndexBuffer(
+        vertexBuffer.indexBuffer, 0, vk::IndexType::eUint32
+    );
 }
 
-void VertexBuffer::draw(
-    const vk::CommandBuffer& commandBuffer, uint16_t instanceCount
-) const {
-    commandBuffer.drawIndexed(numberOfIndices, instanceCount, 0, 0, 0);
+void drawVertices(
+    vk::CommandBuffer commandBuffer,
+    const VertexBuffer& vertexBuffer,
+    uint16_t instanceCount
+) {
+    commandBuffer.drawIndexed(
+        vertexBuffer.numberOfIndices, instanceCount, 0, 0, 0
+    );
 }
-};  // namespace Graphics
+
+void destroy(std::span<const VertexBuffer> vertexBuffers, vk::Device device) {
+    for (const VertexBuffer& vertexBuffer : vertexBuffers) {
+        device.destroyBuffer(vertexBuffer.vertexBuffer);
+        device.freeMemory(vertexBuffer.vertexMemory);
+        device.destroyBuffer(vertexBuffer.indexBuffer);
+        device.freeMemory(vertexBuffer.indexMemory);
+    }
+}
+};  // namespace graphics

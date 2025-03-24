@@ -9,9 +9,7 @@ struct MeshID {
     uint32_t index;
 };
 
-struct Mesh {
-    graphics::VertexBuffer vertexBuffer;
-};
+using Mesh = graphics::VertexBuffer;
 
 class MeshManager {
    public:

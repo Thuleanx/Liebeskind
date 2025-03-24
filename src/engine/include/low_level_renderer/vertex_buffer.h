@@ -13,11 +13,19 @@ struct Vertex {
     glm::vec2 texCoord;
 
    public:
-    static vk::VertexInputBindingDescription getBindingDescription();
+    static vk::VertexInputBindingDescription getBindingDescription() {
+        return vk::VertexInputBindingDescription(
+            0, sizeof(Vertex), vk::VertexInputRate::eVertex
+        );
+    }
+
     static std::array<vk::VertexInputAttributeDescription, 4>
     getAttributeDescriptions();
 
-    bool operator==(const Vertex& other) const;
+    bool operator==(const Vertex& other) const {
+        return position == other.position && color == other.color &&
+               normal == other.normal && texCoord == other.texCoord;
+    }
 };
 
 struct VertexBuffer {
@@ -36,10 +44,10 @@ struct VertexBuffer {
         const vk::CommandPool& commandPool,
         const vk::Queue& graphicsQueue
     );
-    void bind(const vk::CommandBuffer& commandBuffer) const;
-    void draw(
-        const vk::CommandBuffer& commandBuffer, uint16_t instanceCount = 1
-    ) const;
-    void destroyBy(const vk::Device& device) const;
 };
+
+void bind(vk::CommandBuffer commandBuffer, const VertexBuffer& vertexBuffer);
+void drawVertices(vk::CommandBuffer commandBuffer, const VertexBuffer& vertexBuffer, uint16_t instanceCount = 1);
+void destroy(std::span<const VertexBuffer> vertexBuffers, vk::Device device);
+
 };  // namespace graphics

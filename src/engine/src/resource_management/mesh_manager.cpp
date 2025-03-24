@@ -22,7 +22,7 @@ void MeshManager::bind(vk::CommandBuffer commandBuffer, MeshID mesh) const {
         mesh.index >= 0 && mesh.index < meshes.size(),
         "Mesh id is invalid: index out of range"
     );
-    meshes[mesh.index].vertexBuffer.bind(commandBuffer);
+    graphics::bind(commandBuffer, meshes[mesh.index]);
 }
 
 void MeshManager::draw(
@@ -32,9 +32,11 @@ void MeshManager::draw(
         mesh.index >= 0 && mesh.index < meshes.size(),
         "Mesh id is invalid: index out of range"
     );
-    meshes[mesh.index].vertexBuffer.draw(commandBuffer, instancesCount);
+    graphics::drawVertices(
+        commandBuffer, meshes[mesh.index], instancesCount
+    );
 }
 
 void MeshManager::destroyBy(vk::Device device) {
-    for (Mesh &mesh : meshes) mesh.vertexBuffer.destroyBy(device);
+    graphics::destroy(meshes, device);
 }

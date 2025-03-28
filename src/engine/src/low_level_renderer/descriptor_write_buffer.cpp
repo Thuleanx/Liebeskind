@@ -1,4 +1,5 @@
 #include "low_level_renderer/descriptor_write_buffer.h"
+#include "core/logger/logger.h"
 
 namespace graphics {
 void DescriptorWriteBuffer::writeBuffer(

@@ -19,23 +19,24 @@ void Game::run() {
     SceneDrawer sceneDrawer = SceneDrawer::create();
     sceneDrawer.handleResize(graphics.device.swapchain->getAspectRatio());
 
-    graphics::TextureID albedo = graphics.loadTexture("textures/ChibiPippa.png");
-    MeshID meshID = graphics.loadMesh("models/ChibiPippa.obj");
-    MaterialInstanceID material = graphics.loadMaterial(
+    graphics::TextureID albedo = graphics.loadTexture("textures/bricks_albedo.jpg");
+    graphics::TextureID normalMap = graphics.loadTexture("textures/bricks_normal.jpg");
+    MeshID meshID = graphics.loadMesh("models/quad.obj");
+    graphics::MaterialInstanceID material = graphics.loadMaterial(
         albedo,
-        MaterialProperties{
+        normalMap,
+        graphics::MaterialProperties{
             .specular = glm::vec3(1),
             .diffuse = glm::vec3(.4),
             .ambient = glm::vec3(1),
             .shininess = 1.0f
         },
-        MaterialPass::OPAQUE,
         graphics::SamplerType::eLinear
     );
     graphics::RenderInstanceID instance = graphics.registerInstance(10);
     graphics.device.writeBuffer.batchWrite(graphics.device.device);
 
-    glm::mat4 modelTransform = glm::mat4(1);
+    glm::mat4 modelTransform = glm::translate(glm::scale(glm::mat4(1), glm::vec3(3)), glm::vec3(0.0, 0.0, 0.5));
 
     graphics::RenderObject sword{
         .transform = modelTransform,

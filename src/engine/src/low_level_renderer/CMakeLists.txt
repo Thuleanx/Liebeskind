@@ -1,8 +1,8 @@
 set(SRC 
-    _impl_drawing.cpp
     graphics_module.cpp
     render_submission.cpp
     material_pipeline.cpp
+    materials.cpp
     graphics_device_interface.cpp 
     graphics_user_interface.cpp 
     descriptor_write_buffer.cpp 

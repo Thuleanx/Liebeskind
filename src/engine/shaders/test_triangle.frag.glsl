@@ -25,6 +25,7 @@ layout(set = 1, binding = 0) uniform MaterialProperties {
 } materialProperties;
 
 layout(set = 1, binding = 1) uniform sampler2D texSampler;
+layout(set = 1, binding = 2) uniform sampler2D normalSampler;
 
 void main() {
     vec4 texColor = texture(texSampler, fragTexCoord) * vec4(fragColor, 1.0);

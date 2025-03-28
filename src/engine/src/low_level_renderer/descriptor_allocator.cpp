@@ -9,7 +9,7 @@ constexpr uint32_t MAX_DESCRIPTOR_SETS_PER_POOL = 4096;
 namespace graphics {
 DescriptorAllocator DescriptorAllocator::create(
     [[maybe_unused]] const vk::Device& device,
-    const std::vector<vk::DescriptorPoolSize>& poolSizes,
+    std::span<const vk::DescriptorPoolSize> poolSizes,
     uint32_t setsPerPool
 ) {
     std::vector<vk::DescriptorPoolSize> allocatorPoolSizes;

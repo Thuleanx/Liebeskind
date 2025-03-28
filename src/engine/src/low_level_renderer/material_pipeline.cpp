@@ -2,6 +2,7 @@
 
 #include "core/logger/vulkan_ensures.h"
 #include "low_level_renderer/config.h"
+#include "low_level_renderer/materials.h"
 #include "low_level_renderer/shader_data.h"
 #include "low_level_renderer/vertex_buffer.h"
 
@@ -36,11 +37,12 @@ MaterialPipeline MaterialPipeline::create(
             globalDescriptorSetLayoutCreation.result,
             "Can't create global descriptor set layout"
         );
+        std::vector<vk::DescriptorPoolSize> poolSizes = {vk::DescriptorPoolSize(vk::DescriptorType::eUniformBuffer, 1)};
         globalDescriptorData = {
             .setLayout = globalDescriptorSetLayoutCreation.value,
             .allocator = DescriptorAllocator::create(
                 device,
-                {vk::DescriptorPoolSize(vk::DescriptorType::eUniformBuffer, 1)},
+                poolSizes,
                 MAX_FRAMES_IN_FLIGHT
             )
         };
@@ -48,27 +50,12 @@ MaterialPipeline MaterialPipeline::create(
 
     PipelineDescriptorData materialDescriptorData;
     {  // create material descriptor information
-        const vk::DescriptorSetLayoutBinding materialPropertiesBinding(
-            0,  // binding
-            vk::DescriptorType::eUniformBuffer,
-            1,  // descriptor count
-            vk::ShaderStageFlagBits::eFragment
-        );
-        const vk::DescriptorSetLayoutBinding albedoBinding(
-            1,  // binding
-            vk::DescriptorType::eCombinedImageSampler,
-            1,  // descriptor count
-            vk::ShaderStageFlagBits::eFragment
-        );
-        const std::array<vk::DescriptorSetLayoutBinding, 2> materialBindings = {
-            materialPropertiesBinding, albedoBinding
-        };
         const vk::ResultValue<vk::DescriptorSetLayout>
             materialDescriptorSetLayoutCreation =
                 device.createDescriptorSetLayout(
                     {{},
-                     static_cast<uint32_t>(materialBindings.size()),
-                     materialBindings.data()}
+                     static_cast<uint32_t>(MATERIAL_BINDINGS.size()),
+                     MATERIAL_BINDINGS.data()}
                 );
         VULKAN_ENSURE_SUCCESS(
             materialDescriptorSetLayoutCreation.result,
@@ -78,14 +65,7 @@ MaterialPipeline MaterialPipeline::create(
             .setLayout = materialDescriptorSetLayoutCreation.value,
             .allocator = DescriptorAllocator::create(
                 device,
-                {
-                    vk::DescriptorPoolSize(
-                        vk::DescriptorType::eUniformBuffer, 1
-                    ),
-                    vk::DescriptorPoolSize(
-                        vk::DescriptorType::eCombinedImageSampler, 1
-                    ),
-                },
+                MATERIAL_DESCRIPTOR_POOL_SIZES,
                 MAX_FRAMES_IN_FLIGHT
             )
         };
@@ -113,11 +93,12 @@ MaterialPipeline MaterialPipeline::create(
             "Can't create instancedRendering descriptor set layout"
         );
 
+        std::vector<vk::DescriptorPoolSize> poolSizes = {vk::DescriptorPoolSize(vk::DescriptorType::eStorageBuffer, 1)};
         instanceRenderingDescriptorData = {
             .setLayout = instancedRenderingDescriptorSetLayoutCreation.value,
             .allocator = DescriptorAllocator::create(
                 device,
-                {vk::DescriptorPoolSize(vk::DescriptorType::eStorageBuffer, 1)},
+                poolSizes,
                 MAX_FRAMES_IN_FLIGHT
             )
         };

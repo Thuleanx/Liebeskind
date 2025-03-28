@@ -14,7 +14,7 @@ struct DescriptorAllocator {
     [[nodiscard]]
     static DescriptorAllocator create(
         const vk::Device& device,
-        const std::vector<vk::DescriptorPoolSize>& poolSizes,
+        std::span<const vk::DescriptorPoolSize> poolSizes,
         uint32_t setsPerPool
     );
 

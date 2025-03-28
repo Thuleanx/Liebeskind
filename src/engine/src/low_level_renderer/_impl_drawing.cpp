@@ -177,13 +177,6 @@ void recordCommandBuffer(
             nullptr
         );
 
-        renderSubmission.recordNonInstanced(
-            buffer,
-            graphicsDevice.pipeline.regularPipeline.layout,
-            resources.materials,
-            resources.meshes,
-            graphicsDevice.currentFrame
-        );
 
         buffer.bindPipeline(
             vk::PipelineBindPoint::eGraphics,
@@ -199,15 +192,6 @@ void recordCommandBuffer(
                  .globalDescriptor,
             0,
             nullptr
-        );
-
-        renderSubmission.recordInstanced(
-            buffer,
-            graphicsDevice.pipeline.instanceRenderingPipeline.layout,
-            instanceManager,
-            resources.materials,
-            resources.meshes,
-            graphicsDevice.currentFrame
         );
 
         buffer.endRenderPass();

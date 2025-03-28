@@ -67,8 +67,8 @@ void DataBuffer<T, E>::destroyBy(const vk::Device& device) const {
 #include "low_level_renderer/shader_data.h"
 template struct graphics::DataBuffer<graphics::GPUSceneData, graphics::DataBufferType::UNIFORM>;
 
-#include "resource_management/material_manager.h"
-template struct graphics::DataBuffer<MaterialProperties, graphics::DataBufferType::UNIFORM>;
+#include "low_level_renderer/materials.h"
+template struct graphics::DataBuffer<graphics::MaterialProperties, graphics::DataBufferType::UNIFORM>;
 
 #include "low_level_renderer/instance_rendering.h"
 template struct graphics::DataBuffer<graphics::InstanceData, graphics::DataBufferType::STORAGE>;

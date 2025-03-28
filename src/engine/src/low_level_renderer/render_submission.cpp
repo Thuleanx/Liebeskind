@@ -42,7 +42,7 @@ void RenderSubmission::recordInstanced(
     vk::CommandBuffer buffer,
     vk::PipelineLayout pipelineLayout,
     const RenderInstanceManager& instanceManager,
-    const MaterialManager& materialManager,
+    const MaterialStorage& materials,
     const MeshManager& meshManager,
     uint32_t currentFrame
 ) const {
@@ -57,7 +57,7 @@ void RenderSubmission::recordInstanced(
         instanceManager.bind(
             buffer, pipelineLayout, instance.instance, currentFrame
         );
-        materialManager.bind(buffer, pipelineLayout, instance.material);
+        bind(materials, instance.material, buffer, pipelineLayout);
         meshManager.bind(buffer, instance.mesh);
         meshManager.draw(buffer, instance.mesh, instance.count);
     }
@@ -66,12 +66,13 @@ void RenderSubmission::recordInstanced(
 void RenderSubmission::recordNonInstanced(
     vk::CommandBuffer buffer,
     vk::PipelineLayout pipelineLayout,
-    const MaterialManager& materialManager,
+    const MaterialStorage& materials,
     const MeshManager& meshManager,
     [[maybe_unused]] uint32_t currentFrame
 ) const {
     for (const auto& [materialID, allRenderObjects] : renderObjects) {
-        materialManager.bind(buffer, pipelineLayout, materialID);
+        bind(materials, materialID, buffer, pipelineLayout);
+        
         for (const SubmittedRenderObject& renderObject : allRenderObjects) {
             GPUPushConstants pushConstants = {.model = renderObject.transform};
             buffer.pushConstants(

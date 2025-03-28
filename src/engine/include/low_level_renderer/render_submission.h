@@ -5,7 +5,7 @@
 #include <vulkan/vulkan.hpp>
 
 #include "low_level_renderer/instance_rendering.h"
-#include "resource_management/material_manager.h"
+#include "low_level_renderer/materials.h"
 #include "resource_management/mesh_manager.h"
 
 namespace graphics {
@@ -49,7 +49,7 @@ class RenderSubmission {
         vk::CommandBuffer buffer,
         vk::PipelineLayout pipelineLayout,
         const RenderInstanceManager& instanceManager,
-        const MaterialManager& materialManager,
+        const MaterialStorage& materials,
         const MeshManager& meshManager,
         uint32_t currentFrame
     ) const;
@@ -57,7 +57,7 @@ class RenderSubmission {
     void recordNonInstanced(
         vk::CommandBuffer buffer,
         vk::PipelineLayout pipelineLayout,
-        const MaterialManager& materialManager,
+        const MaterialStorage& materials,
         const MeshManager& meshManager,
         uint32_t currentFrame
     ) const;

@@ -299,7 +299,7 @@ MaterialInstanceID Module::loadMaterial(
 		materials,
 		textures,
 		albedo,
-		albedo,
+        normal,
 		properties,
 		device.device,
 		device.physicalDevice,

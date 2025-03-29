@@ -1,4 +1,5 @@
 #include "low_level_renderer/descriptor_write_buffer.h"
+#include "core/logger/assert.h"
 #include "core/logger/logger.h"
 
 namespace graphics {
@@ -10,11 +11,12 @@ void DescriptorWriteBuffer::writeBuffer(
     size_t offset,
     size_t range
 ) {
-    buffers.emplace_back(buffer, offset, range);
+    ASSERT(numberOfBuffersInfo < MAX_DESCRIPTOR_WRITES, "Flush write buffer! It's exceeding its capacity");
 
     const vk::WriteDescriptorSet write(
-        descriptorSet, binding, 0, 1, type, nullptr, &buffers.back()
+        descriptorSet, binding, 0, 1, type, nullptr, &buffers[numberOfBuffersInfo]
     );
+    buffers[numberOfBuffersInfo++] = vk::DescriptorBufferInfo(buffer, offset, range);
     writes.push_back(std::move(write));
 }
 
@@ -26,10 +28,12 @@ void DescriptorWriteBuffer::writeImage(
     const vk::Sampler& sampler,
     vk::ImageLayout layout
 ) {
-    images.emplace_back(sampler, imageView, layout);
+    ASSERT(numberOfImagesInfo < MAX_DESCRIPTOR_WRITES, "Flush write buffer! It's exceeding its capacity");
+
     const vk::WriteDescriptorSet write(
-        descriptorSet, binding, 0, 1, type, &images.back()
+        descriptorSet, binding, 0, 1, type, &images[numberOfImagesInfo]
     );
+    images[numberOfImagesInfo++] = vk::DescriptorImageInfo(sampler, imageView, layout);
     writes.push_back(std::move(write));
 }
 
@@ -42,7 +46,6 @@ void DescriptorWriteBuffer::batchWrite(const vk::Device& device) {
 
 void DescriptorWriteBuffer::clear() {
     writes.clear();
-    buffers.clear();
-    images.clear();
+    numberOfImagesInfo = numberOfBuffersInfo = 0;
 }
 }  // namespace Graphics

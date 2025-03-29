@@ -4,9 +4,14 @@
 #include <vulkan/vulkan.hpp>
 
 namespace graphics {
+
+const int MAX_DESCRIPTOR_WRITES = 100;
+
 struct DescriptorWriteBuffer {
-    std::vector<vk::DescriptorBufferInfo> buffers;
-    std::vector<vk::DescriptorImageInfo> images;
+    int numberOfBuffersInfo = 0;
+    int numberOfImagesInfo = 0;
+    std::array<vk::DescriptorBufferInfo, MAX_DESCRIPTOR_WRITES> buffers;
+    std::array<vk::DescriptorImageInfo, MAX_DESCRIPTOR_WRITES> images;
     std::vector<vk::WriteDescriptorSet> writes;
 
    public:

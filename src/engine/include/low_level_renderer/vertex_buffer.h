@@ -9,6 +9,7 @@ namespace graphics {
 struct Vertex {
     glm::vec3 position;
     glm::vec3 normal;
+    glm::vec3 tangent;
     glm::vec3 color;
     glm::vec2 texCoord;
 
@@ -19,12 +20,12 @@ struct Vertex {
         );
     }
 
-    static std::array<vk::VertexInputAttributeDescription, 4>
+    static std::array<vk::VertexInputAttributeDescription, 5>
     getAttributeDescriptions();
 
     bool operator==(const Vertex& other) const {
         return position == other.position && color == other.color &&
-               normal == other.normal && texCoord == other.texCoord;
+               normal == other.normal && texCoord == other.texCoord && tangent == other.tangent;
     }
 };
 

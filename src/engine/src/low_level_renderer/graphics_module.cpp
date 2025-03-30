@@ -155,117 +155,111 @@ void Module::recordCommandBuffer(
 	vk::CommandBuffer buffer,
 	uint32_t imageIndex
 ) {
-    ASSERT(device.swapchain, "Attempt to record command buffer");
-    vk::CommandBufferBeginInfo beginInfo({}, nullptr);
-    VULKAN_ENSURE_SUCCESS_EXPR(
-        buffer.begin(beginInfo), "Can't begin recording command buffer:"
-    );
+	ASSERT(device.swapchain, "Attempt to record command buffer");
+	vk::CommandBufferBeginInfo beginInfo({}, nullptr);
+	VULKAN_ENSURE_SUCCESS_EXPR(
+		buffer.begin(beginInfo), "Can't begin recording command buffer:"
+	);
 
-    vk::Rect2D screenExtent(
-        vk::Offset2D{0, 0}, device.swapchain->extent
-    );
-    vk::Viewport viewport(
-        0.0f,
-        0.0f,
-        static_cast<float>(device.swapchain->extent.width),
-        static_cast<float>(device.swapchain->extent.height),
-        0.0f,
-        1.0f
-    );
-    buffer.setViewport(0, 1, &viewport);
-    vk::Rect2D scissor(
-        vk::Offset2D(0.0f, 0.0f), device.swapchain->extent
-    );
-    buffer.setScissor(0, 1, &scissor);
+	vk::Rect2D screenExtent(vk::Offset2D{0, 0}, device.swapchain->extent);
+	vk::Viewport viewport(
+		0.0f,
+		0.0f,
+		static_cast<float>(device.swapchain->extent.width),
+		static_cast<float>(device.swapchain->extent.height),
+		0.0f,
+		1.0f
+	);
+	buffer.setViewport(0, 1, &viewport);
+	vk::Rect2D scissor(vk::Offset2D(0.0f, 0.0f), device.swapchain->extent);
+	buffer.setScissor(0, 1, &scissor);
 
-    {  // Main Renderpass
-        const std::array<vk::ClearValue, 2> clearColors{
-            vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f),
-            vk::ClearColorValue(1.0f, 0.0f, 0.0f, 0.0f)
-        };
-        const vk::RenderPassBeginInfo renderPassInfo(
-            device.renderPass,
-            device.swapchain->framebuffers[imageIndex],
-            screenExtent,
-            static_cast<uint32_t>(clearColors.size()),
-            clearColors.data()
-        );
-        buffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
-        buffer.bindPipeline(
-            vk::PipelineBindPoint::eGraphics,
-            device.pipeline.regularPipeline.pipeline
-        );
+	{  // Main Renderpass
+		const std::array<vk::ClearValue, 2> clearColors{
+			vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f),
+			vk::ClearColorValue(1.0f, 0.0f, 0.0f, 0.0f)
+		};
+		const vk::RenderPassBeginInfo renderPassInfo(
+			device.renderPass,
+			device.swapchain->framebuffers[imageIndex],
+			screenExtent,
+			static_cast<uint32_t>(clearColors.size()),
+			clearColors.data()
+		);
+		buffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
+		buffer.bindPipeline(
+			vk::PipelineBindPoint::eGraphics,
+			device.pipeline.regularPipeline.pipeline
+		);
 
-        buffer.bindDescriptorSets(
-            vk::PipelineBindPoint::eGraphics,
-            device.pipeline.regularPipeline.layout,
-            static_cast<int>(PipelineDescriptorSetBindingPoint::eGlobal),
-            1,
-            &device.frameDatas[device.currentFrame]
-                 .globalDescriptor,
-            0,
-            nullptr
-        );
+		buffer.bindDescriptorSets(
+			vk::PipelineBindPoint::eGraphics,
+			device.pipeline.regularPipeline.layout,
+			static_cast<int>(PipelineDescriptorSetBindingPoint::eGlobal),
+			1,
+			&device.frameDatas[device.currentFrame].globalDescriptor,
+			0,
+			nullptr
+		);
 
-        renderSubmission.recordNonInstanced(
-            buffer,
-            device.pipeline.regularPipeline.layout,
-            materials,
-            resources.meshes,
-            device.currentFrame
-        );
+		renderSubmission.recordNonInstanced(
+			buffer,
+			device.pipeline.regularPipeline.layout,
+			materials,
+			resources.meshes,
+			device.currentFrame
+		);
 
-        buffer.bindPipeline(
-            vk::PipelineBindPoint::eGraphics,
-            device.pipeline.instanceRenderingPipeline.pipeline
-        );
+		buffer.bindPipeline(
+			vk::PipelineBindPoint::eGraphics,
+			device.pipeline.instanceRenderingPipeline.pipeline
+		);
 
-        buffer.bindDescriptorSets(
-            vk::PipelineBindPoint::eGraphics,
-            device.pipeline.instanceRenderingPipeline.layout,
-            static_cast<int>(PipelineDescriptorSetBindingPoint::eGlobal),
-            1,
-            &device.frameDatas[device.currentFrame]
-                 .globalDescriptor,
-            0,
-            nullptr
-        );
+		buffer.bindDescriptorSets(
+			vk::PipelineBindPoint::eGraphics,
+			device.pipeline.instanceRenderingPipeline.layout,
+			static_cast<int>(PipelineDescriptorSetBindingPoint::eGlobal),
+			1,
+			&device.frameDatas[device.currentFrame].globalDescriptor,
+			0,
+			nullptr
+		);
 
-        renderSubmission.recordInstanced(
-            buffer,
-            device.pipeline.instanceRenderingPipeline.layout,
-            instances,
-            materials,
-            resources.meshes,
-            device.currentFrame
-        );
+		renderSubmission.recordInstanced(
+			buffer,
+			device.pipeline.instanceRenderingPipeline.layout,
+			instances,
+			materials,
+			resources.meshes,
+			device.currentFrame
+		);
 
-        buffer.endRenderPass();
-    }
+		buffer.endRenderPass();
+	}
 
-    {  // UI RenderPass
-        const std::array<vk::ClearValue, 1> clearColors = {
-            vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f)
-        };
+	{  // UI RenderPass
+		const std::array<vk::ClearValue, 1> clearColors = {
+			vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f)
+		};
 
-        const vk::RenderPassBeginInfo renderPassInfo(
-            ui.renderPass,
-            ui.framebuffers[imageIndex],
-            screenExtent,
-            static_cast<uint32_t>(clearColors.size()),
-            clearColors.data()
-        );
+		const vk::RenderPassBeginInfo renderPassInfo(
+			ui.renderPass,
+			ui.framebuffers[imageIndex],
+			screenExtent,
+			static_cast<uint32_t>(clearColors.size()),
+			clearColors.data()
+		);
 
-        buffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
+		buffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
 
-        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), buffer);
+		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), buffer);
 
-        buffer.endRenderPass();
-    }
+		buffer.endRenderPass();
+	}
 
-    VULKAN_ENSURE_SUCCESS_EXPR(
-        buffer.end(), "Can't end recording command buffer:"
-    );
+	VULKAN_ENSURE_SUCCESS_EXPR(
+		buffer.end(), "Can't end recording command buffer:"
+	);
 }
 
 TextureID Module::loadTexture(const char* filePath) {
@@ -290,7 +284,11 @@ MeshID Module::loadMesh(const char* filePath) {
 }
 
 MaterialInstanceID Module::loadMaterial(
-	TextureID albedo, TextureID normal, MaterialProperties properties, SamplerType samplerType
+	TextureID albedo,
+	TextureID normal,
+	TextureID displacementMap,
+	MaterialProperties properties,
+	SamplerType samplerType
 ) {
 	vk::Sampler sampler = samplerType == SamplerType::eLinear
 							  ? device.samplers.linear
@@ -299,7 +297,8 @@ MaterialInstanceID Module::loadMaterial(
 		materials,
 		textures,
 		albedo,
-        normal,
+		normal,
+        displacementMap,
 		properties,
 		device.device,
 		device.physicalDevice,

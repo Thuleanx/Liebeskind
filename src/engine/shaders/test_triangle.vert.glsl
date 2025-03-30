@@ -27,11 +27,13 @@ layout(push_constant) uniform PushConstants {
 } objData;
 
 void main() {
-    mat4 mvp = gpuScene.projection * gpuScene.view * objData.model;
-    normalWorld = vec3(transpose(inverse(objData.model))*vec4(inNormal, 0.0));
-    tangentWorld = vec3(objData.model * vec4(inTangent, 0.0));
+    mat4 transform = objData.model;
+
+    mat4 mvp = gpuScene.projection * gpuScene.view * transform;
+    normalWorld = vec3(transpose(inverse(transform)) * vec4(inNormal, 0.0));
+    tangentWorld = vec3(transform * vec4(inTangent, 0.0));
     gl_Position = mvp * vec4(inPosition, 1.0);
-    positionWorld = (objData.model * vec4(inPosition, 1.0)).xyz;
+    positionWorld = (transform * vec4(inPosition, 1.0)).xyz;
     fragColor = inColor;
     fragTexCoord = inTexCoord;
 }

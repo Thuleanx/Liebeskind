@@ -33,6 +33,7 @@ struct Module {
     [[nodiscard]] MaterialInstanceID loadMaterial(
         TextureID albedo,
         TextureID normal,
+        TextureID displacementMap,
         MaterialProperties properties,
         SamplerType samplerType
     );

@@ -57,10 +57,35 @@ struct ParallaxMappingResult {
 };
 
 ParallaxMappingResult applyParallaxMapping(vec3 viewDirectionTangent, vec2 uv) {
-    float height = texture(displacementSampler, uv).r;
+    const float parallaxMappingZBias = 0.42; // arbitrary bias, prevents artifacts for shallow view angles
+    const float height_scale = 0.3; // maximum penetration in the normal that the height map represents
+    const int numOfLayers = 10;
+
+    float layerDepth = 1.0 / numOfLayers;
+
+    float currentLayerDepth = 0;
+    vec2 deltaUV = -viewDirectionTangent.xy / (viewDirectionTangent.z + parallaxMappingZBias) * height_scale * layerDepth;
+    float currentSampledDepth = 0;
+    float lastSampledDepth = 0;
+
+    for (int i = 0; i <= numOfLayers; i++) {
+        currentSampledDepth = texture(displacementSampler, uv).r;
+
+        if (currentLayerDepth >= currentSampledDepth)
+            break;
+
+        lastSampledDepth = currentSampledDepth;
+        uv += deltaUV;
+        currentLayerDepth += layerDepth;
+    }
+
+    float afterDepth = currentSampledDepth - currentLayerDepth;
+    float beforeDepth = lastSampledDepth - currentLayerDepth + layerDepth;
+
+    float weight = afterDepth / (afterDepth - beforeDepth);
 
     ParallaxMappingResult result;
-    result.uv = uv - viewDirectionTangent.xy / viewDirectionTangent.z * height * 0.1;
+    result.uv = uv - deltaUV * weight;
     return result;
 }
 
@@ -73,6 +98,9 @@ void main() {
     vec3 viewDirectionTangent = tangentSpace.worldToTangent * viewDirection;
 
     ParallaxMappingResult parallax = applyParallaxMapping(viewDirectionTangent, inFragTexCoord);
+    bool isOutOfTexture = parallax.uv.x < 0 || parallax.uv.x > 1 || parallax.uv.y < 0 || parallax.uv.y > 1;
+    if (isOutOfTexture)
+        discard;
 
     vec4 texColor = texture(texSampler, parallax.uv) * vec4(inFragColor, 1.0);
 

@@ -8,9 +8,9 @@ SceneDrawer::SceneDrawer(PerspectiveCamera camera) :
 SceneDrawer SceneDrawer::create() {
     PerspectiveCamera camera = PerspectiveCamera::create(
         glm::lookAt(
-            glm::vec3(-3.0f, 0.0f, 10.0f),
+            glm::vec3(1.0f, 0.0f, 5.0f),
             glm::vec3(0.0f, 0.0f, 0.5f),
-            glm::vec3(0.0f, 0.0f, 1.0f)
+            glm::vec3(0.0f, 1.0f, 1.0f)
         ),
         glm::radians(45.0f),
         16.0 / 9.0,
@@ -78,7 +78,7 @@ bool SceneDrawer::drawFrame(graphics::Module& graphics) {
         .projection = camera.projection,
         .viewProjection = {},
         .ambientColor = glm::vec3(0.05),
-        .mainLightDirection = glm::normalize(glm::vec3(0.0, 1.0, -1)),
+        .mainLightDirection = glm::normalize(glm::vec3(0.0, 0.0, -1)),
         .mainLightColor = glm::vec3(1, 1, 1),
     };
     // accounts for difference between openGL and Vulkan clip space

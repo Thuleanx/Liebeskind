@@ -29,11 +29,11 @@ void Game::run() {
 	graphics::MaterialInstanceID material = graphics.loadMaterial(
 		albedo,
 		normalMap,
-        displacementMap,
+		displacementMap,
 		graphics::MaterialProperties{
-			.specular = glm::vec3(3),
-			.diffuse = glm::vec3(.2),
-			.ambient = glm::vec3(0.3),
+			.specular = glm::vec3(0),
+			.diffuse = glm::vec3(0.6),
+			.ambient = glm::vec3(0.2),
 			.shininess = 1.0f
 		},
 		graphics::SamplerType::eLinear
@@ -44,7 +44,7 @@ void Game::run() {
 	glm::mat4 modelTransform = glm::translate(
 		glm::rotate(
 			glm::scale(glm::mat4(1), glm::vec3(3)),
-            glm::radians(30.f),
+			glm::radians(30.f),
 			glm::vec3(0, 1.0f, 1.f)
 		),
 		glm::vec3(0.0, 0.0, 0.5)
@@ -75,6 +75,7 @@ void Game::run() {
 
 	float movementX = 0;
 	float movementY = 0;
+	float rotationInput = 0;
 	float speed = 1;
 
 	InputManager inputManager;
@@ -85,6 +86,10 @@ void Game::run() {
 	inputManager.subscribe(Input::Ranged::MovementY, [&movementY](float value) {
 		movementY = value;
 	});
+	inputManager.subscribe(
+		Input::Ranged::Rotate,
+		[&rotationInput](float value) { rotationInput = value; }
+	);
 
 	static auto startTime = std::chrono::high_resolution_clock::now();
 	float lastTime = 0;
@@ -126,7 +131,13 @@ void Game::run() {
 		glm::vec3 frameMovement =
 			speed * (movementX * right + movementY * forward) * deltaTime;
 
-		modelTransform = glm::translate(modelTransform, frameMovement);
+		modelTransform = glm::translate(glm::mat4(1), frameMovement) *
+						 modelTransform *
+						 glm::rotate(
+							 glm::mat4(1),
+							 glm::radians(rotationInput * 45.f * deltaTime),
+							 glm::vec3(0, 1, 0)
+						 );
 
 		sceneDrawer.updateObjects({{0, modelTransform}});
 

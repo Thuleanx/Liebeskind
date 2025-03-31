@@ -8,7 +8,8 @@ enum class Instant {};
 enum class Toggled {};
 enum class Ranged {
     MovementX,
-    MovementY
+    MovementY,
+    Rotate
 };
 }  // namespace Input
 
@@ -23,8 +24,9 @@ class InputManager {
     void onKeyDown(SDL_Scancode key);
     void onKeyUp(SDL_Scancode key);
 
-    inline void onMovementXChange();
-    inline void onMovementYChange();
+    void onMovementXChange();
+    void onMovementYChange();
+    void onRotateChange();
 
    private:
     EventSystem<Input::Instant> instantInputs;

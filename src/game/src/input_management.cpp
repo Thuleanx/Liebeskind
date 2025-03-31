@@ -33,6 +33,8 @@ void InputManager::onKeyDown(SDL_Scancode key) {
         case SDL_Scancode::SDL_SCANCODE_A: onMovementXChange(); break;
         case SDL_Scancode::SDL_SCANCODE_W:
         case SDL_Scancode::SDL_SCANCODE_S: onMovementYChange(); break;
+        case SDL_Scancode::SDL_SCANCODE_Q:
+        case SDL_Scancode::SDL_SCANCODE_E: onRotateChange(); break;
         default:                           break;
     }
 }
@@ -45,6 +47,8 @@ void InputManager::onKeyUp(SDL_Scancode key) {
         case SDL_Scancode::SDL_SCANCODE_A: onMovementXChange(); break;
         case SDL_Scancode::SDL_SCANCODE_W:
         case SDL_Scancode::SDL_SCANCODE_S: onMovementYChange(); break;
+        case SDL_Scancode::SDL_SCANCODE_Q:
+        case SDL_Scancode::SDL_SCANCODE_E: onRotateChange(); break;
         default: break;
     }
 }
@@ -59,4 +63,10 @@ void InputManager::onMovementYChange() {
     float value = keyState[SDL_Scancode::SDL_SCANCODE_W] -
                   keyState[SDL_Scancode::SDL_SCANCODE_S];
     rangedInputs.Trigger(Input::Ranged::MovementY, value);
+}
+
+void InputManager::onRotateChange() {
+    float value = keyState[SDL_Scancode::SDL_SCANCODE_Q] -
+                  keyState[SDL_Scancode::SDL_SCANCODE_E];
+    rangedInputs.Trigger(Input::Ranged::Rotate, value);
 }

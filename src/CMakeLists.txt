@@ -6,7 +6,7 @@ if (MSVC)
     # Warning all, sdl = security, extern = ignore external headers warnings for angle brackets includes
     target_compile_options(source PRIVATE /W4 /Wall /sdl /extern:anglebrackets /extern:W2 /fsanitize=address)
 else ()
-    target_compile_options(source PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(source PRIVATE -Wall -Wextra -Wpedantic -Werror)
 endif ()
 
 add_subdirectory(engine)

@@ -20,20 +20,20 @@ void Game::run() {
 	sceneDrawer.handleResize(graphics.device.swapchain->getAspectRatio());
 
 	graphics::TextureID albedo =
-		graphics.loadTexture("textures/bricks_albedo.jpg");
+		graphics.loadTexture("textures/robot_albedo.jpg");
 	graphics::TextureID normalMap =
-		graphics.loadTexture("textures/bricks_normal.jpg");
+		graphics.loadTexture("textures/robot_normal.jpg");
 	graphics::TextureID displacementMap =
-		graphics.loadTexture("textures/bricks_height.jpg");
-	MeshID meshID = graphics.loadMesh("models/quad.obj");
+		graphics.loadTexture("textures/robot_height.jpeg");
+	MeshID meshID = graphics.loadMesh("models/robot.obj");
 	graphics::MaterialInstanceID material = graphics.loadMaterial(
 		albedo,
 		normalMap,
 		displacementMap,
 		graphics::MaterialProperties{
 			.specular = glm::vec3(0),
-			.diffuse = glm::vec3(0.6),
-			.ambient = glm::vec3(0.2),
+			.diffuse = glm::vec3(1),
+			.ambient = glm::vec3(0),
 			.shininess = 1.0f
 		},
 		graphics::SamplerType::eLinear
@@ -43,9 +43,9 @@ void Game::run() {
 
 	glm::mat4 modelTransform = glm::translate(
 		glm::rotate(
-			glm::scale(glm::mat4(1), glm::vec3(3)),
-			glm::radians(30.f),
-			glm::vec3(0, 1.0f, 1.f)
+			glm::scale(glm::mat4(1), glm::vec3(0.3)),
+			glm::radians(90.f),
+			glm::vec3(1.0, 0.0, 0.0)
 		),
 		glm::vec3(0.0, 0.0, 0.5)
 	);
@@ -70,8 +70,9 @@ void Game::run() {
 			};
 
 	sceneDrawer.addObjects({std::addressof(sword), 1});
-	sceneDrawer.addInstancedObjects({std::addressof(instanceRenderObject), 1});
-	sceneDrawer.updateInstance(instanceIndices, {{instancesTransforms}});
+	/* sceneDrawer.addInstancedObjects({std::addressof(instanceRenderObject),
+	 * 1}); */
+	/* sceneDrawer.updateInstance(instanceIndices, {{instancesTransforms}}); */
 
 	float movementX = 0;
 	float movementY = 0;

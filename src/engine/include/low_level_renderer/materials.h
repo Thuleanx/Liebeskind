@@ -60,7 +60,7 @@ struct MaterialProperties {
 	alignas(16) glm::vec3 specular = glm::vec3(1.0, 1.0, 1.0);
 	alignas(16) glm::vec3 diffuse = glm::vec3(1.0, 1.0, 1.0);
 	alignas(16) glm::vec3 ambient = glm::vec3(1.0, 1.0, 1.0);
-	float shininess = 32;
+    alignas(4) float shininess = 32;
 };
 
 struct MaterialStorage {

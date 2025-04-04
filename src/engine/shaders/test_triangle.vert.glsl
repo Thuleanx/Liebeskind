@@ -30,10 +30,11 @@ void main() {
     mat4 transform = objData.model;
 
     mat4 mvp = gpuScene.projection * gpuScene.view * transform;
-    normalWorld = vec3(transpose(inverse(transform)) * vec4(inNormal, 0.0));
-    tangentWorld = vec3(transform * vec4(inTangent, 0.0));
-    gl_Position = mvp * vec4(inPosition, 1.0);
+    normalWorld = normalize(vec3(transpose(inverse(transform)) * vec4(inNormal, 0.0)));
+    tangentWorld = normalize(vec3(transform * vec4(inTangent, 0.0)));
     positionWorld = (transform * vec4(inPosition, 1.0)).xyz;
     fragColor = inColor;
     fragTexCoord = inTexCoord;
+
+    gl_Position = mvp * vec4(inPosition, 1.0);
 }

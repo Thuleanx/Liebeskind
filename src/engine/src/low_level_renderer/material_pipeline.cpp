@@ -163,7 +163,7 @@ MaterialPipeline MaterialPipeline::create(
         vk::False,  // depth clamp enable. only useful for shadow mapping
         vk::False,  // rasterizerDiscardEnable
         vk::PolygonMode::eFill,  // fill polygon with fragments
-        vk::CullModeFlagBits::eBack,
+        vk::CullModeFlagBits::eNone,
         vk::FrontFace::eCounterClockwise,
         vk::False,  // depth bias, probably useful for shadow mapping
         0.0f,

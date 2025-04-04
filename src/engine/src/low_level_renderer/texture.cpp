@@ -22,7 +22,7 @@ Texture loadTextureFromFile(
 		stbi_load(filePath, &width, &height, &channels, STBI_rgb_alpha);
 	const vk::DeviceSize size(width * height * 4);
 
-	ASSERT(pixels, "Can't load texture");
+	ASSERT(pixels, "Can't load texture at " << filePath);
 
 	const auto [stagingBuffer, stagingBufferMemory] = Buffer::create(
 		device,

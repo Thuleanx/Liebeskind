@@ -15,7 +15,8 @@ Texture loadTextureFromFile(
 	vk::Device device,
 	vk::PhysicalDevice physicalDevice,
 	vk::CommandPool commandPool,
-	vk::Queue graphicsQueue
+	vk::Queue graphicsQueue,
+    vk::Format imageFormat
 ) {
 	int width, height, channels;
 	stbi_uc* pixels =
@@ -39,8 +40,6 @@ Texture loadTextureFromFile(
 	vkUnmapMemory(device, stagingBufferMemory);
 
 	stbi_image_free(pixels);
-
-	vk::Format imageFormat = vk::Format::eR8G8B8A8Srgb;
 
 	const int mipLevels =
 		static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) +
@@ -134,11 +133,12 @@ TextureID pushTextureFromFile(
 	vk::Device device,
 	vk::PhysicalDevice physicalDevice,
 	vk::CommandPool commandPool,
-	vk::Queue graphicsQueue
+	vk::Queue graphicsQueue,
+    vk::Format imageFormat
 ) {
 	TextureID id{.index = static_cast<uint32_t>(textureStorage.data.size())};
 	textureStorage.data.push_back(loadTextureFromFile(
-		filePath, device, physicalDevice, commandPool, graphicsQueue
+		filePath, device, physicalDevice, commandPool, graphicsQueue, imageFormat
 	));
 	return id;
 }

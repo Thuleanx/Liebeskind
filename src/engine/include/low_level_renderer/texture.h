@@ -48,7 +48,8 @@ TextureID pushTextureFromFile(
     vk::Device device,
     vk::PhysicalDevice physicalDevice,
     vk::CommandPool commandPool,
-    vk::Queue graphicsQueue
+    vk::Queue graphicsQueue,
+    vk::Format imageFormat
 );
 
 void bindTextureToDescriptor(

@@ -263,14 +263,15 @@ void Module::recordCommandBuffer(
 	);
 }
 
-TextureID Module::loadTexture(const char* filePath) {
+TextureID Module::loadTexture(const char* filePath, vk::Format imageFormat) {
 	return pushTextureFromFile(
 		textures,
 		filePath,
 		device.device,
 		device.physicalDevice,
 		device.commandPool,
-		device.graphicsQueue
+		device.graphicsQueue,
+        imageFormat
 	);
 }
 

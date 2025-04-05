@@ -20,11 +20,11 @@ void Game::run() {
 	sceneDrawer.handleResize(graphics.device.swapchain->getAspectRatio());
 
 	graphics::TextureID albedo =
-		graphics.loadTexture("textures/robot_albedo.jpg");
+		graphics.loadTexture("textures/robot_albedo.jpg", vk::Format::eR8G8B8A8Srgb);
 	graphics::TextureID normalMap =
-		graphics.loadTexture("textures/robot_normal.jpg");
+		graphics.loadTexture("textures/robot_normal.jpg", vk::Format::eR8G8B8A8Unorm);
 	graphics::TextureID displacementMap =
-		graphics.loadTexture("textures/robot_height.jpeg");
+		graphics.loadTexture("textures/robot_height.jpeg", vk::Format::eR8G8B8A8Unorm);
 	MeshID meshID = graphics.loadMesh("models/robot.obj");
 	graphics::MaterialInstanceID material = graphics.loadMaterial(
 		albedo,
@@ -43,7 +43,7 @@ void Game::run() {
 
 	glm::mat4 modelTransform = glm::translate(
 		glm::rotate(
-			glm::scale(glm::mat4(1), glm::vec3(0.3)),
+            glm::scale(glm::mat4(1), glm::vec3(0.3)),
 			glm::radians(90.f),
 			glm::vec3(1.0, 0.0, 0.0)
 		),
@@ -70,8 +70,7 @@ void Game::run() {
 			};
 
 	sceneDrawer.addObjects({std::addressof(sword), 1});
-	/* sceneDrawer.addInstancedObjects({std::addressof(instanceRenderObject),
-	 * 1}); */
+	/* sceneDrawer.addInstancedObjects({std::addressof(instanceRenderObject), 1}); */
 	/* sceneDrawer.updateInstance(instanceIndices, {{instancesTransforms}}); */
 
 	float movementX = 0;

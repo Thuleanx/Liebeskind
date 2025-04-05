@@ -28,7 +28,7 @@ struct Module {
     );
     void endFrame();
 
-    [[nodiscard]] TextureID loadTexture(const char* filePath);
+    [[nodiscard]] TextureID loadTexture(const char* filePath, vk::Format imageFormat);
     [[nodiscard]] MeshID loadMesh(const char* filePath);
     [[nodiscard]] MaterialInstanceID loadMaterial(
         TextureID albedo,

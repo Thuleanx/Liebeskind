@@ -58,7 +58,7 @@ struct ParallaxMappingResult {
 
 ParallaxMappingResult applyParallaxMapping(vec3 viewDirectionTangent, vec2 uv) {
     const float parallaxMappingZBias = 0.42; // arbitrary bias, prevents artifacts for shallow view angles
-    const float height_scale = 0.05; // maximum penetration in the normal that the height map represents
+    const float height_scale = 0.02; // maximum penetration in the normal that the height map represents
     const int numOfLayers = 10;
 
     float layerDepth = 1.0 / numOfLayers;
@@ -104,7 +104,8 @@ void main() {
 
     vec4 texColor = texture(texSampler, parallax.uv) * vec4(inFragColor, 1.0);
 
-    vec3 sampledNormalTangent = 2 * texture(normalSampler, parallax.uv).xyz - 1;
+    // Who allowed these to not be normalized
+    vec3 sampledNormalTangent = 2.0 * texture(normalSampler, parallax.uv).xyz - 1.0;
     vec3 sampledNormalWorld = normalize(tangentSpace.tangentToWorld * sampledNormalTangent);
 
     // by convention, these vectors points outwards from the surface
@@ -112,7 +113,7 @@ void main() {
     vec3 halfwayDirection = normalize(lightDirection + viewDirection);
     
     float specular = pow(max(0, dot(sampledNormalWorld, halfwayDirection)), materialProperties.shininess);
-    float diffuse = max(0, dot(inNormalWorld, lightDirection));
+    float diffuse = max(0, dot(sampledNormalWorld, lightDirection));
 
     vec3 lighting =
         scene.ambientColor * materialProperties.ambient + 
@@ -120,5 +121,4 @@ void main() {
         scene.mainLightColor * specular * materialProperties.specular;
 
     outColor = vec4(lighting, 1) * texColor;
-    //outColor = vec4((inNormalWorld + 1)/2, 1);
 }

@@ -124,12 +124,13 @@ vk::Device init_createLogicalDevice(
 vk::RenderPass init_createRenderPass(
     const vk::Device& device,
     vk::Format swapchainImageFormat,
-    vk::Format depthFormat
+    vk::Format depthFormat,
+    vk::SampleCountFlagBits msaaSampleCount
 ) {
     const vk::AttachmentDescription colorAttachment(
         {},
         swapchainImageFormat,
-        vk::SampleCountFlagBits::e1,
+        msaaSampleCount,
         vk::AttachmentLoadOp::eClear,
         vk::AttachmentStoreOp::eStore,
         vk::AttachmentLoadOp::eClear,
@@ -142,13 +143,26 @@ vk::RenderPass init_createRenderPass(
     const vk::AttachmentDescription depthAttachment(
         {},
         depthFormat,
-        vk::SampleCountFlagBits::e1,
+        msaaSampleCount,
         vk::AttachmentLoadOp::eClear,
         vk::AttachmentStoreOp::eDontCare,
         vk::AttachmentLoadOp::eClear,
         vk::AttachmentStoreOp::eDontCare,
         vk::ImageLayout::eUndefined,
         vk::ImageLayout::eDepthStencilAttachmentOptimal
+    );
+    const vk::AttachmentDescription colorAttachmentResolve(
+        {},
+        swapchainImageFormat,
+        vk::SampleCountFlagBits::e1,
+        vk::AttachmentLoadOp::eClear,
+        vk::AttachmentStoreOp::eStore,
+        vk::AttachmentLoadOp::eClear,
+        vk::AttachmentStoreOp::eDontCare,
+        vk::ImageLayout::eUndefined,
+        vk::ImageLayout::eColorAttachmentOptimal
+        // vk::ImageLayout::ePresentSrcKHR         // we are expecting to pipe
+        //  this into UI render pass
     );
     const vk::AttachmentReference colorAttachmentReference(
         0,  // index of attachment
@@ -158,6 +172,10 @@ vk::RenderPass init_createRenderPass(
         1,  // index of attachment
         vk::ImageLayout::eDepthStencilAttachmentOptimal
     );
+    const vk::AttachmentReference colorAttachmentResolveReference(
+        2,  // index of attachment
+        vk::ImageLayout::eColorAttachmentOptimal
+    );
     const vk::SubpassDescription subpassDescription(
         {},
         vk::PipelineBindPoint::eGraphics,
@@ -165,7 +183,7 @@ vk::RenderPass init_createRenderPass(
         nullptr,
         1,
         &colorAttachmentReference,
-        nullptr,
+        &colorAttachmentResolveReference,
         &depthAttachmentReference
     );
     const vk::SubpassDependency dependency(
@@ -179,8 +197,8 @@ vk::RenderPass init_createRenderPass(
         vk::AccessFlagBits::eColorAttachmentWrite |
             vk::AccessFlagBits::eDepthStencilAttachmentWrite
     );
-    const std::array<vk::AttachmentDescription, 2> attachments = {
-        colorAttachment, depthAttachment
+    const std::array<vk::AttachmentDescription, 3> attachments = {
+        colorAttachment, depthAttachment, colorAttachmentResolve
     };
     const vk::RenderPassCreateInfo renderPassInfo(
         {},
@@ -340,10 +358,28 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
         Samplers::create(device, physicalDevice);
     const vk::SurfaceFormatKHR swapchainColorFormat =
         Swapchain::getSuitableColorAttachmentFormat(physicalDevice, surface);
+
+	const vk::SampleCountFlags possibleSamplesCount =
+		graphics::getUsableSamplesCount(physicalDevice);
+
+    vk::SampleCountFlagBits msaaSampleCount = vk::SampleCountFlagBits::e1;
+
+    const static std::array<vk::SampleCountFlagBits, 4> supportedSampleCounts = {
+        vk::SampleCountFlagBits::e1,
+        vk::SampleCountFlagBits::e2,
+        vk::SampleCountFlagBits::e4,
+        vk::SampleCountFlagBits::e8,
+    };
+
+    for (const vk::SampleCountFlagBits& supportedSampleCount : supportedSampleCounts)
+        if (supportedSampleCount & possibleSamplesCount)
+            msaaSampleCount = supportedSampleCount;
+
     const vk::RenderPass renderPass = init_createRenderPass(
         device,
         swapchainColorFormat.format,
-        Swapchain::getSuitableDepthAttachmentFormat(physicalDevice)
+        Swapchain::getSuitableDepthAttachmentFormat(physicalDevice),
+        msaaSampleCount
     );
 
     DescriptorWriteBuffer writeBuffer;
@@ -352,7 +388,8 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
         resources.shaders.getModule(vertexShader),
         resources.shaders.getModule(instancedVertexShader),
         resources.shaders.getModule(fragmentShader),
-        renderPass
+        renderPass,
+        msaaSampleCount
     );
 
     std::vector<vk::DescriptorSet> globalDescriptors =
@@ -404,6 +441,7 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
         .device = device,
         .physicalDevice = physicalDevice,
         .queueFamily = queueFamily,
+        .msaaSampleCount = msaaSampleCount,
         .graphicsQueue = graphicsQueue,
         .presentQueue = presentQueue,
         .renderPass = renderPass,

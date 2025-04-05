@@ -34,7 +34,8 @@ struct MaterialPipeline {
         vk::ShaderModule vertexShader,
         vk::ShaderModule instanceRenderingVertexShader,
         vk::ShaderModule fragmentShader,
-        vk::RenderPass renderPass
+        vk::RenderPass renderPass,
+        vk::SampleCountFlagBits msaaSampleCount
     );
     void destroyBy(vk::Device device) const;
 };

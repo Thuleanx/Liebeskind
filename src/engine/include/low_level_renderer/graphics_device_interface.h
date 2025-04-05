@@ -38,6 +38,7 @@ struct GraphicsDeviceInterface {
     vk::Device device;
     vk::PhysicalDevice physicalDevice;
     QueueFamilyIndices queueFamily;
+    vk::SampleCountFlagBits msaaSampleCount;
     vk::Queue graphicsQueue, presentQueue;
 
     vk::RenderPass renderPass;

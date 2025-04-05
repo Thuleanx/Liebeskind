@@ -13,6 +13,7 @@ std::tuple<vk::Image, vk::DeviceMemory> Image::createImage(
     vk::ImageTiling tiling,
     vk::ImageUsageFlags usage,
     vk::MemoryPropertyFlags properties,
+    vk::SampleCountFlagBits sampleCount,
     uint32_t mipLevels
 ) {
     // To generate the mip maps, we need to blit the image onto itself, hence
@@ -29,7 +30,7 @@ std::tuple<vk::Image, vk::DeviceMemory> Image::createImage(
         ),
         mipLevels,                    // mip levels
         1,                            // array layers
-        vk::SampleCountFlagBits::e1,  // sample count
+        sampleCount,
         tiling,
         usage,
         vk::SharingMode::eExclusive,

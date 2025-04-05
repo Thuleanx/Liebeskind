@@ -54,6 +54,11 @@ std::optional<vk::PhysicalDevice> getBestPhysicalDevice(
     return {};
 }
 
+vk::SampleCountFlags getUsableSamplesCount(vk::PhysicalDevice device) {
+    vk::PhysicalDeviceProperties deviceProperties = device.getProperties();
+    return deviceProperties.limits.sampledImageColorSampleCounts;
+}
+
 bool isDeviceSuitable(
     const vk::PhysicalDevice& physicalDevice, const vk::SurfaceKHR& surface
 ) {

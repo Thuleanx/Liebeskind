@@ -6,11 +6,12 @@
 
 namespace graphics {
 struct SwapchainData {
-    Texture depth;
     vk::SwapchainKHR swapchain;
     vk::Extent2D extent;
     std::vector<vk::Image> colorAttachments;
     std::vector<vk::ImageView> colorAttachmentViews;
+    std::vector<Texture> multisampleColorAttachments;
+    std::vector<Texture> depthAttachments;
     std::vector<vk::Framebuffer> framebuffers;
     vk::Format colorAttachmentFormat;
     vk::Format depthAttachmentFormat;

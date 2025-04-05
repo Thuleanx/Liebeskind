@@ -13,6 +13,7 @@ std::tuple<vk::Image, vk::DeviceMemory> createImage(
     vk::ImageTiling tiling,
     vk::ImageUsageFlags usage,
     vk::MemoryPropertyFlags properties,
+    vk::SampleCountFlagBits sampleCount,
     uint32_t mipLevels = 1
 );
 void generateMipMaps(

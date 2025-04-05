@@ -12,7 +12,8 @@ MaterialPipeline MaterialPipeline::create(
     vk::ShaderModule vertexShader,
     vk::ShaderModule instanceRenderingVertexShader,
     vk::ShaderModule fragmentShader,
-    vk::RenderPass renderPass
+    vk::RenderPass renderPass,
+    vk::SampleCountFlagBits msaaSampleCount
 ) {
     PipelineDescriptorData globalDescriptorData;
     {  // create global descriptor information
@@ -163,7 +164,7 @@ MaterialPipeline MaterialPipeline::create(
         vk::False,  // depth clamp enable. only useful for shadow mapping
         vk::False,  // rasterizerDiscardEnable
         vk::PolygonMode::eFill,  // fill polygon with fragments
-        vk::CullModeFlagBits::eNone,
+        vk::CullModeFlagBits::eBack,
         vk::FrontFace::eCounterClockwise,
         vk::False,  // depth bias, probably useful for shadow mapping
         0.0f,
@@ -173,7 +174,7 @@ MaterialPipeline MaterialPipeline::create(
     );
     const vk::PipelineMultisampleStateCreateInfo multisamplingInfo(
         {},
-        vk::SampleCountFlagBits::e1,
+        msaaSampleCount,
         vk::False,
         1.0f,
         nullptr,
@@ -275,13 +276,13 @@ MaterialPipeline MaterialPipeline::create(
         VULKAN_ENSURE_SUCCESS(
             pipelineLayoutCreation.result, "Can't create pipeline layout:"
         );
-        const vk::PipelineShaderStageCreateInfo shaderStages[] = {
+        const std::array<vk::PipelineShaderStageCreateInfo, 2> shaderStages = {
             instanceRenderingVertexShaderStageInfo, fragmentShaderStageInfo
         };
         vk::GraphicsPipelineCreateInfo pipelineCreateInfo(
             {},
-            2,
-            shaderStages,
+            shaderStages.size(),
+            shaderStages.data(),
             &vertexInputStateInfo,
             &inputAssemblyStateInfo,
             nullptr,  // no tesselation viewport

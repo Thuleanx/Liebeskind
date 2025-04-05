@@ -55,6 +55,8 @@ Texture loadTextureFromFile(
 		vk::ImageTiling::eOptimal,
 		vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
 		vk::MemoryPropertyFlagBits::eDeviceLocal,
+        vk::SampleCountFlagBits::e1, // We don't need antialiasing on these textures, 
+                                     // we're going to perform it on the entire framebuffer
 		mipLevels
 	);
 
@@ -107,7 +109,8 @@ Texture createTexture(
 	uint32_t height,
 	vk::ImageTiling tiling,
 	vk::ImageUsageFlags usage,
-	vk::ImageAspectFlags aspect
+	vk::ImageAspectFlags aspect,
+    vk::SampleCountFlagBits samplesCount
 ) {
 	const auto [image, memory] = Image::createImage(
 		device,
@@ -117,7 +120,8 @@ Texture createTexture(
 		format,
 		tiling,
 		usage,
-		vk::MemoryPropertyFlagBits::eDeviceLocal
+		vk::MemoryPropertyFlagBits::eDeviceLocal,
+        samplesCount
 	);
 	const vk::ImageView imageView =
 		Image::createImageView(device, image, format, aspect);

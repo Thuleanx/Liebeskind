@@ -175,9 +175,10 @@ void Module::recordCommandBuffer(
 	buffer.setScissor(0, 1, &scissor);
 
 	{  // Main Renderpass
-		const std::array<vk::ClearValue, 2> clearColors{
-			vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f),
-			vk::ClearColorValue(1.0f, 0.0f, 0.0f, 0.0f)
+		const std::array<vk::ClearValue, 3> clearColors{
+			vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f), // for multisample color buffer
+			vk::ClearColorValue(1.0f, 0.0f, 0.0f, 0.0f), // for depth buffer
+			vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f), // for regular color buffer
 		};
 		const vk::RenderPassBeginInfo renderPassInfo(
 			device.renderPass,

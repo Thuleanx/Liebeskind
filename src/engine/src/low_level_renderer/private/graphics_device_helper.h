@@ -10,6 +10,8 @@ namespace graphics {
 
     std::vector<const char*> getInstanceExtensions();
 
+    vk::SampleCountFlags getUsableSamplesCount(vk::PhysicalDevice device);
+
     bool isDeviceSuitable(
             const vk::PhysicalDevice& device, const vk::SurfaceKHR &surface);
     bool areRequiredDeviceExtensionsSupported(const vk::PhysicalDevice& device);

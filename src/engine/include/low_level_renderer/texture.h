@@ -61,6 +61,15 @@ void bindTextureToDescriptor(
     DescriptorWriteBuffer& writeBuffer
 );
 
+void bindTextureToDescriptor(
+    vk::ImageView imageView,
+	vk::DescriptorSet descriptorSet,
+	int binding,
+	vk::Sampler sampler,
+	DescriptorWriteBuffer& writeBuffer,
+    vk::ImageLayout imageLayout
+);
+
 void transitionLayout(
     const Texture& texture,
     vk::ImageLayout oldLayout,

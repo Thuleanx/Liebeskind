@@ -5,7 +5,6 @@
 
 #include "core/logger/assert.h"
 #include "private/buffer.h"
-#include "private/command.h"
 #include "private/image.h"
 #include "stb_image.h"
 
@@ -159,6 +158,24 @@ void bindTextureToDescriptor(
 		sampler,
 		vk::ImageLayout::eShaderReadOnlyOptimal
 	);
+}
+
+void bindTextureToDescriptor(
+    vk::ImageView imageView,
+	vk::DescriptorSet descriptorSet,
+	int binding,
+	vk::Sampler sampler,
+	DescriptorWriteBuffer& writeBuffer,
+    vk::ImageLayout imageLayout
+) {
+    writeBuffer.writeImage(
+		descriptorSet,
+		binding,
+        imageView,
+		vk::DescriptorType::eCombinedImageSampler,
+		sampler,
+        imageLayout
+    );
 }
 
 void transitionLayout(

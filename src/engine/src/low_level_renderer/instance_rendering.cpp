@@ -41,7 +41,7 @@ void RenderInstanceManager::bind(
     commandBuffer.bindDescriptorSets(
         vk::PipelineBindPoint::eGraphics,
         layout,
-        static_cast<int>(PipelineDescriptorSetBindingPoint::eInstanceRendering),
+        static_cast<int>(MainPipelineDescriptorSetBindingPoint::eInstanceRendering),
         1,
         &renderInstances.at(id.index).at(currentFrame).descriptorSet,
         0,

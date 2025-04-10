@@ -3,7 +3,6 @@
 #include "core/logger/logger.h"
 #include "core/logger/vulkan_ensures.h"
 #include "low_level_renderer/graphics_device_interface.h"
-#include "private/graphics_device_helper.h"
 #include "private/image.h"
 #include "private/swapchain.h"
 
@@ -23,12 +22,6 @@ SwapchainData GraphicsDeviceInterface::createSwapchain() const {
 		Swapchain::getSurfaceCapability(physicalDevice, surface);
 	const vk::Extent2D extent =
 		Swapchain::chooseSwapExtent(surfaceCapability, window);
-	const vk::SurfaceFormatKHR colorAttachmentFormat =
-		Swapchain::getSuitableColorAttachmentFormat(physicalDevice, surface);
-	uint32_t imageCount = surfaceCapability.minImageCount + 1;
-
-	if (surfaceCapability.maxImageCount > 0)
-		imageCount = std::min(imageCount, surfaceCapability.maxImageCount);
 
 	const bool shouldUseExclusiveSharingMode =
 		queueFamily.presentFamily.value() == queueFamily.graphicsFamily.value();
@@ -41,9 +34,9 @@ SwapchainData GraphicsDeviceInterface::createSwapchain() const {
 	const vk::SwapchainCreateInfoKHR swapchainCreateInfo(
 		{},
 		surface,
-		imageCount,
-		colorAttachmentFormat.format,
-		colorAttachmentFormat.colorSpace,
+		MAX_FRAMES_IN_FLIGHT,
+		renderPasses.swapchainColorFormat.format,
+		renderPasses.swapchainColorFormat.colorSpace,
 		extent,
 		1,
 		vk::ImageUsageFlagBits::eColorAttachment,
@@ -65,8 +58,8 @@ SwapchainData GraphicsDeviceInterface::createSwapchain() const {
 	const vk::SwapchainKHR swapchain = swapchainCreateResult.value;
 
 	LLOG_INFO << "Swapchain created with format "
-			  << to_string(colorAttachmentFormat.format) << " and extent "
-			  << extent.width << " x " << extent.height;
+			  << to_string(renderPasses.swapchainColorFormat.format)
+			  << " and extent " << extent.width << " x " << extent.height;
 	const auto colorAttachmentsGet = device.getSwapchainImagesKHR(swapchain);
 	VULKAN_ENSURE_SUCCESS(
 		colorAttachmentsGet.result, "Can't get swapchain images:"
@@ -77,31 +70,35 @@ SwapchainData GraphicsDeviceInterface::createSwapchain() const {
 		colorAttachmentViews[i] = Image::createImageView(
 			device,
 			colorAttachments[i],
-			colorAttachmentFormat.format,
+			renderPasses.swapchainColorFormat.format,
 			vk::ImageAspectFlagBits::eColor
 		);
 	}
 
 	LLOG_INFO << "Created swapchain images and image views";
 
-	const vk::Format depthAttachmentFormat =
-		Swapchain::getSuitableDepthAttachmentFormat(physicalDevice);
-
 	const size_t swapchainSize = colorAttachments.size();
 
 	std::vector<Texture> depthAttachments;
 	depthAttachments.reserve(swapchainSize);
+	std::vector<Texture> multisampleColorAttachments;
+	multisampleColorAttachments.reserve(swapchainSize);
+	std::vector<Texture> intermediateColorAttachments;
+	intermediateColorAttachments.reserve(swapchainSize);
+
+	DescriptorWriteBuffer writeBuffer;
 	for (size_t i = 0; i < swapchainSize; i++) {
 		depthAttachments.push_back(createTexture(
 			device,
 			physicalDevice,
-			depthAttachmentFormat,
+			renderPasses.depthAttachmentFormat,
 			extent.width,
 			extent.height,
 			vk::ImageTiling::eOptimal,
-			vk::ImageUsageFlagBits::eDepthStencilAttachment,
+			vk::ImageUsageFlagBits::eDepthStencilAttachment |
+				vk::ImageUsageFlagBits::eSampled,
 			vk::ImageAspectFlagBits::eDepth,
-            msaaSampleCount
+			renderPasses.multisampleAntialiasingSampleCount
 		));
 		transitionLayout(
 			depthAttachments.back(),
@@ -111,51 +108,109 @@ SwapchainData GraphicsDeviceInterface::createSwapchain() const {
 			commandPool,
 			graphicsQueue
 		);
-	}
-
-	std::vector<Texture> multisampleColorAttachments;
-	multisampleColorAttachments.reserve(swapchainSize);
-	for (size_t i = 0; i < swapchainSize; i++) {
 		multisampleColorAttachments.push_back(createTexture(
 			device,
 			physicalDevice,
-			colorAttachmentFormat.format,
+			renderPasses.colorAttachmentFormat,
 			extent.width,
 			extent.height,
 			vk::ImageTiling::eOptimal,
 			vk::ImageUsageFlagBits::eColorAttachment,
 			vk::ImageAspectFlagBits::eColor,
-            msaaSampleCount
+			renderPasses.multisampleAntialiasingSampleCount
 		));
+		intermediateColorAttachments.push_back(createTexture(
+			device,
+			physicalDevice,
+			renderPasses.colorAttachmentFormat,
+			extent.width,
+			extent.height,
+			vk::ImageTiling::eOptimal,
+			vk::ImageUsageFlagBits::eColorAttachment |
+				vk::ImageUsageFlagBits::eSampled,
+			vk::ImageAspectFlagBits::eColor,
+			vk::SampleCountFlagBits::e1
+		));
+		bindTextureToDescriptor(
+			intermediateColorAttachments[i].imageView,
+			frameDatas[i].postProcessingDescriptor,
+			0,
+			samplers.point,
+			writeBuffer,
+			vk::ImageLayout::eShaderReadOnlyOptimal
+		);
+		bindTextureToDescriptor(
+			depthAttachments[i].imageView,
+			frameDatas[i].postProcessingDescriptor,
+			1,
+			samplers.point,
+			writeBuffer,
+			vk::ImageLayout::eShaderReadOnlyOptimal
+		);
 	}
+	writeBuffer.batchWrite(device);
 
-	std::vector<vk::Framebuffer> swapchainFramebuffers(swapchainSize);
-
+	std::vector<vk::Framebuffer> mainFramebuffers(swapchainSize);
+	std::vector<vk::Framebuffer> postProcessingFramebuffers(swapchainSize);
 	for (size_t i = 0; i < swapchainSize; i++) {
 		ASSERT(
 			colorAttachmentViews[i],
 			"Swapchain image at location " << i << " is null"
 		);
-		const std::array<vk::ImageView, 3> attachments = {
+		ASSERT(
+			depthAttachments[i].imageView,
+			"Swapchain depth image at location " << i << " is null"
+		);
+		const std::array<vk::ImageView, 3> mainAttachments = {
 			multisampleColorAttachments[i].imageView,
 			depthAttachments[i].imageView,
-			colorAttachmentViews[i],
+			intermediateColorAttachments[i].imageView,
 		};
-		const vk::FramebufferCreateInfo framebufferCreateInfo(
+		const std::array<vk::ImageView, 1> postProcessingAttachments = {
+			colorAttachmentViews[i]
+		};
+
+		const vk::FramebufferCreateInfo mainFramebufferCreateInfo(
 			{},
-			renderPass,
-			static_cast<uint32_t>(attachments.size()),
-			attachments.data(),
+			renderPasses.mainPass,
+			mainAttachments.size(),
+			mainAttachments.data(),
 			extent.width,
 			extent.height,
 			1
 		);
-		const vk::ResultValue<vk::Framebuffer> framebufferCreation =
-			device.createFramebuffer(framebufferCreateInfo);
-		VULKAN_ENSURE_SUCCESS(
-			framebufferCreation.result, "Can't create framebuffer:"
+
+		const vk::FramebufferCreateInfo postProcessingFramebufferCreateInfo(
+			{},
+			renderPasses.postProcessingPass,
+			postProcessingAttachments.size(),
+			postProcessingAttachments.data(),
+			extent.width,
+			extent.height,
+			1
 		);
-		swapchainFramebuffers[i] = framebufferCreation.value;
+
+		{  // Create main framebuffer
+			const vk::ResultValue<vk::Framebuffer> mainFramebufferCreation =
+				device.createFramebuffer(mainFramebufferCreateInfo);
+			VULKAN_ENSURE_SUCCESS(
+				mainFramebufferCreation.result, "Can't create main framebuffer:"
+			);
+			mainFramebuffers[i] = mainFramebufferCreation.value;
+		}
+
+		{  // Create post processing framebuffers
+			const vk::ResultValue<vk::Framebuffer>
+				postProcessingFramebufferCreation =
+					device.createFramebuffer(postProcessingFramebufferCreateInfo
+					);
+			VULKAN_ENSURE_SUCCESS(
+				postProcessingFramebufferCreation.result,
+				"Can't create post processing framebuffer:"
+			);
+			postProcessingFramebuffers[i] =
+				postProcessingFramebufferCreation.value;
+		}
 	}
 
 	return SwapchainData{
@@ -163,24 +218,28 @@ SwapchainData GraphicsDeviceInterface::createSwapchain() const {
 		.extent = extent,
 		.colorAttachments = colorAttachments,
 		.colorAttachmentViews = colorAttachmentViews,
-        .multisampleColorAttachments = multisampleColorAttachments,
+		.intermediateColorAttachments = intermediateColorAttachments,
+		.multisampleColorAttachments = multisampleColorAttachments,
 		.depthAttachments = depthAttachments,
-		.framebuffers = swapchainFramebuffers,
-		.colorAttachmentFormat = colorAttachmentFormat.format,
-		.depthAttachmentFormat = depthAttachmentFormat,
-		.imageCount = imageCount,
+		.mainFramebuffers = mainFramebuffers,
+		.postProcessingFramebuffers = postProcessingFramebuffers,
 	};
 }
 
-void GraphicsDeviceInterface::destroy(SwapchainData& swapchainData) const {
-	for (const vk::Framebuffer& framebuffer : swapchainData.framebuffers)
+void GraphicsDeviceInterface::destroy(SwapchainData& swapchainData) {
+	for (const vk::Framebuffer& framebuffer : swapchainData.mainFramebuffers)
+		device.destroyFramebuffer(framebuffer);
+
+	for (const vk::Framebuffer& framebuffer :
+		 swapchainData.postProcessingFramebuffers)
 		device.destroyFramebuffer(framebuffer);
 
 	for (const vk::ImageView& imageView : swapchainData.colorAttachmentViews)
 		device.destroyImageView(imageView);
 
+	graphics::destroy(swapchainData.intermediateColorAttachments, device);
 	graphics::destroy(swapchainData.depthAttachments, device);
-    graphics::destroy(swapchainData.multisampleColorAttachments, device);
+	graphics::destroy(swapchainData.multisampleColorAttachments, device);
 
 	device.destroySwapchainKHR(swapchainData.swapchain);
 }

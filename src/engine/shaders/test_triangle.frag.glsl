@@ -58,7 +58,7 @@ struct ParallaxMappingResult {
 
 ParallaxMappingResult applyParallaxMapping(vec3 viewDirectionTangent, vec2 uv) {
     const float parallaxMappingZBias = 0.42; // arbitrary bias, prevents artifacts for shallow view angles
-    const float height_scale = 0.02; // maximum penetration in the normal that the height map represents
+    const float height_scale = 0.0; // maximum penetration in the normal that the height map represents
     const int numOfLayers = 10;
 
     float layerDepth = 1.0 / numOfLayers;

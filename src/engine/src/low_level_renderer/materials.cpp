@@ -60,7 +60,7 @@ void bind(
 	commandBuffer.bindDescriptorSets(
 		vk::PipelineBindPoint::eGraphics,
 		pipelineLayout,
-		static_cast<int>(PipelineDescriptorSetBindingPoint::eMaterial),
+		static_cast<int>(MainPipelineDescriptorSetBindingPoint::eMaterial),
 		1,
 		&materials.descriptors[id.index],
 		0,

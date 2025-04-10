@@ -7,6 +7,7 @@ set(SRC
     graphics_user_interface.cpp 
     descriptor_write_buffer.cpp 
     descriptor_allocator.cpp 
+    renderpass_data.cpp
     swapchain_data.cpp
     vertex_buffer.cpp
     data_buffer.cpp

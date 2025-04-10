@@ -22,6 +22,7 @@ namespace graphics {
 struct GraphicsDeviceInterface {
     struct FrameData {
         vk::DescriptorSet globalDescriptor;
+        vk::DescriptorSet postProcessingDescriptor;
         UniformBuffer<GPUSceneData> sceneDataBuffer;
         vk::CommandBuffer drawCommandBuffer;
         vk::Semaphore isImageAvailable;
@@ -38,10 +39,9 @@ struct GraphicsDeviceInterface {
     vk::Device device;
     vk::PhysicalDevice physicalDevice;
     QueueFamilyIndices queueFamily;
-    vk::SampleCountFlagBits msaaSampleCount;
     vk::Queue graphicsQueue, presentQueue;
 
-    vk::RenderPass renderPass;
+    RenderPassData renderPasses;
     MaterialPipeline pipeline;
     std::optional<SwapchainData> swapchain;
 
@@ -68,6 +68,6 @@ struct GraphicsDeviceInterface {
     // Constructors
     [[nodiscard]]
     SwapchainData createSwapchain() const;
-    void destroy(SwapchainData& swapchainData) const;
+    void destroy(SwapchainData& swapchainData);
 };
 }  // namespace Graphics

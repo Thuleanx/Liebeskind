@@ -176,13 +176,17 @@ void Module::recordCommandBuffer(
 
 	{  // Main Renderpass
 		const std::array<vk::ClearValue, 3> clearColors{
-			vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f), // for multisample color buffer
-			vk::ClearColorValue(1.0f, 0.0f, 0.0f, 0.0f), // for depth buffer
-			vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f), // for regular color buffer
+			vk::ClearColorValue(
+				0.0f, 0.0f, 0.0f, 1.0f
+			),	// for multisample color buffer
+			vk::ClearColorValue(1.0f, 0.0f, 0.0f, 0.0f),  // for depth buffer
+			vk::ClearColorValue(
+				0.0f, 0.0f, 0.0f, 1.0f
+			),	// for regular color buffer
 		};
 		const vk::RenderPassBeginInfo renderPassInfo(
-			device.renderPass,
-			device.swapchain->framebuffers[imageIndex],
+			device.renderPasses.mainPass,
+			device.swapchain->mainFramebuffers[imageIndex],
 			screenExtent,
 			static_cast<uint32_t>(clearColors.size()),
 			clearColors.data()
@@ -196,7 +200,7 @@ void Module::recordCommandBuffer(
 		buffer.bindDescriptorSets(
 			vk::PipelineBindPoint::eGraphics,
 			device.pipeline.regularPipeline.layout,
-			static_cast<int>(PipelineDescriptorSetBindingPoint::eGlobal),
+			static_cast<int>(MainPipelineDescriptorSetBindingPoint::eGlobal),
 			1,
 			&device.frameDatas[device.currentFrame].globalDescriptor,
 			0,
@@ -219,7 +223,7 @@ void Module::recordCommandBuffer(
 		buffer.bindDescriptorSets(
 			vk::PipelineBindPoint::eGraphics,
 			device.pipeline.instanceRenderingPipeline.layout,
-			static_cast<int>(PipelineDescriptorSetBindingPoint::eGlobal),
+			static_cast<int>(MainPipelineDescriptorSetBindingPoint::eGlobal),
 			1,
 			&device.frameDatas[device.currentFrame].globalDescriptor,
 			0,
@@ -234,6 +238,40 @@ void Module::recordCommandBuffer(
 			resources.meshes,
 			device.currentFrame
 		);
+
+		buffer.endRenderPass();
+	}
+
+	{  // Post processing RenderPass
+		const std::array<vk::ClearValue, 1> clearColors = {
+			vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f)
+		};
+
+		const vk::RenderPassBeginInfo renderPassInfo(
+			device.renderPasses.postProcessingPass,
+			device.swapchain->postProcessingFramebuffers[imageIndex],
+			screenExtent,
+			clearColors.size(),
+			clearColors.data()
+		);
+		buffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
+
+		buffer.bindPipeline(
+			vk::PipelineBindPoint::eGraphics,
+			device.pipeline.postProcessingPipeline.pipeline
+		);
+
+		buffer.bindDescriptorSets(
+			vk::PipelineBindPoint::eGraphics,
+			device.pipeline.postProcessingPipeline.layout,
+			static_cast<int>(PostProcessingDescriptorSetBindingPoint::eGlobal),
+			1,
+			&device.frameDatas[imageIndex].postProcessingDescriptor,
+			0,
+			nullptr
+		);
+
+		buffer.draw(6, 1, 0, 0);
 
 		buffer.endRenderPass();
 	}
@@ -271,7 +309,7 @@ TextureID Module::loadTexture(const char* filePath, vk::Format imageFormat) {
 		device.physicalDevice,
 		device.commandPool,
 		device.graphicsQueue,
-        imageFormat
+		imageFormat
 	);
 }
 
@@ -300,7 +338,7 @@ MaterialInstanceID Module::loadMaterial(
 		textures,
 		albedo,
 		normal,
-        displacementMap,
+		displacementMap,
 		properties,
 		device.device,
 		device.physicalDevice,

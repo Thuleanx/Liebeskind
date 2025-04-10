@@ -7,6 +7,7 @@
 
 #include "core/logger/logger.h"
 #include "core/logger/vulkan_ensures.h"
+#include "image.h"
 #include "low_level_renderer/config.h"
 #include "low_level_renderer/queue_family.h"
 #include "swapchain.h"
@@ -53,6 +54,28 @@ std::optional<vk::PhysicalDevice> getBestPhysicalDevice(
 	for (const vk::PhysicalDevice& device : allPhysicalDevices.value)
 		if (isDeviceSuitable(device, surface)) return device;
 	return {};
+}
+
+vk::Format getBestFloatingPointColorAttachmentFormat(vk::PhysicalDevice physicalDevice
+) {
+	constexpr std::array<vk::Format, 3> desiredAttachmentFormats = {
+		vk::Format::eR64G64B64A64Sfloat,
+		vk::Format::eR32G32B32A32Sfloat,
+		vk::Format::eR16G16B16A16Sfloat,
+	};
+	const std::optional<vk::Format> suitableFloatingPointColorAttachmentFormat =
+		Image::findSupportedFormat(
+			physicalDevice,
+			desiredAttachmentFormats,
+			vk::ImageTiling::eOptimal,
+			vk::FormatFeatureFlagBits::eColorAttachment |
+				vk::FormatFeatureFlagBits::eSampledImage
+		);
+	ASSERT(
+		suitableFloatingPointColorAttachmentFormat.has_value(),
+		"Can't find suitable floating point color attachment"
+	);
+	return suitableFloatingPointColorAttachmentFormat.value();
 }
 
 vk::SampleCountFlags getUsableSamplesCount(vk::PhysicalDevice device) {

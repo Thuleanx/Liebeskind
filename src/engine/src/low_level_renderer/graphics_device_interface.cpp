@@ -286,10 +286,13 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
 		if (supportedSampleCount & possibleSamplesCount)
 			multisampleAntialiasingSampleCount = supportedSampleCount;
 
+	const vk::Format colorAttachmentFormat =
+		getBestFloatingPointColorAttachmentFormat(physicalDevice);
+
 	DescriptorWriteBuffer writeBuffer;
 	const RenderPassData renderPasses = RenderPassData::create(
 		device,
-		vk::Format::eR32G32B32A32Sfloat,
+	    colorAttachmentFormat,
 		swapchainColorFormat,
 		Swapchain::getSuitableDepthAttachmentFormat(physicalDevice),
 		multisampleAntialiasingSampleCount
@@ -404,7 +407,7 @@ void GraphicsDeviceInterface::destroy() {
 	LLOG_INFO << "Destroyed sampler";
 	device.destroyCommandPool(commandPool);
 	LLOG_INFO << "Destroyed command pool";
-    graphics::destroy(renderPasses, device);
+	graphics::destroy(renderPasses, device);
 	graphics::destroy(pipeline, device);
 	LLOG_INFO << "Destroyed material pipeline";
 

@@ -52,7 +52,7 @@ vk::ImageView createImageView(
 );
 std::optional<vk::Format> findSupportedFormat(
     const vk::PhysicalDevice& physicalDevice,
-    const std::vector<vk::Format>& candidates,
+    std::span<const vk::Format> candidates,
     vk::ImageTiling imageTiling,
     vk::FormatFeatureFlags features
 );

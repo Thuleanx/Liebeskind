@@ -10,6 +10,8 @@ namespace graphics {
 
     std::vector<const char*> getInstanceExtensions();
 
+    vk::Format getBestFloatingPointColorAttachmentFormat(vk::PhysicalDevice device);
+
     vk::SampleCountFlags getUsableSamplesCount(vk::PhysicalDevice device);
 
     bool isDeviceSuitable(

@@ -97,12 +97,14 @@ vk::SurfaceFormatKHR Swapchain::getSuitableColorAttachmentFormat(
 vk::Format Swapchain::getSuitableDepthAttachmentFormat(
     const vk::PhysicalDevice& physicalDevice
 ) {
+    constexpr std::array<vk::Format, 3> desiredDepthFormats = 
+            {vk::Format::eD32Sfloat,
+             vk::Format::eD32SfloatS8Uint,
+             vk::Format::eD24UnormS8Uint};
     const std::optional<vk::Format> suitableDepthFormat =
         Image::findSupportedFormat(
             physicalDevice,
-            {vk::Format::eD32Sfloat,
-             vk::Format::eD32SfloatS8Uint,
-             vk::Format::eD24UnormS8Uint},
+            desiredDepthFormats,
             vk::ImageTiling::eOptimal,
             vk::FormatFeatureFlagBits::eDepthStencilAttachment
         );

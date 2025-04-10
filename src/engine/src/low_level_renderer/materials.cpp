@@ -10,6 +10,7 @@ MaterialInstanceID create(
 	TextureID albedo,
 	TextureID normalMap,
 	TextureID displacementMap,
+	TextureID emissionMap,
 	const MaterialProperties& materialProperties,
 	vk::Device device,
 	vk::PhysicalDevice physicalDevice,
@@ -45,6 +46,10 @@ MaterialInstanceID create(
 	// binding 3 is for displacement map
 	bindTextureToDescriptor(
 		textures, displacementMap, descriptorSet, 3, sampler, writeBuffer
+	);
+	// binding 4 is for emissino map
+	bindTextureToDescriptor(
+		textures, emissionMap, descriptorSet, 4, sampler, writeBuffer
 	);
 	materials.descriptors[id.index] = descriptorSet;
     materials.uniforms[id.index] = uniformBuffer;

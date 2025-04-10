@@ -25,12 +25,14 @@ layout(set = 1, binding = 0) uniform MaterialProperties {
     vec3 specular;
     vec3 diffuse;
     vec3 ambient;
+    vec3 emission;
     float shininess;
 } materialProperties;
 
 layout(set = 1, binding = 1) uniform sampler2D texSampler;
 layout(set = 1, binding = 2) uniform sampler2D normalSampler;
 layout(set = 1, binding = 3) uniform sampler2D displacementSampler;
+layout(set = 1, binding = 4) uniform sampler2D emissiveSampler;
 
 struct TangentSpace {
     vec3 normalWorld;
@@ -111,6 +113,8 @@ void main() {
     // by convention, these vectors points outwards from the surface
     vec3 lightDirection = -scene.mainLightDirection;
     vec3 halfwayDirection = normalize(lightDirection + viewDirection);
+
+    vec3 emissiveColor = texture(emissiveSampler, parallax.uv).xyz;
     
     float specular = pow(max(0, dot(sampledNormalWorld, halfwayDirection)), materialProperties.shininess);
     float diffuse = max(0, dot(sampledNormalWorld, lightDirection));
@@ -118,7 +122,8 @@ void main() {
     vec3 lighting =
         scene.ambientColor * materialProperties.ambient + 
         scene.mainLightColor * diffuse * materialProperties.diffuse +
-        scene.mainLightColor * specular * materialProperties.specular;
+        scene.mainLightColor * specular * materialProperties.specular +
+        emissiveColor * materialProperties.emission;
 
     outColor = vec4(lighting, 1) * texColor;
 }

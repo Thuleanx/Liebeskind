@@ -20,20 +20,25 @@ void Game::run() {
 	sceneDrawer.handleResize(graphics.device.swapchain->getAspectRatio());
 
 	graphics::TextureID albedo =
-		graphics.loadTexture("textures/viking_room.png", vk::Format::eR8G8B8A8Srgb);
+		graphics.loadTexture("textures/robot_albedo.jpg", vk::Format::eR8G8B8A8Srgb);
 	graphics::TextureID normalMap =
-		graphics.loadTexture("textures/bricks_normal.jpg", vk::Format::eR8G8B8A8Unorm);
+		graphics.loadTexture("textures/robot_normal.jpg", vk::Format::eR8G8B8A8Unorm);
 	graphics::TextureID displacementMap =
-		graphics.loadTexture("textures/bricks_height.jpg", vk::Format::eR8G8B8A8Unorm);
-	MeshID meshID = graphics.loadMesh("models/viking_room.obj");
+		graphics.loadTexture("textures/robot_height.jpeg", vk::Format::eR8G8B8A8Unorm);
+	graphics::TextureID emissionMap =
+		graphics.loadTexture("textures/robot_emissive.jpeg", vk::Format::eR8G8B8A8Unorm);
+
+	MeshID meshID = graphics.loadMesh("models/robot.obj");
 	graphics::MaterialInstanceID material = graphics.loadMaterial(
 		albedo,
 		normalMap,
 		displacementMap,
+        emissionMap,
 		graphics::MaterialProperties{
 			.specular = glm::vec3(0),
 			.diffuse = glm::vec3(1),
 			.ambient = glm::vec3(0),
+            .emission = glm::vec3(15),
 			.shininess = 1.0f
 		},
 		graphics::SamplerType::eLinear
@@ -42,11 +47,11 @@ void Game::run() {
 	graphics.device.writeBuffer.batchWrite(graphics.device.device);
 
 	glm::mat4 modelTransform = glm::translate(
-		/* glm::rotate( */
-		/* 	glm::radians(90.f), */
-		/* 	glm::vec3(1.0, 0.0, 0.0) */
-		/* ), */
-        glm::scale(glm::mat4(1), glm::vec3(3)),
+		glm::rotate(
+            glm::scale(glm::mat4(1), glm::vec3(.3)),
+			glm::radians(90.f),
+			glm::vec3(1.0, 0.0, 0.0)
+		),
 		glm::vec3(0.0, 0.0, 0.5)
 	);
 

@@ -34,6 +34,7 @@ struct Module {
         TextureID albedo,
         TextureID normal,
         TextureID displacementMap,
+        TextureID emissionMap,
         MaterialProperties properties,
         SamplerType samplerType
     );

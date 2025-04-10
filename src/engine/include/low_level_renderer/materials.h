@@ -10,7 +10,7 @@
 namespace graphics {
 
 constexpr int MAX_MATERIAL_INSTANCES = 1000;
-constexpr std::array<vk::DescriptorSetLayoutBinding, 4> MATERIAL_BINDINGS = {
+constexpr std::array<vk::DescriptorSetLayoutBinding, 5> MATERIAL_BINDINGS = {
 	vk::DescriptorSetLayoutBinding{
 		0,	// binding
 		vk::DescriptorType::eUniformBuffer,
@@ -35,11 +35,17 @@ constexpr std::array<vk::DescriptorSetLayoutBinding, 4> MATERIAL_BINDINGS = {
 		1,	// descriptor count
 		vk::ShaderStageFlagBits::eFragment
 	},
+	vk::DescriptorSetLayoutBinding{
+		4,	// binding
+		vk::DescriptorType::eCombinedImageSampler,
+		1,	// descriptor count
+		vk::ShaderStageFlagBits::eFragment
+	},
 };
 constexpr std::array<vk::DescriptorPoolSize, 2> MATERIAL_DESCRIPTOR_POOL_SIZES =
 	{
 		vk::DescriptorPoolSize(vk::DescriptorType::eUniformBuffer, 1),
-		vk::DescriptorPoolSize(vk::DescriptorType::eCombinedImageSampler, 3),
+		vk::DescriptorPoolSize(vk::DescriptorType::eCombinedImageSampler, 4),
 };
 
 struct MaterialInstanceID {
@@ -60,7 +66,8 @@ struct MaterialProperties {
 	alignas(16) glm::vec3 specular = glm::vec3(1.0, 1.0, 1.0);
 	alignas(16) glm::vec3 diffuse = glm::vec3(1.0, 1.0, 1.0);
 	alignas(16) glm::vec3 ambient = glm::vec3(1.0, 1.0, 1.0);
-    alignas(4) float shininess = 32;
+	alignas(16) glm::vec3 emission = glm::vec3(0.0, 0.0, 0.0);
+	alignas(4) float shininess = 32;
 };
 
 struct MaterialStorage {
@@ -77,6 +84,7 @@ MaterialInstanceID create(
 	TextureID albedo,
 	TextureID normalMap,
 	TextureID displacementMap,
+	TextureID emissionMap,
 	const MaterialProperties& materialProperties,
 	vk::Device device,
 	vk::PhysicalDevice physicalDevice,

@@ -327,6 +327,7 @@ MaterialInstanceID Module::loadMaterial(
 	TextureID albedo,
 	TextureID normal,
 	TextureID displacementMap,
+    TextureID emissionMap,
 	MaterialProperties properties,
 	SamplerType samplerType
 ) {
@@ -339,6 +340,7 @@ MaterialInstanceID Module::loadMaterial(
 		albedo,
 		normal,
 		displacementMap,
+        emissionMap,
 		properties,
 		device.device,
 		device.physicalDevice,

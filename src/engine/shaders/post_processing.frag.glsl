@@ -11,5 +11,5 @@ void main() {
 
     vec4 inColor = texelFetch(colorBuffer, ivec2(texcoord), 0);
 
-    outColor = vec4(inColor.rrr, 1);
+    outColor = inColor;
 }

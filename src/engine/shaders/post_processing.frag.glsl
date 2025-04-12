@@ -9,7 +9,10 @@ vec2 texcoord;
 void main() {
     texcoord = gl_FragCoord.xy;
 
-    vec4 inColor = texelFetch(colorBuffer, ivec2(texcoord), 0);
+    vec3 inColor = texelFetch(colorBuffer, ivec2(texcoord), 0).xyz;
 
-    outColor = inColor;
+    // reinhard tone mapping
+    vec3 mapped = inColor / (inColor + vec3(1));
+
+    outColor = vec4(mapped, 1);
 }

@@ -60,7 +60,7 @@ struct ParallaxMappingResult {
 
 ParallaxMappingResult applyParallaxMapping(vec3 viewDirectionTangent, vec2 uv) {
     const float parallaxMappingZBias = 0.42; // arbitrary bias, prevents artifacts for shallow view angles
-    const float height_scale = 0.0; // maximum penetration in the normal that the height map represents
+    const float height_scale = 0.1; // maximum penetration in the normal that the height map represents
     const int numOfLayers = 10;
 
     float layerDepth = 1.0 / numOfLayers;
@@ -108,16 +108,19 @@ void main() {
 
     // Who allowed these to not be normalized
     vec3 sampledNormalTangent = 2.0 * texture(normalSampler, parallax.uv).xyz - 1.0;
-    vec3 sampledNormalWorld = normalize(tangentSpace.tangentToWorld * sampledNormalTangent);
+    // vec3 sampledNormalWorld = normalize(tangentSpace.tangentToWorld * sampledNormalTangent);
+    vec3 sampledNormalWorld = normalize(inNormalWorld);
 
     // by convention, these vectors points outwards from the surface
-    vec3 lightDirection = -scene.mainLightDirection;
+    vec3 lightDirection = -normalize(scene.mainLightDirection);
     vec3 halfwayDirection = normalize(lightDirection + viewDirection);
+    vec3 reflectedDirection = 2 * (dot(sampledNormalWorld, lightDirection)) * sampledNormalWorld - lightDirection;
 
     vec3 emissiveColor = texture(emissiveSampler, parallax.uv).xyz;
     
-    float specular = pow(max(0, dot(sampledNormalWorld, halfwayDirection)), materialProperties.shininess);
+    float specular = pow(max(0, dot(viewDirection, reflectedDirection)), materialProperties.shininess);
     float diffuse = max(0, dot(sampledNormalWorld, lightDirection));
+
 
     vec3 lighting =
         scene.ambientColor * materialProperties.ambient + 

@@ -4,6 +4,7 @@
 
 #include "camera.h"
 
+namespace cameras {
 class PerspectiveCamera : public Camera {
    public:
     float fieldOfView;
@@ -36,3 +37,4 @@ class PerspectiveCamera : public Camera {
    private:
     void recomputeProjection();
 };
+}

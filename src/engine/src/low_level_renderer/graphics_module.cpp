@@ -6,6 +6,8 @@
 #include "imgui.h"
 
 namespace graphics {
+std::optional<Module> module = std::nullopt;
+
 Module Module::create() {
 	ResourceManager resources;
 	GraphicsDeviceInterface device =
@@ -327,7 +329,7 @@ MaterialInstanceID Module::loadMaterial(
 	TextureID albedo,
 	TextureID normal,
 	TextureID displacementMap,
-    TextureID emissionMap,
+	TextureID emissionMap,
 	MaterialProperties properties,
 	SamplerType samplerType
 ) {
@@ -340,7 +342,7 @@ MaterialInstanceID Module::loadMaterial(
 		albedo,
 		normal,
 		displacementMap,
-        emissionMap,
+		emissionMap,
 		properties,
 		device.device,
 		device.physicalDevice,

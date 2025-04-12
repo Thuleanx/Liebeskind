@@ -1,11 +1,13 @@
-add_library(engine INTERFACE)
+add_library(engine src/engine.cpp)
 
 add_subdirectory(src)
 
 target_link_libraries(engine INTERFACE logger file_system low_level_renderer scene_graph)
+target_link_libraries(engine PRIVATE third_party)
 
 set(ENGINE_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/src/engine/include")
 
+target_include_directories(engine PUBLIC ${ENGINE_INCLUDE_DIR})
 target_include_directories(algo PUBLIC ${ENGINE_INCLUDE_DIR})
 target_include_directories(file_system PUBLIC ${ENGINE_INCLUDE_DIR})
 target_include_directories(cameras PUBLIC ${ENGINE_INCLUDE_DIR})

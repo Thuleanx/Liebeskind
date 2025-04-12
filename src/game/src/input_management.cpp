@@ -1,19 +1,21 @@
 #include "input_management.h"
 
-namespace Input {
-void Manager::subscribe(Input::Instant input, std::function<void()> listener) {
+namespace input {
+std::optional<Manager> manager = std::nullopt;
+
+Manager Manager::create() {
+    return {};
+}
+
+void Manager::subscribe(Instant input, std::function<void()> listener) {
 	instantInputs.Register(input, listener);
 }
 
-void Manager::subscribe(
-	Input::Toggled input, std::function<void(bool)> listener
-) {
+void Manager::subscribe(Toggled input, std::function<void(bool)> listener) {
 	toggledInputs.Register(input, listener);
 }
 
-void Manager::subscribe(
-	Input::Ranged input, std::function<void(float)> listener
-) {
+void Manager::subscribe(Ranged input, std::function<void(float)> listener) {
 	rangedInputs.Register(input, listener);
 }
 
@@ -22,11 +24,11 @@ void Manager::handleEvent(SDL_Event sdlEvent) {
 		case SDL_EVENT_KEY_DOWN: onKeyDown(sdlEvent.key.scancode); break;
 		case SDL_EVENT_KEY_UP:	 onKeyUp(sdlEvent.key.scancode); break;
 		case SDL_EVENT_MOUSE_MOTION:
-            if (sdlEvent.motion.xrel != 0)
-			    rangedInputs.Trigger(Input::Ranged::MouseX, sdlEvent.motion.xrel);
-            if (sdlEvent.motion.yrel != 0)
-			    rangedInputs.Trigger(Input::Ranged::MouseY, sdlEvent.motion.yrel);
-            break;
+			if (sdlEvent.motion.xrel != 0)
+				rangedInputs.Trigger(Ranged::MouseX, sdlEvent.motion.xrel);
+			if (sdlEvent.motion.yrel != 0)
+				rangedInputs.Trigger(Ranged::MouseY, sdlEvent.motion.yrel);
+			break;
 	}
 }
 
@@ -61,18 +63,18 @@ void Manager::onKeyUp(SDL_Scancode key) {
 void Manager::onMovementXChange() {
 	float value = keyState[SDL_Scancode::SDL_SCANCODE_D] -
 				  keyState[SDL_Scancode::SDL_SCANCODE_A];
-	rangedInputs.Trigger(Input::Ranged::MovementX, value);
+	rangedInputs.Trigger(Ranged::MovementX, value);
 }
 
 void Manager::onMovementYChange() {
 	float value = keyState[SDL_Scancode::SDL_SCANCODE_W] -
 				  keyState[SDL_Scancode::SDL_SCANCODE_S];
-	rangedInputs.Trigger(Input::Ranged::MovementY, value);
+	rangedInputs.Trigger(Ranged::MovementY, value);
 }
 
 void Manager::onRotateChange() {
 	float value = keyState[SDL_Scancode::SDL_SCANCODE_Q] -
 				  keyState[SDL_Scancode::SDL_SCANCODE_E];
-	rangedInputs.Trigger(Input::Ranged::Rotate, value);
+	rangedInputs.Trigger(Ranged::Rotate, value);
 }
-}  // namespace Input
+}  // namespace input

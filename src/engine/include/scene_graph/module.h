@@ -1,19 +1,19 @@
 #pragma once
 
 #include "low_level_renderer/graphics_module.h"
+#include "low_level_renderer/render_submission.h"
 
-class SceneDrawer {
-   public:
-    graphics::RenderSubmission renderSubmission;
-    std::vector<graphics::RenderObject> renderObjects;
-    std::vector<graphics::InstancedRenderObject> instancedRenderObjects;
-    std::vector<std::vector<graphics::InstanceData>> instancedRenderData;
+namespace scene_graph {
+struct Module {
+	graphics::RenderSubmission renderSubmission;
+	std::vector<graphics::RenderObject> renderObjects;
+	std::vector<graphics::InstancedRenderObject> instancedRenderObjects;
+	std::vector<std::vector<graphics::InstanceData>> instancedRenderData;
 
    public:
-    struct ObjectID {
-        uint32_t index;
-    };
-    static SceneDrawer create();
+    static Module create();
+    void destroy();
+
     bool drawFrame(graphics::Module& graphics);
 
     void addInstancedObjects(
@@ -26,3 +26,6 @@ class SceneDrawer {
     void addObjects(std::span<graphics::RenderObject> renderObjects);
     void updateObjects(std::vector<std::tuple<int, glm::mat4>>);
 };
+
+extern std::optional<Module> module;
+}  // namespace scene_graph

@@ -1,6 +1,9 @@
 #pragma once
 
-class Game {
-public:
-    void run();
-};
+namespace game {
+
+void init();
+void run();
+void destroy();
+
+}  // namespace game

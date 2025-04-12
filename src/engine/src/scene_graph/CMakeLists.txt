@@ -1,5 +1,5 @@
 set(SRC 
-    scene_drawer.cpp
+    module.cpp
 )
 
 add_library(scene_graph ${SRC})

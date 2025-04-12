@@ -18,7 +18,6 @@ std::tuple<vk::Buffer, vk::DeviceMemory> loadToBuffer(
     vk::BufferUsageFlagBits usage
 ) {
     const uint32_t bufferSize = sizeof(T) * data.size();
-    LLOG_INFO << "Loading to buffer data of " << bufferSize << " size: " << sizeof(T) << " " << data.size();
 
     const auto [stagingBuffer, stagingBufferMemory] = Buffer::create(
         device,

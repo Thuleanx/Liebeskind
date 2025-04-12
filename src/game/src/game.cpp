@@ -9,18 +9,19 @@
 #include "game_specific/cameras/module.h"
 #include "input_management.h"
 #include "low_level_renderer/graphics_module.h"
-#include "scene_graph/scene_drawer.h"
+#include "scene_graph/module.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
 
-void Game::run() {
+void game::init() {
 	Logging::initializeLogger();
-
 	engine::init();
 
-	SceneDrawer sceneDrawer = SceneDrawer::create();
+	input::manager = input::Manager::create();
+}
 
+void game::run() {
 	graphics::TextureID albedo = graphics::module->loadTexture(
 		"textures/bricks_albedo.jpg", vk::Format::eR8G8B8A8Srgb
 	);
@@ -41,11 +42,11 @@ void Game::run() {
 		displacementMap,
 		emissionMap,
 		graphics::MaterialProperties{
-			.specular = glm::vec3(0, 1, 0),
+			.specular = glm::vec3(1, 1, 1),
 			.diffuse = glm::vec3(0.4),
 			.ambient = glm::vec3(0),
 			.emission = glm::vec3(0),
-			.shininess = 32.0f
+			.shininess = 128.0f
 		},
 		graphics::SamplerType::eLinear
 	);
@@ -56,12 +57,12 @@ void Game::run() {
 	);
 
 	glm::mat4 modelTransform = glm::translate(
-		glm::scale(glm::mat4(1), glm::vec3(3)),
-		/* glm::rotate( */
-		/* 	glm::radians(90.f), */
-		/* 	glm::vec3(0.0, 1.0, 0.0) */
-		/* ), */
-		glm::vec3(0.0, 0.0, 0.5)
+		glm::rotate(
+			glm::scale(glm::mat4(1), glm::vec3(3)),
+			glm::radians(90.f),
+			glm::vec3(0.0, 1.0, 0.0)
+		),
+		glm::vec3(0.0, 0.0, 0.0)
 	);
 
 	graphics::RenderObject sword{
@@ -83,7 +84,7 @@ void Game::run() {
 					glm::translate(glm::mat4(1), glm::vec3(dx, dy, 0) * 3.0f)
 			};
 
-	sceneDrawer.addObjects({std::addressof(sword), 1});
+	scene_graph::module->addObjects({std::addressof(sword), 1});
 	/* sceneDrawer.addInstancedObjects({std::addressof(instanceRenderObject),
 	 * 1}); */
 	/* sceneDrawer.updateInstance(instanceIndices, {{instancesTransforms}}); */
@@ -93,18 +94,20 @@ void Game::run() {
 	float rotationInput = 0;
 	float speed = 1;
 
-	Input::Manager inputManager;
-
-	inputManager.subscribe(Input::Ranged::MovementX, [&movementX](float value) {
-		movementX = value;
-	});
-	inputManager.subscribe(Input::Ranged::MovementY, [&movementY](float value) {
-		movementY = value;
-	});
-	inputManager.subscribe(
-		Input::Ranged::Rotate,
+	input::manager->subscribe(
+		input::Ranged::MovementX,
+		[&movementX](float value) { movementX = value; }
+	);
+	input::manager->subscribe(
+		input::Ranged::MovementY,
+		[&movementY](float value) { movementY = value; }
+	);
+	input::manager->subscribe(
+		input::Ranged::Rotate,
 		[&rotationInput](float value) { rotationInput = value; }
 	);
+
+    LLOG_INFO << "GOT HERE";
 
 	static auto startTime = std::chrono::high_resolution_clock::now();
 	float lastTime = 0;
@@ -140,7 +143,7 @@ void Game::run() {
 					break;
 			}
 			graphics::module->handleEvent(sdlEvent);
-			inputManager.handleEvent(sdlEvent);
+			input::manager->handleEvent(sdlEvent);
 		}
 
 		glm::vec3 frameMovement =
@@ -154,12 +157,15 @@ void Game::run() {
 							 glm::vec3(0, 1, 0)
 						 );
 
-		sceneDrawer.updateObjects({{0, modelTransform}});
+		scene_graph::module->updateObjects({{0, modelTransform}});
 
-		if (!sceneDrawer.drawFrame(graphics::module.value())) break;
+		if (!scene_graph::module->drawFrame(graphics::module.value())) break;
 		lastTime = time;
 	}
+}
 
+void game::destroy() {
+	if (input::manager.has_value()) { input::manager = std::nullopt; }
 	engine::destroy();
 }
 

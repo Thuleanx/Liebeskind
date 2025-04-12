@@ -1,16 +1,19 @@
-#include "scene_graph/scene_drawer.h"
+#include "scene_graph/module.h"
 
 #include "core/logger/assert.h"
 #include "game_specific/cameras/module.h"
 #include "game_specific/cameras/perspective_camera.h"
 
-SceneDrawer SceneDrawer::create() {
-	return SceneDrawer{
-		.renderSubmission = graphics::RenderSubmission::create()
-	};
+namespace scene_graph {
+std::optional<Module> module;
+
+Module Module::create() {
+	return Module{.renderSubmission = graphics::RenderSubmission::create()};
 }
 
-void SceneDrawer::addInstancedObjects(
+void Module::destroy() {}
+
+void Module::addInstancedObjects(
 	std::span<graphics::InstancedRenderObject> instancedRenderObjects
 ) {
 	this->instancedRenderObjects.insert(
@@ -21,7 +24,7 @@ void SceneDrawer::addInstancedObjects(
 	instancedRenderData.resize(this->instancedRenderObjects.size());
 }
 
-void SceneDrawer::updateInstance(
+void Module::updateInstance(
 	std::span<int> indices, std::vector<std::span<graphics::InstanceData>> data
 ) {
 	ASSERT(
@@ -41,19 +44,18 @@ void SceneDrawer::updateInstance(
 	}
 }
 
-void SceneDrawer::addObjects(std::span<graphics::RenderObject> renderObjects) {
+void Module::addObjects(std::span<graphics::RenderObject> renderObjects) {
 	this->renderObjects.insert(
 		this->renderObjects.end(), renderObjects.begin(), renderObjects.end()
 	);
 }
 
-void SceneDrawer::updateObjects(std::vector<std::tuple<int, glm::mat4>> updates
-) {
+void Module::updateObjects(std::vector<std::tuple<int, glm::mat4>> updates) {
 	for (const auto& [index, transform] : updates)
 		this->renderObjects[index].transform = transform;
 }
 
-bool SceneDrawer::drawFrame(graphics::Module& graphics) {
+bool Module::drawFrame(graphics::Module& graphics) {
 	cameras::PerspectiveCamera& mainCamera = cameras::module->mainCamera;
 
 	graphics::GPUSceneData sceneData{
@@ -62,7 +64,7 @@ bool SceneDrawer::drawFrame(graphics::Module& graphics) {
 		.projection = mainCamera.projection,
 		.viewProjection = {},
 		.ambientColor = glm::vec3(0.05),
-		.mainLightDirection = glm::normalize(glm::vec3(0.0, 0.0, -1.0)),
+		.mainLightDirection = glm::normalize(glm::vec3(-1.0, 0.0, 0.0)),
 		.mainLightColor = glm::vec3(1, 1, 1),
 	};
 	// accounts for difference between openGL and Vulkan clip space
@@ -78,3 +80,4 @@ bool SceneDrawer::drawFrame(graphics::Module& graphics) {
 	graphics.endFrame();
 	return isRenderSuccessful;
 }
+}  // namespace scene_graph

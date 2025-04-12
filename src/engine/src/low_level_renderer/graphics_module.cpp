@@ -13,6 +13,7 @@ Module Module::create() {
 	GraphicsDeviceInterface device =
 		GraphicsDeviceInterface::createGraphicsDevice(resources);
 	GraphicsUserInterface ui = GraphicsUserInterface::create(device);
+    LLOG_INFO << "Graphics Module Initialized";
 	return Module{
 		.resources = resources, .device = std::move(device), .ui = ui
 	};
@@ -29,6 +30,7 @@ void Module::destroy() {
 	instances.destroyBy(device.device);
 	ui.destroy(device);
 	device.destroy();
+    LLOG_INFO << "Graphics Module Destroyed";
 }
 
 void Module::beginFrame() {

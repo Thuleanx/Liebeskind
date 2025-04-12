@@ -1,9 +1,11 @@
 #pragma once
 
+#include <optional>
+
 #include "SDL3/SDL_events.h"
 #include "core/algo/event_system.h"
 
-namespace Input {
+namespace input {
 enum class Instant {};
 enum class Toggled {};
 enum class Ranged {
@@ -16,10 +18,11 @@ enum class Ranged {
 
 class Manager {
    public:
+    static Manager create();
 	void handleEvent(SDL_Event sdlEvent);
-	void subscribe(Input::Instant input, std::function<void()> listener);
-	void subscribe(Input::Toggled input, std::function<void(bool)> listener);
-	void subscribe(Input::Ranged input, std::function<void(float)> listener);
+	void subscribe(Instant input, std::function<void()> listener);
+	void subscribe(Toggled input, std::function<void(bool)> listener);
+	void subscribe(Ranged input, std::function<void(float)> listener);
 
    private:
 	void onKeyDown(SDL_Scancode key);
@@ -30,11 +33,13 @@ class Manager {
 	void onRotateChange();
 
    private:
-	EventSystem<Input::Instant> instantInputs;
-	EventSystem<Input::Toggled, bool> toggledInputs;
-	EventSystem<Input::Ranged, float> rangedInputs;
+	EventSystem<Instant> instantInputs;
+	EventSystem<Toggled, bool> toggledInputs;
+	EventSystem<Ranged, float> rangedInputs;
 
 	std::unordered_map<SDL_Scancode, bool> keyState;
 };
 
-}  // namespace Input
+extern std::optional<Manager> manager;
+
+}  // namespace input

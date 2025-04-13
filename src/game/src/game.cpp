@@ -4,6 +4,7 @@
 #include <glm/gtx/string_cast.hpp>
 
 #include "backends/imgui_impl_sdl3.h"
+#include "cameras/module.h"
 #include "core/logger/logger.h"
 #include "engine.h"
 #include "game_specific/cameras/module.h"
@@ -19,6 +20,7 @@ void game::init() {
 	engine::init();
 
 	input::manager = input::Manager::create();
+	game_cameras::module.emplace(game_cameras::Module::create());
 }
 
 void game::run() {
@@ -62,7 +64,7 @@ void game::run() {
 			glm::radians(90.f),
 			glm::vec3(0.0, 1.0, 0.0)
 		),
-		glm::vec3(0.0, 0.0, 0.0)
+		glm::vec3(0.0, 0.0, 0.5)
 	);
 
 	graphics::RenderObject sword{
@@ -80,14 +82,23 @@ void game::run() {
 	for (int dx = -1; dx <= 1; dx++)
 		for (int dy = -1; dy <= 1; dy++)
 			instancesTransforms[dx + 1 + (dy + 1) * 3] = graphics::InstanceData{
-				.transform =
-					glm::translate(glm::mat4(1), glm::vec3(dx, dy, 0) * 3.0f)
+				.transform = glm::translate(
+					glm::rotate(
+						glm::scale(glm::mat4(1), glm::vec3(1)),
+						glm::radians(90.f),
+						glm::vec3(0.0, 1.0, 0.0)
+					),
+					glm::vec3(dx, dy, 0) * 2.0f
+				)
 			};
 
 	scene_graph::module->addObjects({std::addressof(sword), 1});
-	/* sceneDrawer.addInstancedObjects({std::addressof(instanceRenderObject),
-	 * 1}); */
-	/* sceneDrawer.updateInstance(instanceIndices, {{instancesTransforms}}); */
+	scene_graph::module->addInstancedObjects(
+		{std::addressof(instanceRenderObject), 1}
+	);
+	scene_graph::module->updateInstance(
+		instanceIndices, {{instancesTransforms}}
+	);
 
 	float movementX = 0;
 	float movementY = 0;
@@ -95,30 +106,14 @@ void game::run() {
 	float speed = 1;
 
 	input::manager->subscribe(
-		input::Ranged::MovementX,
-		[&movementX](float value) { movementX = value; }
-	);
-	input::manager->subscribe(
-		input::Ranged::MovementY,
-		[&movementY](float value) { movementY = value; }
-	);
-	input::manager->subscribe(
 		input::Ranged::Rotate,
 		[&rotationInput](float value) { rotationInput = value; }
 	);
-
-    LLOG_INFO << "GOT HERE";
 
 	static auto startTime = std::chrono::high_resolution_clock::now();
 	float lastTime = 0;
 
 	bool shouldQuitGame = false;
-
-	const glm::vec3 up = glm::vec3(0, 0, 1);
-	glm::vec3 right = cameras::module->mainCamera.getRight();
-	right = glm::normalize(right - up * glm::dot(up, right));
-	glm::vec3 forward = cameras::module->mainCamera.getForward();
-	forward = glm::normalize(forward - up * glm::dot(up, forward));
 
 	int p = 0;
 	while (!shouldQuitGame) {
@@ -146,16 +141,14 @@ void game::run() {
 			input::manager->handleEvent(sdlEvent);
 		}
 
-		glm::vec3 frameMovement =
-			speed * (movementX * right + movementY * forward) * deltaTime;
+        game_cameras::module->update(deltaTime);
 
-		modelTransform = glm::translate(glm::mat4(1), frameMovement) *
-						 modelTransform *
-						 glm::rotate(
-							 glm::mat4(1),
-							 glm::radians(rotationInput * 45.f * deltaTime),
-							 glm::vec3(0, 1, 0)
-						 );
+		modelTransform =
+			modelTransform * glm::rotate(
+								 glm::mat4(1),
+								 glm::radians(rotationInput * 45.f * deltaTime),
+								 glm::vec3(0, 1, 0)
+							 );
 
 		scene_graph::module->updateObjects({{0, modelTransform}});
 
@@ -165,6 +158,10 @@ void game::run() {
 }
 
 void game::destroy() {
+	if (game_cameras::module.has_value()) {
+		game_cameras::module->destroy();
+		game_cameras::module = std::nullopt;
+	}
 	if (input::manager.has_value()) { input::manager = std::nullopt; }
 	engine::destroy();
 }

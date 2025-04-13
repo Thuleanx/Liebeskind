@@ -3,6 +3,7 @@
 #include "core/logger/assert.h"
 #include "game_specific/cameras/module.h"
 #include "game_specific/cameras/perspective_camera.h"
+#include <glm/gtx/string_cast.hpp>
 
 namespace scene_graph {
 std::optional<Module> module;
@@ -58,6 +59,7 @@ void Module::updateObjects(std::vector<std::tuple<int, glm::mat4>> updates) {
 bool Module::drawFrame(graphics::Module& graphics) {
 	cameras::PerspectiveCamera& mainCamera = cameras::module->mainCamera;
 
+    //LLOG_INFO << glm::to_string(mainCamera.transform);
 	graphics::GPUSceneData sceneData{
 		.view = mainCamera.view,
 		.inverseView = glm::mat4(1.0),

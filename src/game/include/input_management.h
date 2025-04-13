@@ -7,18 +7,21 @@
 
 namespace input {
 enum class Instant {};
-enum class Toggled {};
+enum class Toggled {
+	Jump,
+	Crouch,
+};
 enum class Ranged {
+	MouseX,
+	MouseY,
 	MovementX,
 	MovementY,
 	Rotate,
-	MouseX,
-	MouseY,
 };
 
 class Manager {
    public:
-    static Manager create();
+	static Manager create();
 	void handleEvent(SDL_Event sdlEvent);
 	void subscribe(Instant input, std::function<void()> listener);
 	void subscribe(Toggled input, std::function<void(bool)> listener);

@@ -3,9 +3,7 @@
 namespace input {
 std::optional<Manager> manager = std::nullopt;
 
-Manager Manager::create() {
-    return {};
-}
+Manager Manager::create() { return {}; }
 
 void Manager::subscribe(Instant input, std::function<void()> listener) {
 	instantInputs.Register(input, listener);
@@ -42,6 +40,13 @@ void Manager::onKeyDown(SDL_Scancode key) {
 		case SDL_Scancode::SDL_SCANCODE_S: onMovementYChange(); break;
 		case SDL_Scancode::SDL_SCANCODE_Q:
 		case SDL_Scancode::SDL_SCANCODE_E: onRotateChange(); break;
+		case SDL_Scancode::SDL_SCANCODE_SPACE:
+			toggledInputs.Trigger(Toggled::Jump, true);
+            break;
+		case SDL_Scancode::SDL_SCANCODE_LSHIFT:
+			toggledInputs.Trigger(Toggled::Crouch, true);
+            break;
+
 		default:						   break;
 	}
 }
@@ -56,7 +61,13 @@ void Manager::onKeyUp(SDL_Scancode key) {
 		case SDL_Scancode::SDL_SCANCODE_S: onMovementYChange(); break;
 		case SDL_Scancode::SDL_SCANCODE_Q:
 		case SDL_Scancode::SDL_SCANCODE_E: onRotateChange(); break;
-		default:						   break;
+		case SDL_Scancode::SDL_SCANCODE_SPACE:
+			toggledInputs.Trigger(Toggled::Jump, false);
+            break;
+		case SDL_Scancode::SDL_SCANCODE_LSHIFT:
+			toggledInputs.Trigger(Toggled::Crouch, false);
+            break;
+		default: break;
 	}
 }
 

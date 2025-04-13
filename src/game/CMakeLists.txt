@@ -1,6 +1,8 @@
 set(SRC
     src/game.cpp
     src/input_management.cpp
+    src/cameras/module.cpp
+    src/cameras/debug_camera_controller.cpp
 )
 
 add_library(game ${SRC})

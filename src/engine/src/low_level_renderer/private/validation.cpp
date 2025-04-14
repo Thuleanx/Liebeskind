@@ -27,18 +27,23 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugUtilsMessengerCallback(
 	switch (messageSeverity) {
 	case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
 		LLOG_VERBOSE << "VulkanValidation: " << pCallbackData->pMessage;
+        break;
 
 	case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
 		LLOG_INFO << "VulkanValidation: " << pCallbackData->pMessage;
+        break;
 
 	case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
 		LLOG_WARNING << "VulkanValidation: " << pCallbackData->pMessage;
+        break;
 
 	case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
 		LLOG_ERROR << "VulkanValidation: " << pCallbackData->pMessage;
+        break;
 
 	case VK_DEBUG_UTILS_MESSAGE_SEVERITY_FLAG_BITS_MAX_ENUM_EXT:
 		LLOG_FATAL << "VulkanValidation: " << pCallbackData->pMessage;
+        break;
 	}
 
 	return VK_FALSE;

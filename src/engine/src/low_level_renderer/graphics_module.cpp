@@ -1,9 +1,13 @@
 #include "low_level_renderer/graphics_module.h"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wold-style-cast"
 #include "backends/imgui_impl_sdl3.h"
 #include "backends/imgui_impl_vulkan.h"
-#include "core/logger/vulkan_ensures.h"
 #include "imgui.h"
+#pragma GCC diagnostic pop
+
+#include "core/logger/vulkan_ensures.h"
 
 namespace graphics {
 std::optional<Module> module = std::nullopt;
@@ -13,9 +17,14 @@ Module Module::create() {
 	GraphicsDeviceInterface device =
 		GraphicsDeviceInterface::createGraphicsDevice(resources);
 	GraphicsUserInterface ui = GraphicsUserInterface::create(device);
-    LLOG_INFO << "Graphics Module Initialized";
+	LLOG_INFO << "Graphics Module Initialized";
 	return Module{
-		.resources = resources, .device = std::move(device), .ui = ui
+		.resources = resources,
+		.device = std::move(device),
+		.ui = ui,
+		.instances = {},
+		.textures = {},
+		.materials = {}
 	};
 }
 
@@ -30,24 +39,13 @@ void Module::destroy() {
 	instances.destroyBy(device.device);
 	ui.destroy(device);
 	device.destroy();
-    LLOG_INFO << "Graphics Module Destroyed";
+	LLOG_INFO << "Graphics Module Destroyed";
 }
 
 void Module::beginFrame() {
 	ImGui_ImplVulkan_NewFrame();
 	ImGui_ImplSDL3_NewFrame();
 	ImGui::NewFrame();
-
-	ImGuiIO& io = ImGui::GetIO();
-	(void)io;
-
-	ImGui::Begin("General debugging");
-	ImGui::Text(
-		"Application average %.3f ms/frame (%.1f FPS)",
-		1000.0f / io.Framerate,
-		io.Framerate
-	);
-	ImGui::End();
 }
 
 void Module::handleEvent(const SDL_Event& event) {

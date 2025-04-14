@@ -28,10 +28,9 @@ PerspectiveCamera PerspectiveCamera::create(
 			<< aspectRatio
 			<< " is invalid. This needs to be a positive quantity"
 	);
-	glm::mat4 projection = glm::perspective(
+	const glm::mat4 projection = glm::perspective(
 		fieldOfView, aspectRatio, nearPlaneDistance, farPlaneDistance
 	);
-	glm::mat4 transform = glm::inverse(view);
 	return PerspectiveCamera{
 		Camera::create(view, projection),
 		fieldOfView,

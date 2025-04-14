@@ -1,15 +1,37 @@
 #include "scene_graph/module.h"
 
+#include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/string_cast.hpp>
+
 #include "core/logger/assert.h"
 #include "game_specific/cameras/module.h"
 #include "game_specific/cameras/perspective_camera.h"
-#include <glm/gtx/string_cast.hpp>
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wold-style-cast"
+#include "imgui.h"
+#pragma GCC diagnostic pop
 
 namespace scene_graph {
 std::optional<Module> module;
 
 Module Module::create() {
-	return Module{.renderSubmission = graphics::RenderSubmission::create()};
+	graphics::GPUSceneData sceneData{
+		.view = glm::mat4(1),
+		.inverseView = glm::mat4(1.0),
+		.projection = glm::mat4(1),
+		.viewProjection = {},
+		.ambientColor = glm::vec3(0.05),
+		.mainLightDirection = glm::normalize(glm::vec3(-1.0, 0.0, 0.0)),
+		.mainLightColor = glm::vec3(1, 1, 1),
+	};
+	return Module{
+		.sceneData = sceneData,
+		.renderSubmission = graphics::RenderSubmission::create(),
+		.renderObjects = {},
+		.instancedRenderObjects = {},
+		.instancedRenderData = {}
+	};
 }
 
 void Module::destroy() {}
@@ -26,16 +48,16 @@ void Module::addInstancedObjects(
 }
 
 void Module::updateInstance(
-	std::span<int> indices, std::vector<std::span<graphics::InstanceData>> data
+	std::span<size_t> indices, std::vector<std::span<graphics::InstanceData>> data
 ) {
 	ASSERT(
 		indices.size() == data.size(),
 		"Indices size (" << indices.size() << ") and data size (" << data.size()
 						 << ") mismatched"
 	);
-	for (int i = 0; i < indices.size(); i++) {
+	for (size_t i = 0; i < indices.size(); i++) {
 		ASSERT(
-			indices[i] >= 0 && indices[i] < instancedRenderData.size(),
+			indices[i] < instancedRenderData.size(),
 			"Index " << i << " is out of the range [0, "
 					 << instancedRenderData.size() << ")"
 		);
@@ -59,16 +81,19 @@ void Module::updateObjects(std::vector<std::tuple<int, glm::mat4>> updates) {
 bool Module::drawFrame(graphics::Module& graphics) {
 	cameras::PerspectiveCamera& mainCamera = cameras::module->mainCamera;
 
-    //LLOG_INFO << glm::to_string(mainCamera.transform);
-	graphics::GPUSceneData sceneData{
-		.view = mainCamera.view,
-		.inverseView = glm::mat4(1.0),
-		.projection = mainCamera.projection,
-		.viewProjection = {},
-		.ambientColor = glm::vec3(0.05),
-		.mainLightDirection = glm::normalize(glm::vec3(-1.0, 0.0, 0.0)),
-		.mainLightColor = glm::vec3(1, 1, 1),
-	};
+	ImGui::Begin("Graphics");
+	ImGui::ColorEdit3("Ambient Color", glm::value_ptr(sceneData.ambientColor));
+	ImGui::ColorEdit3("Light Color", glm::value_ptr(sceneData.mainLightColor));
+	ImGui::SliderFloat3(
+		"Light Direction",
+		glm::value_ptr(sceneData.mainLightDirection),
+		-1.0,
+		1.0
+	);
+	ImGui::End();
+
+	sceneData.view = mainCamera.view;
+	sceneData.projection = mainCamera.projection;
 	// accounts for difference between openGL and Vulkan clip space
 	sceneData.projection[1][1] *= -1;
 	sceneData.inverseView = glm::inverse(sceneData.view);
@@ -79,7 +104,6 @@ bool Module::drawFrame(graphics::Module& graphics) {
 
 	bool isRenderSuccessful = graphics.drawFrame(renderSubmission, sceneData);
 	renderSubmission.clear();
-	graphics.endFrame();
 	return isRenderSuccessful;
 }
 }  // namespace scene_graph

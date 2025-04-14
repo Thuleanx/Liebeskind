@@ -2,11 +2,14 @@
 
 #include "low_level_renderer/config.h"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wold-style-cast"
 #include "backends/imgui_impl_sdl3.h"
 #include "backends/imgui_impl_vulkan.h"
+#include "imgui.h"
+#pragma GCC diagnostic pop
 #include "core/logger/assert.h"
 #include "core/logger/vulkan_ensures.h"
-#include "imgui.h"
 
 namespace graphics {
 vk::DescriptorPool createUIDescriptorPool(const GraphicsDeviceInterface& device
@@ -185,6 +188,8 @@ GraphicsUserInterface GraphicsUserInterface::create(
 	const std::vector<vk::Framebuffer> framebuffers =
 		createUIFramebuffers(device, renderPass);
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 	ImGui_ImplVulkan_InitInfo initInfo{
 		.Instance = device.instance,
 		.PhysicalDevice = device.physicalDevice,
@@ -196,6 +201,7 @@ GraphicsUserInterface GraphicsUserInterface::create(
 		.MinImageCount = MAX_FRAMES_IN_FLIGHT,
 		.ImageCount = MAX_FRAMES_IN_FLIGHT,
 	};
+#pragma GCC diagnostic pop
 
 	ImGui_ImplVulkan_Init(&initInfo);
 

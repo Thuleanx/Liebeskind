@@ -1,9 +1,21 @@
 #include "input_management.h"
 
+#include "core/logger/assert.h"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wold-style-cast"
+#include "imgui.h"
+#pragma GCC diagnostic pop
+#include "low_level_renderer/graphics_module.h"
+
 namespace input {
 std::optional<Manager> manager = std::nullopt;
 
-Manager Manager::create() { return {}; }
+Manager Manager::create() {
+	ASSERT(graphics::module, "graphics module must be loaded before input");
+	Manager manager = {};
+	manager.switchMode(Mode::Game);
+	return manager;
+}
 
 void Manager::subscribe(Instant input, std::function<void()> listener) {
 	instantInputs.Register(input, listener);
@@ -18,6 +30,28 @@ void Manager::subscribe(Ranged input, std::function<void(float)> listener) {
 }
 
 void Manager::handleEvent(SDL_Event sdlEvent) {
+	switch (currentMode) {
+		case Mode::Game: {
+			const bool shouldSwitchToUIMode =
+				sdlEvent.type == SDL_EVENT_KEY_DOWN &&
+				sdlEvent.key.scancode == SDL_SCANCODE_ESCAPE;
+			if (shouldSwitchToUIMode) switchMode(Mode::GUI);
+			break;
+		}
+		case Mode::GUI: {
+			ImGuiIO& io = ImGui::GetIO();
+			const bool shouldSwitchToGameMode =
+				!io.WantCaptureMouse && !io.WantCaptureKeyboard &&
+				sdlEvent.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+				sdlEvent.button.button == SDL_BUTTON_LEFT;
+			if (shouldSwitchToGameMode) switchMode(Mode::Game);
+			break;
+		}
+		default: __builtin_unreachable();
+	}
+
+	if (currentMode != Mode::Game) return;
+
 	switch (sdlEvent.type) {
 		case SDL_EVENT_KEY_DOWN: onKeyDown(sdlEvent.key.scancode); break;
 		case SDL_EVENT_KEY_UP:	 onKeyUp(sdlEvent.key.scancode); break;
@@ -28,6 +62,18 @@ void Manager::handleEvent(SDL_Event sdlEvent) {
 				rangedInputs.Trigger(Ranged::MouseY, sdlEvent.motion.yrel);
 			break;
 	}
+}
+
+void Manager::switchMode(Mode newMode) {
+	if (newMode == currentMode) return;
+
+	if (newMode == Mode::GUI) {
+		SDL_SetWindowRelativeMouseMode(graphics::module->device.window, false);
+	} else if (newMode == Mode::Game) {
+		SDL_SetWindowRelativeMouseMode(graphics::module->device.window, true);
+	}
+
+	currentMode = newMode;
 }
 
 void Manager::onKeyDown(SDL_Scancode key) {
@@ -42,12 +88,12 @@ void Manager::onKeyDown(SDL_Scancode key) {
 		case SDL_Scancode::SDL_SCANCODE_E: onRotateChange(); break;
 		case SDL_Scancode::SDL_SCANCODE_SPACE:
 			toggledInputs.Trigger(Toggled::Jump, true);
-            break;
+			break;
 		case SDL_Scancode::SDL_SCANCODE_LSHIFT:
 			toggledInputs.Trigger(Toggled::Crouch, true);
-            break;
+			break;
 
-		default:						   break;
+		default: break;
 	}
 }
 
@@ -63,10 +109,10 @@ void Manager::onKeyUp(SDL_Scancode key) {
 		case SDL_Scancode::SDL_SCANCODE_E: onRotateChange(); break;
 		case SDL_Scancode::SDL_SCANCODE_SPACE:
 			toggledInputs.Trigger(Toggled::Jump, false);
-            break;
+			break;
 		case SDL_Scancode::SDL_SCANCODE_LSHIFT:
 			toggledInputs.Trigger(Toggled::Crouch, false);
-            break;
+			break;
 		default: break;
 	}
 }

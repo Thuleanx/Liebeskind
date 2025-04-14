@@ -6,10 +6,13 @@
 #include "core/algo/event_system.h"
 
 namespace input {
-enum class Instant {};
+enum class Instant {
+    Escape,
+};
 enum class Toggled {
 	Jump,
 	Crouch,
+    MouseDown,
 };
 enum class Ranged {
 	MouseX,
@@ -17,6 +20,12 @@ enum class Ranged {
 	MovementX,
 	MovementY,
 	Rotate,
+};
+
+enum class Mode {
+    Uninitialized,
+    GUI,
+    Game,
 };
 
 class Manager {
@@ -28,6 +37,7 @@ class Manager {
 	void subscribe(Ranged input, std::function<void(float)> listener);
 
    private:
+    void switchMode(Mode newMode);
 	void onKeyDown(SDL_Scancode key);
 	void onKeyUp(SDL_Scancode key);
 
@@ -36,6 +46,7 @@ class Manager {
 	void onRotateChange();
 
    private:
+    Mode currentMode = Mode::Uninitialized;
 	EventSystem<Instant> instantInputs;
 	EventSystem<Toggled, bool> toggledInputs;
 	EventSystem<Ranged, float> rangedInputs;

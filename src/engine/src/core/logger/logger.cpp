@@ -1,10 +1,13 @@
 #include "core/logger/logger.h"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
 #include "plog/Appenders/ColorConsoleAppender.h"
 // Txt formatter prints out the timestamp which doesn't really make sense to me
 /* #include "plog/Formatters/TxtFormatter.h" */
 #include "plog/Initializers/RollingFileInitializer.h"
 #include "plog/Severity.h"
+#pragma GCC diagnostic pop
 
 namespace plog {
 class MyFormatter {

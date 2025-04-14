@@ -1,9 +1,14 @@
 #include "game.h"
 
+
 #include <chrono>
 #include <glm/gtx/string_cast.hpp>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wold-style-cast"
 #include "backends/imgui_impl_sdl3.h"
+#pragma GCC diagnostic pop
+
 #include "cameras/module.h"
 #include "core/logger/logger.h"
 #include "engine.h"
@@ -11,9 +16,6 @@
 #include "input_management.h"
 #include "low_level_renderer/graphics_module.h"
 #include "scene_graph/module.h"
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
 
 void game::init() {
 	Logging::initializeLogger();
@@ -24,21 +26,21 @@ void game::init() {
 }
 
 void game::run() {
-	graphics::TextureID albedo = graphics::module->loadTexture(
+	const graphics::TextureID albedo = graphics::module->loadTexture(
 		"textures/bricks_albedo.jpg", vk::Format::eR8G8B8A8Srgb
 	);
-	graphics::TextureID normalMap = graphics::module->loadTexture(
+	const graphics::TextureID normalMap = graphics::module->loadTexture(
 		"textures/bricks_normal.jpg", vk::Format::eR8G8B8A8Unorm
 	);
-	graphics::TextureID displacementMap = graphics::module->loadTexture(
+	const graphics::TextureID displacementMap = graphics::module->loadTexture(
 		"textures/bricks_height.jpg", vk::Format::eR8G8B8A8Unorm
 	);
-	graphics::TextureID emissionMap = graphics::module->loadTexture(
+	const graphics::TextureID emissionMap = graphics::module->loadTexture(
 		"textures/robot_emissive.jpeg", vk::Format::eR8G8B8A8Unorm
 	);
 
-	MeshID meshID = graphics::module->loadMesh("models/quad.obj");
-	graphics::MaterialInstanceID material = graphics::module->loadMaterial(
+	const MeshID meshID = graphics::module->loadMesh("models/quad.obj");
+	const graphics::MaterialInstanceID material = graphics::module->loadMaterial(
 		albedo,
 		normalMap,
 		displacementMap,
@@ -77,7 +79,7 @@ void game::run() {
 		.instance = instance, .material = material, .mesh = meshID, .count = 9
 	};
 
-	std::vector<int> instanceIndices = {0};
+	std::vector<size_t> instanceIndices = {0};
 	std::array<graphics::InstanceData, 9> instancesTransforms;
 	for (int dx = -1; dx <= 1; dx++)
 		for (int dy = -1; dy <= 1; dy++)
@@ -100,10 +102,7 @@ void game::run() {
 		instanceIndices, {{instancesTransforms}}
 	);
 
-	float movementX = 0;
-	float movementY = 0;
 	float rotationInput = 0;
-	float speed = 1;
 
 	input::manager->subscribe(
 		input::Ranged::Rotate,
@@ -115,7 +114,6 @@ void game::run() {
 
 	bool shouldQuitGame = false;
 
-	int p = 0;
 	while (!shouldQuitGame) {
 		graphics::module->beginFrame();
 
@@ -141,7 +139,17 @@ void game::run() {
 			input::manager->handleEvent(sdlEvent);
 		}
 
-        game_cameras::module->update(deltaTime);
+        ImGuiIO& io = ImGui::GetIO();
+
+        ImGui::Begin("General debugging");
+        ImGui::Text(
+            "Application average %.3f ms/frame (%.1f FPS)",
+            1000.0f / io.Framerate,
+            io.Framerate
+        );
+        ImGui::End();
+
+		game_cameras::module->update(deltaTime);
 
 		modelTransform =
 			modelTransform * glm::rotate(
@@ -153,6 +161,8 @@ void game::run() {
 		scene_graph::module->updateObjects({{0, modelTransform}});
 
 		if (!scene_graph::module->drawFrame(graphics::module.value())) break;
+
+        graphics::module->endFrame();
 		lastTime = time;
 	}
 }
@@ -166,4 +176,3 @@ void game::destroy() {
 	engine::destroy();
 }
 
-#pragma GCC diagnostic pop

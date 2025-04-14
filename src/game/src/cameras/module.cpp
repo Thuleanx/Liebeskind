@@ -4,28 +4,24 @@
 #include "core/logger/assert.h"
 #include "game_specific/cameras/module.h"
 #include "input_management.h"
-#include "low_level_renderer/graphics_module.h"
 
 namespace game_cameras {
 std::optional<Module> module = std::nullopt;
 
 Module Module::create() {
 	ASSERT(
-		graphics::module, "graphics module must be loaded before game_cameras"
-	);
-	ASSERT(
 		cameras::module, "cameras module must be loaded before game_cameras"
 	);
 	ASSERT(input::manager, "input module must be loaded before game_cameras");
 
-	SDL_SetWindowRelativeMouseMode(graphics::module->device.window, true);
-
 	Module module = Module{
 		.debugCameraController =
-			{.rotationSpeedDegrees = 45.f,
+			{.rotationSpeedDegrees = 180.f,
 			 .movementSpeed = 3,
 			 .currentXInput = 0,
-			 .currentYInput = 0}
+			 .currentYInput = 0,
+			 .upInput = false,
+			 .downInput = false}
 	};
 
 	input::manager->subscribe(input::Ranged::MouseX, onMouseDeltaX);
@@ -45,9 +41,6 @@ void Module::destroy() {
 		"cameras module must be unloaded after game_cameras module"
 	);
 	ASSERT(input::manager, "input module must be unloaded after game_cameras");
-	ASSERT(
-		graphics::module, "graphics module must be unloaded after game_cameras"
-	);
 }
 
 void Module::update(float deltaTime) {

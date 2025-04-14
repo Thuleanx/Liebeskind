@@ -23,13 +23,15 @@ void update(
 	glm::vec3 forward =
 		glm::normalize(cameraForward - glm::dot(cameraForward, UP) * UP);
 
-	const glm::vec3 normalizedInput =
-		controller.currentXInput != 0 || controller.currentYInput != 0
-			? glm::normalize(
-				  right * controller.currentXInput +
-				  forward * controller.currentYInput
-			  )
-			: glm::vec3(0);
+	const glm::vec3 normalizedInput = [&]() {
+		if (abs(controller.currentXInput) < 1e-4 &&
+			abs(controller.currentYInput) < 1e-4)
+			return glm::vec3(0);
+		return glm::normalize(
+			right * controller.currentXInput +
+			forward * controller.currentYInput
+		);
+	}();
 
 	const glm::vec3 frameMovement =
 		controller.movementSpeed *
@@ -47,7 +49,7 @@ void onMouseDeltaXDebug(
 	float value
 ) {
 	glm::mat4 newCameraTransform = camera.transform;
-	glm::vec3 translation = glm::vec3(newCameraTransform[3]);
+	const glm::vec3 translation = glm::vec3(newCameraTransform[3]);
 	newCameraTransform[3] = glm::vec4(0, 0, 0, 1);
 	newCameraTransform =
 		glm::rotate(
@@ -68,7 +70,7 @@ void onMouseDeltaYDebug(
 	float value
 ) {
 	glm::mat4 newCameraTransform = camera.transform;
-	glm::vec3 translation = glm::vec3(newCameraTransform[3]);
+	const glm::vec3 translation = glm::vec3(newCameraTransform[3]);
 	newCameraTransform[3] = glm::vec4(0, 0, 0, 1);
 	newCameraTransform =
 		glm::rotate(

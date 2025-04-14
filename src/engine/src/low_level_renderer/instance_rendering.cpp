@@ -16,7 +16,7 @@ RenderInstanceID RenderInstanceManager::create(
     std::array<RenderInstance, MAX_FRAMES_IN_FLIGHT> instance;
     auto descriptorSets =
         descriptorAllocator.allocate(device, setLayout, MAX_FRAMES_IN_FLIGHT);
-    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         StorageBuffer<InstanceData> storageBuffer =
             StorageBuffer<InstanceData>::create(
                 device, physicalDevice, numberOfEntries

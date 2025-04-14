@@ -1,6 +1,9 @@
 #pragma once
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
 #include "plog/Log.h"
+#pragma GCC diagnostic pop
 
 #define LLOG_VERBOSE PLOG_VERBOSE
 #define LLOG_INFO PLOG_INFO

@@ -5,6 +5,7 @@
 
 namespace scene_graph {
 struct Module {
+    graphics::GPUSceneData sceneData;
 	graphics::RenderSubmission renderSubmission;
 	std::vector<graphics::RenderObject> renderObjects;
 	std::vector<graphics::InstancedRenderObject> instancedRenderObjects;
@@ -20,7 +21,7 @@ struct Module {
         std::span<graphics::InstancedRenderObject> instancedRenderObjects
     );
     void updateInstance(
-        std::span<int> indices,
+        std::span<size_t> indices,
         std::vector<std::span<graphics::InstanceData>> data
     );
     void addObjects(std::span<graphics::RenderObject> renderObjects);

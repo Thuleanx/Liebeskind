@@ -37,7 +37,7 @@ Module Module::create() {
 void Module::destroy() {}
 
 void Module::addInstancedObjects(
-	std::span<graphics::InstancedRenderObject> instancedRenderObjects
+	std::span<const graphics::InstancedRenderObject> instancedRenderObjects
 ) {
 	this->instancedRenderObjects.insert(
 		this->instancedRenderObjects.end(),
@@ -48,7 +48,8 @@ void Module::addInstancedObjects(
 }
 
 void Module::updateInstance(
-	std::span<size_t> indices, std::vector<std::span<graphics::InstanceData>> data
+	std::span<const size_t> indices,
+	std::vector<std::span<const graphics::InstanceData>> data
 ) {
 	ASSERT(
 		indices.size() == data.size(),
@@ -67,7 +68,7 @@ void Module::updateInstance(
 	}
 }
 
-void Module::addObjects(std::span<graphics::RenderObject> renderObjects) {
+void Module::addObjects(std::span<const graphics::RenderObject> renderObjects) {
 	this->renderObjects.insert(
 		this->renderObjects.end(), renderObjects.begin(), renderObjects.end()
 	);

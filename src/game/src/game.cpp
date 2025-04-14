@@ -1,7 +1,7 @@
 #include "game.h"
 
-
 #include <chrono>
+#include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/string_cast.hpp>
 
 #pragma GCC diagnostic push
@@ -40,25 +40,28 @@ void game::run() {
 	);
 
 	const MeshID meshID = graphics::module->loadMesh("models/quad.obj");
-	const graphics::MaterialInstanceID material = graphics::module->loadMaterial(
-		albedo,
-		normalMap,
-		displacementMap,
-		emissionMap,
+	graphics::MaterialProperties materialProperties =
 		graphics::MaterialProperties{
 			.specular = glm::vec3(1, 1, 1),
 			.diffuse = glm::vec3(0.4),
 			.ambient = glm::vec3(0),
 			.emission = glm::vec3(0),
 			.shininess = 128.0f
-		},
-		graphics::SamplerType::eLinear
-	);
-	graphics::RenderInstanceID instance =
+		};
+	const graphics::MaterialInstanceID material =
+		graphics::module->loadMaterial(
+			albedo,
+			normalMap,
+			displacementMap,
+			emissionMap,
+			materialProperties,
+			graphics::SamplerType::eLinear
+		);
+	const graphics::RenderInstanceID instance =
 		graphics::module->registerInstance(10);
-	graphics::module->device.writeBuffer.batchWrite(
-		graphics::module->device.device
-	);
+	/* graphics::module->device.writeBuffer.batchWrite( */
+	/* 	graphics::module->device.device */
+	/* ); */
 
 	glm::mat4 modelTransform = glm::translate(
 		glm::rotate(
@@ -69,30 +72,32 @@ void game::run() {
 		glm::vec3(0.0, 0.0, 0.5)
 	);
 
-	graphics::RenderObject sword{
+	const graphics::RenderObject sword{
 		.transform = modelTransform,
 		.materialInstance = material,
 		.mesh = meshID,
 	};
 
-	graphics::InstancedRenderObject instanceRenderObject{
+	const graphics::InstancedRenderObject instanceRenderObject{
 		.instance = instance, .material = material, .mesh = meshID, .count = 9
 	};
-
-	std::vector<size_t> instanceIndices = {0};
-	std::array<graphics::InstanceData, 9> instancesTransforms;
-	for (int dx = -1; dx <= 1; dx++)
-		for (int dy = -1; dy <= 1; dy++)
-			instancesTransforms[dx + 1 + (dy + 1) * 3] = graphics::InstanceData{
-				.transform = glm::translate(
-					glm::rotate(
-						glm::scale(glm::mat4(1), glm::vec3(1)),
-						glm::radians(90.f),
-						glm::vec3(0.0, 1.0, 0.0)
-					),
-					glm::vec3(dx, dy, 0) * 2.0f
-				)
-			};
+	const std::vector<size_t> instanceIndices = {0};
+	const std::array<graphics::InstanceData, 9> instancesTransforms = [&]() {
+		std::array<graphics::InstanceData, 9> transforms;
+		for (int dx = -1; dx <= 1; dx++)
+			for (int dy = -1; dy <= 1; dy++)
+				transforms[dx + 1 + (dy + 1) * 3] = graphics::InstanceData{
+					.transform = glm::translate(
+						glm::rotate(
+							glm::scale(glm::mat4(1), glm::vec3(1)),
+							glm::radians(90.f),
+							glm::vec3(0.0, 1.0, 0.0)
+						),
+						glm::vec3(dx, dy, 0) * 2.0f
+					)
+				};
+		return transforms;
+	}();
 
 	scene_graph::module->addObjects({std::addressof(sword), 1});
 	scene_graph::module->addInstancedObjects(
@@ -103,7 +108,6 @@ void game::run() {
 	);
 
 	float rotationInput = 0;
-
 	input::manager->subscribe(
 		input::Ranged::Rotate,
 		[&rotationInput](float value) { rotationInput = value; }
@@ -117,15 +121,15 @@ void game::run() {
 	while (!shouldQuitGame) {
 		graphics::module->beginFrame();
 
+		const auto currentTime = std::chrono::high_resolution_clock::now();
+		const float time =
+			std::chrono::duration<float, std::chrono::seconds::period>(
+				currentTime - startTime
+			)
+				.count();
+		const float deltaTime = time - lastTime;
+
 		SDL_Event sdlEvent;
-
-		auto currentTime = std::chrono::high_resolution_clock::now();
-		float time = std::chrono::duration<float, std::chrono::seconds::period>(
-						 currentTime - startTime
-		)
-						 .count();
-		float deltaTime = time - lastTime;
-
 		while (SDL_PollEvent(&sdlEvent)) {
 			switch (sdlEvent.type) {
 				case SDL_EVENT_QUIT: shouldQuitGame = true; break;
@@ -139,15 +143,31 @@ void game::run() {
 			input::manager->handleEvent(sdlEvent);
 		}
 
-        ImGuiIO& io = ImGui::GetIO();
+		const ImGuiIO& io = ImGui::GetIO();
 
-        ImGui::Begin("General debugging");
-        ImGui::Text(
-            "Application average %.3f ms/frame (%.1f FPS)",
-            1000.0f / io.Framerate,
-            io.Framerate
-        );
-        ImGui::End();
+		ImGui::Begin("General debugging");
+		ImGui::Text(
+			"Application average %.3f ms/frame (%.1f FPS)",
+			1000.0f / io.Framerate,
+			io.Framerate
+		);
+		ImGui::End();
+
+		ImGui::Begin("Material Properties");
+		ImGui::ColorEdit3(
+			"Specular", glm::value_ptr(materialProperties.specular)
+		);
+		ImGui::InputFloat("Shininess", &materialProperties.shininess);
+		ImGui::ColorEdit3(
+			"Diffuse", glm::value_ptr(materialProperties.diffuse)
+		);
+		ImGui::ColorEdit3(
+			"Ambient", glm::value_ptr(materialProperties.ambient)
+		);
+		ImGui::ColorEdit3(
+			"Emission", glm::value_ptr(materialProperties.emission)
+		);
+		ImGui::End();
 
 		game_cameras::module->update(deltaTime);
 
@@ -158,11 +178,12 @@ void game::run() {
 								 glm::vec3(0, 1, 0)
 							 );
 
+		graphics::module->updateMaterial(material, materialProperties);
 		scene_graph::module->updateObjects({{0, modelTransform}});
 
 		if (!scene_graph::module->drawFrame(graphics::module.value())) break;
 
-        graphics::module->endFrame();
+		graphics::module->endFrame();
 		lastTime = time;
 	}
 }
@@ -175,4 +196,3 @@ void game::destroy() {
 	if (input::manager.has_value()) { input::manager = std::nullopt; }
 	engine::destroy();
 }
-

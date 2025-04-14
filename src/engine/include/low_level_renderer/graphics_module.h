@@ -44,6 +44,10 @@ struct Module {
 	);
 	[[nodiscard]] RenderInstanceID registerInstance(uint16_t numberOfEntries);
 
+	void updateMaterial(
+		MaterialInstanceID material, const MaterialProperties& properties
+	) const;
+
    private:
 	void recordCommandBuffer(
 		const RenderSubmission& renderSubmission,

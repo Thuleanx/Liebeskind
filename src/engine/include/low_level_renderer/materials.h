@@ -49,7 +49,7 @@ constexpr std::array<vk::DescriptorPoolSize, 2> MATERIAL_DESCRIPTOR_POOL_SIZES =
 };
 
 struct MaterialInstanceID {
-	uint32_t index;
+	uint16_t index;
 
 	inline bool operator==(const MaterialInstanceID& other) const {
 		return this->index == other.index;
@@ -71,7 +71,7 @@ struct MaterialProperties {
 };
 
 struct MaterialStorage {
-	int numOfMaterials = 0;
+	size_t numOfMaterials = 0;
 	std::array<vk::DescriptorSet, MAX_MATERIAL_INSTANCES> descriptors;
 	std::array<UniformBuffer<MaterialProperties>, MAX_MATERIAL_INSTANCES>
 		uniforms;
@@ -92,6 +92,12 @@ MaterialInstanceID create(
 	vk::Sampler sampler,
 	DescriptorAllocator& allocator,
 	DescriptorWriteBuffer& writeBuffer
+);
+
+void update(
+	const MaterialStorage& materials,
+	const MaterialProperties& materialProperties,
+    MaterialInstanceID instance
 );
 
 void bind(

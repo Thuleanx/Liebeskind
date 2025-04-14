@@ -18,13 +18,13 @@ struct Module {
     bool drawFrame(graphics::Module& graphics);
 
     void addInstancedObjects(
-        std::span<graphics::InstancedRenderObject> instancedRenderObjects
+        std::span<const graphics::InstancedRenderObject> instancedRenderObjects
     );
     void updateInstance(
-        std::span<size_t> indices,
-        std::vector<std::span<graphics::InstanceData>> data
+        std::span<const size_t> indices,
+        std::vector<std::span<const graphics::InstanceData>> data
     );
-    void addObjects(std::span<graphics::RenderObject> renderObjects);
+    void addObjects(std::span<const graphics::RenderObject> renderObjects);
     void updateObjects(std::vector<std::tuple<int, glm::mat4>>);
 };
 

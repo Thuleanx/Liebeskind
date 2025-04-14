@@ -1,7 +1,7 @@
 #include "low_level_renderer/materials.h"
 
-#include "low_level_renderer/material_pipeline.h"
 #include "core/logger/assert.h"
+#include "low_level_renderer/material_pipeline.h"
 
 namespace graphics {
 MaterialInstanceID create(
@@ -20,7 +20,7 @@ MaterialInstanceID create(
 	DescriptorWriteBuffer& writeBuffer
 ) {
 	MaterialInstanceID id{
-		.index = static_cast<uint32_t>(materials.numOfMaterials++)
+		.index = static_cast<uint16_t>(materials.numOfMaterials++)
 	};
 	UniformBuffer<MaterialProperties> uniformBuffer =
 		UniformBuffer<MaterialProperties>::create(device, physicalDevice);
@@ -52,8 +52,21 @@ MaterialInstanceID create(
 		textures, emissionMap, descriptorSet, 4, sampler, writeBuffer
 	);
 	materials.descriptors[id.index] = descriptorSet;
-    materials.uniforms[id.index] = uniformBuffer;
+	materials.uniforms[id.index] = uniformBuffer;
 	return id;
+}
+
+void update(
+	const MaterialStorage& materials,
+	const MaterialProperties& materialProperties,
+	MaterialInstanceID instance
+) {
+	ASSERT(
+		instance.index < materials.uniforms.size(),
+		"Invalid material index " << instance.index
+								  << " >= " << materials.uniforms.size()
+	);
+	materials.uniforms[instance.index].update(materialProperties);
 }
 
 void bind(
@@ -74,7 +87,7 @@ void bind(
 }
 
 void destroy(MaterialStorage& materials, vk::Device device) {
-    for (int i = 0; i < materials.numOfMaterials; i++)
-        materials.uniforms[i].destroyBy(device);
+	for (size_t i = 0; i < materials.numOfMaterials; i++)
+		materials.uniforms[i].destroyBy(device);
 }
 }  // namespace graphics

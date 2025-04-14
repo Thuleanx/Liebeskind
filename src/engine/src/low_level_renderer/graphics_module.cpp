@@ -363,4 +363,11 @@ RenderInstanceID Module::registerInstance(uint16_t numberOfEntries) {
 		numberOfEntries
 	);
 }
+
+void Module::updateMaterial(
+	MaterialInstanceID material, const MaterialProperties& properties
+) const {
+	update(materials, properties, material);
+}
+
 }  // namespace graphics

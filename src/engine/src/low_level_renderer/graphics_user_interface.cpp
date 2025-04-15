@@ -177,7 +177,7 @@ GraphicsUserInterface GraphicsUserInterface::create(
 	ImGui::StyleColorsDark();
 
 	ImGuiIO& io = ImGui::GetIO();
-	(void)io;
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 	ImGui_ImplSDL3_InitForVulkan(device.window);
 
 	const vk::DescriptorPool descriptorPool = createUIDescriptorPool(device);

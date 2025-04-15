@@ -1,13 +1,17 @@
 #include "low_level_renderer/graphics_module.h"
 
+#include "game_specific/cameras/module.h"
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wold-style-cast"
 #include "backends/imgui_impl_sdl3.h"
 #include "backends/imgui_impl_vulkan.h"
 #include "imgui.h"
+#include "imgui_internal.h"
 #pragma GCC diagnostic pop
 
 #include "core/logger/vulkan_ensures.h"
+#include "game_specific/cameras/camera.h"
 
 namespace graphics {
 std::optional<Module> module = std::nullopt;
@@ -24,7 +28,8 @@ Module Module::create() {
 		.ui = ui,
 		.instances = {},
 		.textures = {},
-		.materials = {}
+		.materials = {},
+		.mainWindowExtent = {},
 	};
 }
 
@@ -46,6 +51,26 @@ void Module::beginFrame() {
 	ImGui_ImplVulkan_NewFrame();
 	ImGui_ImplSDL3_NewFrame();
 	ImGui::NewFrame();
+
+	ImGuiID dockSpaceID = ImGui::DockSpaceOverViewport(
+		0,
+		ImGui::GetMainViewport(),
+		ImGuiDockNodeFlags_PassthruCentralNode |
+			ImGuiDockNodeFlags_NoDockingOverCentralNode
+	);
+	ImGuiDockNode* centralNode = ImGui::DockBuilderGetCentralNode(dockSpaceID);
+	mainWindowExtent = vk::Rect2D{
+		vk::Offset2D{
+			static_cast<int32_t>(centralNode->Pos.x),
+			static_cast<int32_t>(centralNode->Pos.y)
+		},
+		{static_cast<uint32_t>(centralNode->Size.x),
+		 static_cast<uint32_t>(centralNode->Size.y)}
+	};
+	cameras::module->mainCamera.setAspectRatio(
+		static_cast<float>(mainWindowExtent.extent.width) /
+		mainWindowExtent.extent.height
+	);
 }
 
 void Module::handleEvent(const SDL_Event& event) {
@@ -163,17 +188,23 @@ void Module::recordCommandBuffer(
 		buffer.begin(beginInfo), "Can't begin recording command buffer:"
 	);
 
-	vk::Rect2D screenExtent(vk::Offset2D{0, 0}, device.swapchain->extent);
-	vk::Viewport viewport(
-		0.0f,
-		0.0f,
-		static_cast<float>(device.swapchain->extent.width),
-		static_cast<float>(device.swapchain->extent.height),
+	const vk::Rect2D screenExtent = {
+		vk::Offset2D{},
+		vk::Extent2D{
+			device.swapchain->extent.width,
+			device.swapchain->extent.height,
+		}
+	};
+	const vk::Viewport viewport(
+		mainWindowExtent.offset.x,
+		mainWindowExtent.offset.y,
+		mainWindowExtent.extent.width,
+		mainWindowExtent.extent.height,
 		0.0f,
 		1.0f
 	);
 	buffer.setViewport(0, 1, &viewport);
-	vk::Rect2D scissor(vk::Offset2D(0.0f, 0.0f), device.swapchain->extent);
+	const vk::Rect2D scissor = mainWindowExtent;
 	buffer.setScissor(0, 1, &scissor);
 
 	{  // Main Renderpass
@@ -189,7 +220,7 @@ void Module::recordCommandBuffer(
 		const vk::RenderPassBeginInfo renderPassInfo(
 			device.renderPasses.mainPass,
 			device.swapchain->mainFramebuffers[imageIndex],
-			screenExtent,
+			mainWindowExtent,
 			static_cast<uint32_t>(clearColors.size()),
 			clearColors.data()
 		);
@@ -252,7 +283,7 @@ void Module::recordCommandBuffer(
 		const vk::RenderPassBeginInfo renderPassInfo(
 			device.renderPasses.postProcessingPass,
 			device.swapchain->postProcessingFramebuffers[imageIndex],
-			screenExtent,
+			mainWindowExtent,
 			clearColors.size(),
 			clearColors.data()
 		);
@@ -277,6 +308,12 @@ void Module::recordCommandBuffer(
 
 		buffer.endRenderPass();
 	}
+
+	const vk::Viewport screenViewport(
+		0, 0, screenExtent.extent.width, screenExtent.extent.height, 0.0f, 1.0f
+	);
+	buffer.setViewport(0, 1, &screenViewport);
+	buffer.setScissor(0, 1, &screenExtent);
 
 	{  // UI RenderPass
 		const std::array<vk::ClearValue, 1> clearColors = {

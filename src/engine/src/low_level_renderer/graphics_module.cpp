@@ -58,11 +58,12 @@ void Module::beginFrame() {
 		ImGuiDockNodeFlags_PassthruCentralNode |
 			ImGuiDockNodeFlags_NoDockingOverCentralNode
 	);
+	ImGuiViewport* mainViewport = ImGui::GetMainViewport();
 	ImGuiDockNode* centralNode = ImGui::DockBuilderGetCentralNode(dockSpaceID);
 	mainWindowExtent = vk::Rect2D{
 		vk::Offset2D{
-			static_cast<int32_t>(centralNode->Pos.x),
-			static_cast<int32_t>(centralNode->Pos.y)
+			static_cast<int32_t>(centralNode->Pos.x - mainViewport->Pos.x),
+			static_cast<int32_t>(centralNode->Pos.y - mainViewport->Pos.y)
 		},
 		{static_cast<uint32_t>(centralNode->Size.x),
 		 static_cast<uint32_t>(centralNode->Size.y)}
@@ -152,6 +153,14 @@ bool Module::drawFrame(
 		),
 		"Can't submit graphics queue:"
 	);
+
+	ImGuiIO& io = ImGui::GetIO();
+	// Update and Render additional Platform Windows
+	if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+		ImGui::UpdatePlatformWindows();
+		ImGui::RenderPlatformWindowsDefault();
+	}
+
 	vk::PresentInfoKHR presentInfo(
 		1,
 		&currentFrame.isRenderingFinished,

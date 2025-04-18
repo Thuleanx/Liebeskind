@@ -39,7 +39,7 @@ void game::run() {
 		"textures/robot_emissive.jpeg", vk::Format::eR8G8B8A8Unorm
 	);
 
-	const MeshID meshID = graphics::module->loadMesh("models/quad.obj");
+	const graphics::MeshID meshID = graphics::module->loadMesh("models/quad.obj");
 	graphics::MaterialProperties materialProperties =
 		graphics::MaterialProperties{
 			.specular = glm::vec3(1, 1, 1),

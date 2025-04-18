@@ -18,6 +18,7 @@ struct Module {
 	RenderInstanceManager instances;
 	TextureStorage textures;
 	MaterialStorage materials;
+    MeshStorage meshes;
     vk::Rect2D mainWindowExtent;
 
    public:

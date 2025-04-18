@@ -47,3 +47,8 @@ void destroy(
 );
 
 }  // namespace algo
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused"
+#include "generation_index_array.cpp"
+#pragma GCC diagnostic pop

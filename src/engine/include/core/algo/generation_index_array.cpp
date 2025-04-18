@@ -1,3 +1,4 @@
+#pragma once
 #include "core/algo/generation_index_array.h"
 
 #include "core/logger/assert.h"
@@ -9,7 +10,7 @@ GenerationIndexArray<N> GenerationIndexArray<N>::create() {
 	const std::vector<uint16_t> free = [&]() {
 		std::vector<uint16_t> result;
 		result.reserve(N);
-		for (uint16_t i = N - 1; i >= 0; i--) result.push_back(i);
+		for (uint16_t i = 0; i < N; i++) result.push_back(i);
 		return result;
 	}();
 	return {.generation = {}, .free = free};
@@ -57,6 +58,3 @@ void destroy(
 }
 
 }  // namespace algo
-
-#include "low_level_renderer/meshes.h"
-template struct algo::GenerationIndexArray<graphics::MAX_MESHES>;

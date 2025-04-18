@@ -11,7 +11,6 @@
 #pragma GCC diagnostic pop
 
 #include "core/logger/vulkan_ensures.h"
-#include "game_specific/cameras/camera.h"
 
 namespace graphics {
 std::optional<Module> module = std::nullopt;
@@ -29,6 +28,7 @@ Module Module::create() {
 		.instances = {},
 		.textures = {},
 		.materials = {},
+		.meshes = MeshStorage::create(),
 		.mainWindowExtent = {},
 	};
 }
@@ -37,7 +37,7 @@ void Module::destroy() {
 	VULKAN_ENSURE_SUCCESS_EXPR(
 		device.device.waitIdle(), "Can't wait for device idle:"
 	);
-	resources.meshes.destroyBy(device.device);
+	graphics::destroy(meshes, device.device);
 	graphics::destroy(materials, device.device);
 	graphics::destroy(textures, device.device);
 	resources.shaders.destroyBy(device.device);
@@ -253,7 +253,7 @@ void Module::recordCommandBuffer(
 			buffer,
 			device.pipeline.regularPipeline.layout,
 			materials,
-			resources.meshes,
+			meshes,
 			device.currentFrame
 		);
 
@@ -277,7 +277,7 @@ void Module::recordCommandBuffer(
 			device.pipeline.instanceRenderingPipeline.layout,
 			instances,
 			materials,
-			resources.meshes,
+			meshes,
 			device.currentFrame
 		);
 
@@ -362,7 +362,8 @@ TextureID Module::loadTexture(const char* filePath, vk::Format imageFormat) {
 }
 
 MeshID Module::loadMesh(const char* filePath) {
-	return resources.meshes.load(
+	return load(
+		meshes,
 		device.device,
 		device.physicalDevice,
 		device.commandPool,

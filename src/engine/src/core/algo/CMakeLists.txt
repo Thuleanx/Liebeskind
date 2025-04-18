@@ -1,6 +1,6 @@
 set(SRC
     type_id.cpp
-    generation_index_array.cpp
 )
 
 add_library(algo ${SRC})
+target_link_libraries(algo PRIVATE logger)

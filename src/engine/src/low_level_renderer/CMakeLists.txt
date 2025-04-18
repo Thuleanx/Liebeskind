@@ -3,6 +3,7 @@ set(SRC
     render_submission.cpp
     material_pipeline.cpp
     materials.cpp
+    meshes.cpp
     graphics_device_interface.cpp 
     graphics_user_interface.cpp 
     descriptor_write_buffer.cpp 
@@ -32,6 +33,7 @@ set(SRC
 add_library(low_level_renderer ${SRC})
 
 target_link_libraries(low_level_renderer PUBLIC third_party)
+target_link_libraries(low_level_renderer PRIVATE algo)
 target_link_libraries(low_level_renderer PRIVATE file_system)
 target_link_libraries(low_level_renderer PRIVATE resource_management)
 target_link_libraries(low_level_renderer PRIVATE logger)

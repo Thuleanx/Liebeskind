@@ -6,7 +6,7 @@
 
 #include "low_level_renderer/instance_rendering.h"
 #include "low_level_renderer/materials.h"
-#include "resource_management/mesh_manager.h"
+#include "low_level_renderer/meshes.h"
 
 namespace graphics {
 struct RenderObject {
@@ -50,7 +50,7 @@ class RenderSubmission {
         vk::PipelineLayout pipelineLayout,
         const RenderInstanceManager& instanceManager,
         const MaterialStorage& materials,
-        const MeshManager& meshManager,
+        const MeshStorage& meshes,
         uint32_t currentFrame
     ) const;
 
@@ -58,7 +58,7 @@ class RenderSubmission {
         vk::CommandBuffer buffer,
         vk::PipelineLayout pipelineLayout,
         const MaterialStorage& materials,
-        const MeshManager& meshManager,
+        const MeshStorage& meshes,
         uint32_t currentFrame
     ) const;
     void clear();

@@ -54,23 +54,21 @@ TangentSpace calculateTangentSpace() {
     return tangentSpace;
 }
 
-struct ParallaxMappingResult {
-    vec2 uv;
-};
-
-ParallaxMappingResult applyParallaxMapping(vec3 viewDirectionTangent, vec2 uv) {
+vec2 applyParallaxMapping(vec3 viewDirectionTangent, vec2 uv) {
     const float parallaxMappingZBias = 0.42; // arbitrary bias, prevents artifacts for shallow view angles
-    const float height_scale = 0.1; // maximum penetration in the normal that the height map represents
+    const float height_scale = 0.2; // maximum penetration in the normal that the height map represents
     const int numOfLayers = 10;
+    const int numOfSecondaryLayers = 10;
 
     float layerDepth = 1.0 / numOfLayers;
 
     float currentLayerDepth = 0;
-    vec2 deltaUV = -viewDirectionTangent.xy / (viewDirectionTangent.z + parallaxMappingZBias) * height_scale * layerDepth;
+    vec2 deltaUV = -viewDirectionTangent.xy * height_scale * layerDepth;
     float currentSampledDepth = 0;
     float lastSampledDepth = 0;
 
-    for (int i = 0; i <= numOfLayers; i++) {
+    int layer = 0;
+    for (layer = 0; layer <= numOfLayers; layer++) {
         currentSampledDepth = texture(displacementSampler, uv).r;
 
         if (currentLayerDepth >= currentSampledDepth)
@@ -81,14 +79,34 @@ ParallaxMappingResult applyParallaxMapping(vec3 viewDirectionTangent, vec2 uv) {
         currentLayerDepth += layerDepth;
     }
 
+    if (layer == 0) return uv;
+
+    {
+        // walk back one step
+        uv = uv - deltaUV;
+        currentLayerDepth -= layerDepth;
+        deltaUV = deltaUV * layerDepth;
+
+        layerDepth = layerDepth / numOfSecondaryLayers;
+
+        for (layer = 0; layer <= numOfSecondaryLayers; layer++) {
+            currentSampledDepth = texture(displacementSampler, uv).r;
+
+            if (currentLayerDepth >= currentSampledDepth)
+                break;
+
+            lastSampledDepth = currentSampledDepth;
+            uv += deltaUV;
+            currentLayerDepth += layerDepth;
+        }
+    }
+
     float afterDepth = currentSampledDepth - currentLayerDepth;
     float beforeDepth = lastSampledDepth - currentLayerDepth + layerDepth;
 
     float weight = afterDepth / (afterDepth - beforeDepth);
 
-    ParallaxMappingResult result;
-    result.uv = uv - deltaUV * weight;
-    return result;
+    return uv - deltaUV * weight;
 }
 
 void main() {
@@ -99,24 +117,23 @@ void main() {
     vec3 viewDirection = normalize(eyePosition - inPositionWorld);
     vec3 viewDirectionTangent = tangentSpace.worldToTangent * viewDirection;
 
-    ParallaxMappingResult parallax = applyParallaxMapping(viewDirectionTangent, inFragTexCoord);
-    bool isOutOfTexture = parallax.uv.x < 0 || parallax.uv.x > 1 || parallax.uv.y < 0 || parallax.uv.y > 1;
+    vec2 parallaxUV = applyParallaxMapping(viewDirectionTangent, inFragTexCoord);
+    bool isOutOfTexture = parallaxUV.x < 0 || parallaxUV.x > 1 || parallaxUV.y < 0 || parallaxUV.y > 1;
     if (isOutOfTexture)
         discard;
 
-    vec4 texColor = texture(texSampler, parallax.uv) * vec4(inFragColor, 1.0);
+    vec4 texColor = texture(texSampler, parallaxUV) * vec4(inFragColor, 1.0);
 
     // Who allowed these to not be normalized
-    vec3 sampledNormalTangent = 2.0 * texture(normalSampler, parallax.uv).xyz - 1.0;
-    // vec3 sampledNormalWorld = normalize(tangentSpace.tangentToWorld * sampledNormalTangent);
-    vec3 sampledNormalWorld = normalize(inNormalWorld);
+    vec3 sampledNormalTangent = 2.0 * texture(normalSampler, parallaxUV).xyz - 1.0;
+    vec3 sampledNormalWorld = normalize(tangentSpace.tangentToWorld * sampledNormalTangent);
 
     // by convention, these vectors points outwards from the surface
     vec3 lightDirection = -normalize(scene.mainLightDirection);
     vec3 halfwayDirection = normalize(lightDirection + viewDirection);
     vec3 reflectedDirection = 2 * (dot(sampledNormalWorld, lightDirection)) * sampledNormalWorld - lightDirection;
 
-    vec3 emissiveColor = texture(emissiveSampler, parallax.uv).xyz;
+    vec3 emissiveColor = texture(emissiveSampler, parallaxUV).xyz;
     
     float specular = pow(max(0, dot(viewDirection, reflectedDirection)), materialProperties.shininess);
     float diffuse = max(0, dot(sampledNormalWorld, lightDirection));
@@ -129,4 +146,5 @@ void main() {
         emissiveColor * materialProperties.emission;
 
     outColor = vec4(lighting, 1) * texColor;
+    //outColor = vec4(vec3(diffuse), 1);
 }

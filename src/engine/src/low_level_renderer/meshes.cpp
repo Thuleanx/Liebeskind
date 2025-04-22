@@ -15,7 +15,7 @@ MeshID load(
 	vk::PhysicalDevice physicalDevice,
 	vk::CommandPool commandPool,
 	vk::Queue graphicsQueue,
-	const char *meshFilePath
+    std::string_view meshFilePath
 ) {
 	const algo::GenerationIndexPair index = algo::pushBack(storage.indices);
 	const graphics::VertexBuffer vertexBuffer = graphics::VertexBuffer::create(

@@ -4,6 +4,7 @@ set(SDL_STATIC ON CACHE INTERNAL "")
 add_subdirectory(Vulkan-Headers)
 add_subdirectory(SDL)
 add_subdirectory(plog)
+add_subdirectory(json)
 add_subdirectory(tinyobjloader)
 add_subdirectory(imgui)
 
@@ -19,6 +20,7 @@ target_link_libraries(third_party INTERFACE Vulkan::Headers SDL3::SDL3 plog::plo
 target_link_libraries(third_party INTERFACE Vulkan::Vulkan)
 target_link_libraries(third_party INTERFACE stb_image)
 target_link_libraries(third_party INTERFACE imgui)
+target_link_libraries(third_party INTERFACE nlohmann_json)
 target_link_libraries(third_party INTERFACE tinyobjloader)
 # target_compile_definitions(third_party INTERFACE VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1)
 

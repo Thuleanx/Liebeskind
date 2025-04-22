@@ -39,7 +39,7 @@ struct VertexBuffer {
 
    public:
     static VertexBuffer create(
-        const char* filePath,
+        std::string_view filePath,
         const vk::Device& device,
         const vk::PhysicalDevice& physicalDevice,
         const vk::CommandPool& commandPool,

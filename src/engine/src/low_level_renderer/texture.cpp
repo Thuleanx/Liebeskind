@@ -10,7 +10,7 @@
 
 namespace graphics {
 Texture loadTextureFromFile(
-	const char* filePath,
+    std::string_view filePath,
 	vk::Device device,
 	vk::PhysicalDevice physicalDevice,
 	vk::CommandPool commandPool,
@@ -19,7 +19,7 @@ Texture loadTextureFromFile(
 ) {
 	int width, height, channels;
 	stbi_uc* pixels =
-		stbi_load(filePath, &width, &height, &channels, STBI_rgb_alpha);
+		stbi_load(filePath.data(), &width, &height, &channels, STBI_rgb_alpha);
 	const vk::DeviceSize size(width * height * 4);
 
 	ASSERT(pixels, "Can't load texture at " << filePath);
@@ -128,7 +128,7 @@ Texture createTexture(
 
 TextureID pushTextureFromFile(
 	TextureStorage& textureStorage,
-	const char* filePath,
+    std::string_view filePath,
 	vk::Device device,
 	vk::PhysicalDevice physicalDevice,
 	vk::CommandPool commandPool,

@@ -33,8 +33,6 @@ set(SRC
 add_library(low_level_renderer ${SRC})
 
 target_link_libraries(low_level_renderer PUBLIC third_party)
-target_link_libraries(low_level_renderer PRIVATE algo)
-target_link_libraries(low_level_renderer PRIVATE file_system)
 target_link_libraries(low_level_renderer PRIVATE resource_management)
-target_link_libraries(low_level_renderer PRIVATE logger)
+target_link_libraries(low_level_renderer PRIVATE core)
 

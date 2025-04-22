@@ -1,0 +1,84 @@
+{
+    "textures": [
+        {
+            "id": 0,
+            "file_path": "textures/bricks_albedo.jpg",
+            "format": "R8G8B8A8Srgb"
+        },
+        {
+            "id": 1,
+            "file_path": "textures/bricks_normal.jpg",
+            "format": "R8G8B8A8Unorm"
+        },
+        {
+            "id": 2,
+            "file_path": "textures/bricks_height.jpg",
+            "format": "R8G8B8A8Unorm"
+        },
+        {
+            "id": 3,
+            "file_path": "textures/robot_emissive.jpeg",
+            "format": "R8G8B8A8Unorm"
+        }
+    ],
+    "meshes": [
+        {
+            "id": 0,
+            "file_path": "models/quad.obj"
+        }
+    ],
+    "materials": [
+        {
+            "id": 0,
+            "specular": [
+                1,
+                1,
+                1
+            ],
+            "diffuse": [
+                0.4,
+                0.4,
+                0.4
+            ],
+            "ambient": [
+                1,
+                1,
+                1
+            ],
+            "emission": [
+                0,
+                0,
+                0
+            ],
+            "shininess": 128,
+            "albedoMap": 0,
+            "normalMap": 1,
+            "displacementMap": 2,
+            "emissionMap": 3,
+            "sampler": "linear"
+        }
+    ],
+    "statics": [
+        {
+            "transform": {
+                "position": [
+                    0,
+                    0,
+                    0.5
+                ],
+                "rotation": [
+                    0,
+                    90,
+                    0
+                ],
+                "scale": [
+                    1,
+                    1,
+                    1
+                ]
+            },
+            "material": 0,
+            "mesh": 0
+        }
+    ]
+}

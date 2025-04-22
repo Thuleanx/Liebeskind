@@ -2,19 +2,18 @@ add_library(engine src/engine.cpp)
 
 add_subdirectory(src)
 
-target_link_libraries(engine INTERFACE logger file_system low_level_renderer scene_graph algo)
+target_link_libraries(engine INTERFACE low_level_renderer scene_graph cameras scene_graph core save_load)
 target_link_libraries(engine PRIVATE third_party)
 
 set(ENGINE_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/src/engine/include")
 
 target_include_directories(engine PUBLIC ${ENGINE_INCLUDE_DIR})
-target_include_directories(algo PUBLIC ${ENGINE_INCLUDE_DIR})
-target_include_directories(file_system PUBLIC ${ENGINE_INCLUDE_DIR})
 target_include_directories(cameras PUBLIC ${ENGINE_INCLUDE_DIR})
 target_include_directories(source PUBLIC ${ENGINE_INCLUDE_DIR})
-target_include_directories(logger PUBLIC ${ENGINE_INCLUDE_DIR})
 target_include_directories(low_level_renderer PUBLIC ${ENGINE_INCLUDE_DIR})
 target_include_directories(scene_graph PUBLIC ${ENGINE_INCLUDE_DIR})
+target_include_directories(game_world PUBLIC ${ENGINE_INCLUDE_DIR})
+target_include_directories(save_load PUBLIC ${ENGINE_INCLUDE_DIR})
 
 set(GLSL_SOURCE_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/test_triangle.frag.glsl
@@ -60,7 +59,7 @@ add_custom_target(Textures)
 # Copy over files under textures
 add_custom_command(
     TARGET Textures POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E make_directory "${PROJECT_BINARY_DIR}/shaders/"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${PROJECT_BINARY_DIR}/textures/"
     COMMAND ${CMAKE_COMMAND} -E copy_directory              
     "${CMAKE_CURRENT_SOURCE_DIR}/textures" "${PROJECT_BINARY_DIR}/textures"
     COMMENT "Copying textures" VERBATIM

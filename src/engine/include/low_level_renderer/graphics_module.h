@@ -18,8 +18,8 @@ struct Module {
 	RenderInstanceManager instances;
 	TextureStorage textures;
 	MaterialStorage materials;
-    MeshStorage meshes;
-    vk::Rect2D mainWindowExtent;
+	MeshStorage meshes;
+	vk::Rect2D mainWindowExtent;
 
    public:
 	static Module create();
@@ -33,9 +33,9 @@ struct Module {
 	void endFrame();
 
 	[[nodiscard]] TextureID loadTexture(
-		const char* filePath, vk::Format imageFormat
+		std::string_view filePath, vk::Format imageFormat
 	);
-	[[nodiscard]] MeshID loadMesh(const char* filePath);
+	[[nodiscard]] MeshID loadMesh(std::string_view filePath);
 	[[nodiscard]] MaterialInstanceID loadMaterial(
 		TextureID albedo,
 		TextureID normal,

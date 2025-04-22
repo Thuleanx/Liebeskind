@@ -15,6 +15,8 @@
 #include "game_specific/cameras/module.h"
 #include "input_management.h"
 #include "low_level_renderer/graphics_module.h"
+#include "save_load/json_serializer.h"
+#include "save_load/world_loader.h"
 #include "scene_graph/module.h"
 
 void game::init() {
@@ -26,92 +28,16 @@ void game::init() {
 }
 
 void game::run() {
-	const graphics::TextureID albedo = graphics::module->loadTexture(
-		"textures/bricks_albedo.jpg", vk::Format::eR8G8B8A8Srgb
-	);
-	const graphics::TextureID normalMap = graphics::module->loadTexture(
-		"textures/bricks_normal.jpg", vk::Format::eR8G8B8A8Unorm
-	);
-	const graphics::TextureID displacementMap = graphics::module->loadTexture(
-		"textures/bricks_height.jpg", vk::Format::eR8G8B8A8Unorm
-	);
-	const graphics::TextureID emissionMap = graphics::module->loadTexture(
-		"textures/robot_emissive.jpeg", vk::Format::eR8G8B8A8Unorm
-	);
+	const save_load::JsonSerializer serializer = {};
+	const save_load::WorldLoader worldLoader = {};
+	const save_load::SerializedWorld serializedWorld =
+		serializer.loadWorld("scenes/test_scene.json");
 
-	const graphics::MeshID meshID = graphics::module->loadMesh("models/quad.obj");
-	graphics::MaterialProperties materialProperties =
-		graphics::MaterialProperties{
-			.specular = glm::vec3(1, 1, 1),
-			.diffuse = glm::vec3(0.4),
-			.ambient = glm::vec3(0),
-			.emission = glm::vec3(0),
-			.shininess = 128.0f
-		};
-	const graphics::MaterialInstanceID material =
-		graphics::module->loadMaterial(
-			albedo,
-			normalMap,
-			displacementMap,
-			emissionMap,
-			materialProperties,
-			graphics::SamplerType::eLinear
-		);
-	const graphics::RenderInstanceID instance =
-		graphics::module->registerInstance(10);
-	/* graphics::module->device.writeBuffer.batchWrite( */
-	/* 	graphics::module->device.device */
-	/* ); */
+	ASSERT(worldLoader.isValid(serializedWorld), "Loaded world is not valid");
+	game_world::World world = {};
+	worldLoader.load(graphics::module.value(), world, serializedWorld);
 
-	glm::mat4 modelTransform = glm::translate(
-		glm::rotate(
-			glm::scale(glm::mat4(1), glm::vec3(3)),
-			glm::radians(90.f),
-			glm::vec3(0.0, 1.0, 0.0)
-		),
-		glm::vec3(0.0, 0.0, 0.5)
-	);
-
-	const graphics::RenderObject sword{
-		.transform = modelTransform,
-		.materialInstance = material,
-		.mesh = meshID,
-	};
-
-	const graphics::InstancedRenderObject instanceRenderObject{
-		.instance = instance, .material = material, .mesh = meshID, .count = 9
-	};
-	const std::vector<size_t> instanceIndices = {0};
-	const std::array<graphics::InstanceData, 9> instancesTransforms = [&]() {
-		std::array<graphics::InstanceData, 9> transforms;
-		for (int dx = -1; dx <= 1; dx++)
-			for (int dy = -1; dy <= 1; dy++)
-				transforms[dx + 1 + (dy + 1) * 3] = graphics::InstanceData{
-					.transform = glm::translate(
-						glm::rotate(
-							glm::scale(glm::mat4(1), glm::vec3(1)),
-							glm::radians(90.f),
-							glm::vec3(0.0, 1.0, 0.0)
-						),
-						glm::vec3(dx, dy, 0) * 2.0f
-					)
-				};
-		return transforms;
-	}();
-
-	scene_graph::module->addObjects({std::addressof(sword), 1});
-	scene_graph::module->addInstancedObjects(
-		{std::addressof(instanceRenderObject), 1}
-	);
-	scene_graph::module->updateInstance(
-		instanceIndices, {{instancesTransforms}}
-	);
-
-	float rotationInput = 0;
-	input::manager->subscribe(
-		input::Ranged::Rotate,
-		[&rotationInput](float value) { rotationInput = value; }
-	);
+	game_world::addToSceneGraph(world, scene_graph::module.value());
 
 	static auto startTime = std::chrono::high_resolution_clock::now();
 	float lastTime = 0;
@@ -153,33 +79,7 @@ void game::run() {
 		);
 		ImGui::End();
 
-		ImGui::Begin("Material Properties");
-		ImGui::ColorEdit3(
-			"Specular", glm::value_ptr(materialProperties.specular)
-		);
-		ImGui::InputFloat("Shininess", &materialProperties.shininess);
-		ImGui::ColorEdit3(
-			"Diffuse", glm::value_ptr(materialProperties.diffuse)
-		);
-		ImGui::ColorEdit3(
-			"Ambient", glm::value_ptr(materialProperties.ambient)
-		);
-		ImGui::ColorEdit3(
-			"Emission", glm::value_ptr(materialProperties.emission)
-		);
-		ImGui::End();
-
 		game_cameras::module->update(deltaTime);
-
-		modelTransform =
-			modelTransform * glm::rotate(
-								 glm::mat4(1),
-								 glm::radians(rotationInput * 45.f * deltaTime),
-								 glm::vec3(0, 1, 0)
-							 );
-
-		graphics::module->updateMaterial(material, materialProperties);
-		scene_graph::module->updateObjects({{0, modelTransform}});
 
 		if (!scene_graph::module->drawFrame(graphics::module.value())) break;
 

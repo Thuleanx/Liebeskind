@@ -23,7 +23,7 @@ MeshID load(
 	vk::PhysicalDevice physicalDevice,
 	vk::CommandPool commandPool,
 	vk::Queue graphicsQueue,
-	const char* meshFilePath
+    std::string_view meshFilePath
 );
 
 void bind(

@@ -349,7 +349,7 @@ void Module::recordCommandBuffer(
 	);
 }
 
-TextureID Module::loadTexture(const char* filePath, vk::Format imageFormat) {
+TextureID Module::loadTexture(std::string_view filePath, vk::Format imageFormat) {
 	return pushTextureFromFile(
 		textures,
 		filePath,
@@ -361,7 +361,7 @@ TextureID Module::loadTexture(const char* filePath, vk::Format imageFormat) {
 	);
 }
 
-MeshID Module::loadMesh(const char* filePath) {
+MeshID Module::loadMesh(std::string_view filePath) {
 	return load(
 		meshes,
 		device.device,

@@ -23,7 +23,7 @@ struct TextureStorage {
 };
 
 Texture loadTextureFromFile(
-    const char* filePath,
+    std::string_view filePath,
     vk::Device device,
     vk::PhysicalDevice physicalDevice,
     vk::CommandPool commandPool,
@@ -44,7 +44,7 @@ Texture createTexture(
 
 TextureID pushTextureFromFile(
     TextureStorage& textureStorage,
-    const char* filePath,
+    std::string_view filePath,
     vk::Device device,
     vk::PhysicalDevice physicalDevice,
     vk::CommandPool commandPool,

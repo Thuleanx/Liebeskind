@@ -63,7 +63,7 @@ Vertex::getAttributeDescriptions() {
 }
 
 VertexBuffer VertexBuffer::create(
-	const char* filePath,
+    std::string_view filePath,
 	const vk::Device& device,
 	const vk::PhysicalDevice& physicalDevice,
 	const vk::CommandPool& commandPool,
@@ -75,7 +75,7 @@ VertexBuffer VertexBuffer::create(
 	std::string warn, err;
 
 	bool successfullyLoadedModel =
-		tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filePath);
+		tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filePath.data());
 	ASSERT(
 		successfullyLoadedModel,
 		"Can't load model at " << filePath << " " << warn << " " << err

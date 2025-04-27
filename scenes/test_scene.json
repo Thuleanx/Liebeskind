@@ -24,7 +24,7 @@
     "meshes": [
         {
             "id": 0,
-            "file_path": "models/quad.obj"
+            "file_path": "models/sponza.obj"
         }
     ],
     "materials": [
@@ -41,9 +41,9 @@
                 0.4
             ],
             "ambient": [
-                1,
-                1,
-                1
+                0,
+                0,
+                0
             ],
             "emission": [
                 0,
@@ -58,6 +58,8 @@
             "sampler": "linear"
         }
     ],
+    "obj": [
+    ],
     "statics": [
         {
             "transform": {
@@ -67,14 +69,14 @@
                     0.5
                 ],
                 "rotation": [
+                    90.0,
                     0,
-                    90,
                     0
                 ],
                 "scale": [
-                    1,
-                    1,
-                    1
+                    0.01,
+                    0.01,
+                    0.01
                 ]
             },
             "material": 0,

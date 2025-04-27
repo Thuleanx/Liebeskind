@@ -1,10 +1,10 @@
 #pragma once
 
 #include <vector>
-#include <string>
+#include <string_view>
 #include <optional>
 
-namespace FileUtilities {
-    std::optional<std::vector<char>> readFile(const std::string& fileName);
+namespace file_system {
+    std::optional<std::vector<char>> readFile(std::string_view fileName);
 }
 

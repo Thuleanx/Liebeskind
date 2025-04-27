@@ -26,6 +26,17 @@ MeshID load(
     std::string_view meshFilePath
 );
 
+[[nodiscard]]
+MeshID load(
+	MeshStorage& storage,
+	const std::vector<graphics::Vertex>& vertices,
+	const std::vector<graphics::IndexType>& indices,
+	vk::Device device,
+	vk::PhysicalDevice physicalDevice,
+	vk::CommandPool commandPool,
+	vk::Queue graphicsQueue
+);
+
 void bind(
 	const MeshStorage& storage, vk::CommandBuffer commandBuffer, MeshID mesh
 );

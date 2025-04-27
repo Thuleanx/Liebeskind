@@ -11,13 +11,16 @@ add_compile_definitions(GLM_ENABLE_EXPERIMENTAL)
 # openGL. Since we are using Vulkan we want it to be 0-1
 add_compile_definitions(GLM_FORCE_DEPTH_ZERO_TO_ONE)
 
+# set(BUILD_SHARED_LIBS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 20)
 
-add_subdirectory(src)
-add_subdirectory(third_party)
+include(NoRttiOrExceptions.cmake)
 
-target_link_libraries(source PRIVATE third_party)
+add_subdirectory(src)
+add_subdirectory(third_party EXCLUDE_FROM_ALL)
+
+target_link_libraries(source PUBLIC third_party)
 
 add_custom_target(Scenes)
 

@@ -5,11 +5,13 @@
 #include <set>
 #include <vector>
 
+#include "core/file_system/file.h"
 #include "core/logger/assert.h"
 #include "core/logger/vulkan_ensures.h"
 #include "low_level_renderer/descriptor_write_buffer.h"
 #include "low_level_renderer/queue_family.h"
 #include "private/graphics_device_helper.h"
+#include "private/shader_helper.h"
 #include "private/swapchain.h"
 #include "private/validation.h"
 
@@ -216,9 +218,40 @@ std::vector<UniformBuffer<T>> init_createUniformBuffers(
 	return result;
 }
 
+ShaderID loadShaderFromFile(
+	ShaderStorage& shaders, vk::Device device, std::string_view filePath
+) {
+	const std::optional<std::vector<char>> bytecode =
+		file_system::readFile(filePath);
+	ASSERT(
+		bytecode.has_value(),
+		"Shader needs to be able to be loaded from " << filePath
+	);
+	return loadFromBytecode(shaders, device, bytecode.value());
+}
+
+ShaderID compileThenLoadShaderFromFile(
+	ShaderStorage& shaders,
+	vk::Device device,
+	std::string_view filePath,
+	vk::ShaderStageFlagBits shaderStage
+) {
+	const std::optional<std::vector<char>> glslCode =
+		file_system::readFile(filePath);
+	ASSERT(
+		glslCode.has_value(),
+		"Shader needs to be able to be loaded from " << filePath
+	);
+	const std::vector<uint32_t> SPIRVCode =
+		compileFromGLSLToSPIRV(glslCode.value().data(), shaderStage);
+	return loadFromBytecode(
+		shaders, device, SPIRVCode.data(), SPIRVCode.size() * 4
+	);
+}
+
 }  // namespace
 GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
-	ResourceManager& resources
+	ShaderStorage& shaders
 ) {
 	const SDL_InitFlags initFlags = SDL_INIT_VIDEO | SDL_INIT_EVENTS;
 	const bool isSDLInitSuccessful = SDL_Init(initFlags);
@@ -247,17 +280,24 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
 	const vk::CommandPool commandPool =
 		init_createCommandPool(device, queueFamily);
 
-	ShaderID vertexShader =
-		resources.shaders.load(device, "shaders/test_triangle.vert.glsl.spv");
-	ShaderID instancedVertexShader = resources.shaders.load(
-		device, "shaders/test_triangle_instanced.vert.glsl.spv"
+	const ShaderID vertexShader = compileThenLoadShaderFromFile(
+		shaders,
+		device,
+		"shaders/test_triangle.vert.glsl",
+		vk::ShaderStageFlagBits::eVertex
 	);
-	ShaderID fragmentShader =
-		resources.shaders.load(device, "shaders/test_triangle.frag.glsl.spv");
-	ShaderID postProcessingVertexShader =
-		resources.shaders.load(device, "shaders/post_processing.vert.glsl.spv");
-	ShaderID postProcessingFragmentShader =
-		resources.shaders.load(device, "shaders/post_processing.frag.glsl.spv");
+	const ShaderID instancedVertexShader = loadShaderFromFile(
+		shaders, device, "shaders/test_triangle_instanced.vert.glsl.spv"
+	);
+	const ShaderID fragmentShader = loadShaderFromFile(
+		shaders, device, "shaders/test_triangle.frag.glsl.spv"
+	);
+	const ShaderID postProcessingVertexShader = loadShaderFromFile(
+		shaders, device, "shaders/post_processing.vert.glsl.spv"
+	);
+	const ShaderID postProcessingFragmentShader = loadShaderFromFile(
+		shaders, device, "shaders/post_processing.frag.glsl.spv"
+	);
 
 	const std::vector<vk::CommandBuffer> commandBuffers =
 		init_createCommandBuffers(device, commandPool, MAX_FRAMES_IN_FLIGHT);
@@ -292,7 +332,7 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
 	DescriptorWriteBuffer writeBuffer;
 	const RenderPassData renderPasses = RenderPassData::create(
 		device,
-	    colorAttachmentFormat,
+		colorAttachmentFormat,
 		swapchainColorFormat,
 		Swapchain::getSuitableDepthAttachmentFormat(physicalDevice),
 		multisampleAntialiasingSampleCount
@@ -300,11 +340,11 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
 	MaterialPipeline pipeline = MaterialPipeline::create(
 		device,
 		renderPasses,
-		resources.shaders.getModule(vertexShader),
-		resources.shaders.getModule(instancedVertexShader),
-		resources.shaders.getModule(fragmentShader),
-		resources.shaders.getModule(postProcessingVertexShader),
-		resources.shaders.getModule(postProcessingFragmentShader)
+		getModule(shaders, vertexShader),
+		getModule(shaders, instancedVertexShader),
+		getModule(shaders, fragmentShader),
+		getModule(shaders, postProcessingVertexShader),
+		getModule(shaders, postProcessingFragmentShader)
 	);
 
 	const std::vector<vk::DescriptorSet> globalDescriptors =

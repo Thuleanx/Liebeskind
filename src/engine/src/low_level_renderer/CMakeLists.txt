@@ -4,6 +4,7 @@ set(SRC
     material_pipeline.cpp
     materials.cpp
     meshes.cpp
+    shaders.cpp
     graphics_device_interface.cpp 
     graphics_user_interface.cpp 
     descriptor_write_buffer.cpp 
@@ -15,6 +16,7 @@ set(SRC
     instance_rendering.cpp
     queue_family.cpp
     texture.cpp
+    private/shader_helper.cpp
     private/sampler.cpp
     private/command.cpp
     private/command.h

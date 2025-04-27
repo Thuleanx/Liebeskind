@@ -6,21 +6,31 @@
 #include <glm/gtx/hash.hpp>
 
 #include "core/logger/assert.h"
-#include "glm/gtx/hash.hpp"
-#include "private/buffer.h"
+#include "private/buffer_templated.cpp"
+
+namespace {
+consteval vk::IndexType getIndexType() {
+	if (std::is_same_v<graphics::IndexType, uint32_t>)
+		return vk::IndexType::eUint32;
+	if (std::is_same_v<graphics::IndexType, uint16_t>)
+		return vk::IndexType::eUint16;
+	if (std::is_same_v<graphics::IndexType, uint8_t>)
+		return vk::IndexType::eUint8KHR;
+	return vk::IndexType::eNoneKHR;
+}
+}  // namespace
 
 namespace std {
-template <>
-struct hash<graphics::Vertex> {
-	size_t operator()(graphics::Vertex const& vertex) const {
-		size_t hash_value = 0;
-		hash_value = (hash_value << 1) ^ hash<glm::vec3>()(vertex.position);
-		hash_value = (hash_value << 1) ^ hash<glm::vec3>()(vertex.normal);
-		hash_value = (hash_value << 1) ^ hash<glm::vec3>()(vertex.color);
-		hash_value = (hash_value << 1) ^ hash<glm::vec2>()(vertex.texCoord);
-		return hash_value;
-	}
-};
+
+size_t hash<graphics::Vertex>::operator()(graphics::Vertex const& vertex) const {
+    size_t hash_value = 0;
+    hash_value = (hash_value << 1) ^ hash<glm::vec3>()(vertex.position);
+    hash_value = (hash_value << 1) ^ hash<glm::vec3>()(vertex.normal);
+    hash_value = (hash_value << 1) ^ hash<glm::vec3>()(vertex.color);
+    hash_value = (hash_value << 1) ^ hash<glm::vec2>()(vertex.texCoord);
+    return hash_value;
+}
+
 }  // namespace std
 
 namespace graphics {
@@ -63,7 +73,7 @@ Vertex::getAttributeDescriptions() {
 }
 
 VertexBuffer VertexBuffer::create(
-    std::string_view filePath,
+	std::string_view filePath,
 	const vk::Device& device,
 	const vk::PhysicalDevice& physicalDevice,
 	const vk::CommandPool& commandPool,
@@ -74,8 +84,9 @@ VertexBuffer VertexBuffer::create(
 	std::vector<tinyobj::material_t> materials;
 	std::string warn, err;
 
-	bool successfullyLoadedModel =
-		tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filePath.data());
+	bool successfullyLoadedModel = tinyobj::LoadObj(
+		&attrib, &shapes, &materials, &warn, &err, filePath.data()
+	);
 	ASSERT(
 		successfullyLoadedModel,
 		"Can't load model at " << filePath << " " << warn << " " << err
@@ -86,6 +97,7 @@ VertexBuffer VertexBuffer::create(
 
 	{  // populate vertices and indices arrays
 		std::unordered_map<Vertex, uint32_t> unique_vertices;
+		LLOG_INFO << shapes.size() << " " << materials.size();
 		for (const auto& shape : shapes) {
 			size_t indexBegin = indices.size();
 
@@ -182,6 +194,36 @@ VertexBuffer VertexBuffer::create(
 			vertices[i].tangent = glm::normalize(vertices[i].tangent);
 	}
 
+	return create(
+		vertices, indices, device, physicalDevice, commandPool, graphicsQueue
+	);
+}
+
+glm::vec3 getTangent(
+	const graphics::Vertex& v0, const graphics::Vertex& v1, const graphics::Vertex& v2
+) {
+	const glm::vec3 edge01 = v1.position - v0.position;
+	const glm::vec3 edge02 = v2.position - v0.position;
+
+	const glm::vec2 deltaUV01 = v1.texCoord - v0.texCoord;
+	const glm::vec2 deltaUV02 = v2.texCoord - v0.texCoord;
+
+	const float normalizer =
+		1.0f / (deltaUV01.x * deltaUV02.y - deltaUV01.y * deltaUV02.x);
+
+	const glm::vec3 tangent =
+		(deltaUV02.y * edge01 - deltaUV01.y * edge02) * normalizer;
+    return tangent;
+}
+
+VertexBuffer VertexBuffer::create(
+	const std::vector<Vertex>& vertices,
+	const std::vector<IndexType>& indices,
+	vk::Device device,
+	vk::PhysicalDevice physicalDevice,
+	vk::CommandPool commandPool,
+	vk::Queue graphicsQueue
+) {
 	auto [vertexBuffer, deviceMemory] = Buffer::loadToBuffer(
 		device,
 		physicalDevice,
@@ -213,9 +255,7 @@ VertexBuffer VertexBuffer::create(
 void bind(vk::CommandBuffer commandBuffer, const VertexBuffer& vertexBuffer) {
 	vk::DeviceSize offsets[] = {0};
 	commandBuffer.bindVertexBuffers(0, 1, &vertexBuffer.vertexBuffer, offsets);
-	commandBuffer.bindIndexBuffer(
-		vertexBuffer.indexBuffer, 0, vk::IndexType::eUint32
-	);
+	commandBuffer.bindIndexBuffer(vertexBuffer.indexBuffer, 0, getIndexType());
 }
 
 void drawVertices(

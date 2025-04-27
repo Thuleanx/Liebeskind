@@ -33,6 +33,16 @@ layout(set = 1, binding = 1) uniform sampler2D texSampler;
 layout(set = 1, binding = 2) uniform sampler2D normalSampler;
 layout(set = 1, binding = 3) uniform sampler2D displacementSampler;
 layout(set = 1, binding = 4) uniform sampler2D emissiveSampler;
+layout(set = 1, binding = 5) uniform sampler2D tungstenSampler;
+
+const uint HasTextureMap = 1u;
+const uint HasNormalMap = 2u;
+const uint HasDisplacementMap = 4u;
+const uint HasEmissionMap = 8u;
+const uint HasTungstenMap = 16u;
+const uint HasAllMaps = HasTextureMap | HasNormalMap | HasDisplacementMap | HasEmissionMap;
+
+layout(constant_id = 0) const uint samplerInclusion = HasAllMaps;
 
 struct TangentSpace {
     vec3 normalWorld;

@@ -8,14 +8,15 @@
 #include "low_level_renderer/instance_rendering.h"
 #include "low_level_renderer/materials.h"
 #include "low_level_renderer/render_submission.h"
-#include "resource_management/resource_manager.h"
+#include "low_level_renderer/shaders.h"
+#include "low_level_renderer/vertex_buffer.h"
 
 namespace graphics {
 struct Module {
-	ResourceManager resources;
 	GraphicsDeviceInterface device;
 	GraphicsUserInterface ui;
 	RenderInstanceManager instances;
+    ShaderStorage shaders;
 	TextureStorage textures;
 	MaterialStorage materials;
 	MeshStorage meshes;
@@ -35,6 +36,10 @@ struct Module {
 	[[nodiscard]] TextureID loadTexture(
 		std::string_view filePath, vk::Format imageFormat
 	);
+	[[nodiscard]] MeshID loadMesh(
+		const std::vector<graphics::Vertex>& vertices,
+		const std::vector<graphics::IndexType>& indices
+	);
 	[[nodiscard]] MeshID loadMesh(std::string_view filePath);
 	[[nodiscard]] MaterialInstanceID loadMaterial(
 		TextureID albedo,
@@ -53,7 +58,7 @@ struct Module {
    private:
 	void recordCommandBuffer(
 		const RenderSubmission& renderSubmission,
-		vk::CommandBuffer,
+		vk::CommandBuffer buffer,
 		uint32_t image_index
 	);
 };

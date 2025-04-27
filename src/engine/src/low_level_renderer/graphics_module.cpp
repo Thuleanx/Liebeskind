@@ -1,5 +1,7 @@
 #include "low_level_renderer/graphics_module.h"
 
+#include <glslang/Public/ShaderLang.h>
+
 #include "game_specific/cameras/module.h"
 
 #pragma GCC diagnostic push
@@ -16,16 +18,21 @@ namespace graphics {
 std::optional<Module> module = std::nullopt;
 
 Module Module::create() {
-	ResourceManager resources;
+	glslang::InitializeProcess();
+	LLOG_INFO << "glslang initialized with version: "
+			  << glslang::GetGlslVersionString();
+
+    ShaderStorage shaders = ShaderStorage::create();
 	GraphicsDeviceInterface device =
-		GraphicsDeviceInterface::createGraphicsDevice(resources);
+		GraphicsDeviceInterface::createGraphicsDevice(shaders);
 	GraphicsUserInterface ui = GraphicsUserInterface::create(device);
+
 	LLOG_INFO << "Graphics Module Initialized";
 	return Module{
-		.resources = resources,
 		.device = std::move(device),
 		.ui = ui,
 		.instances = {},
+		.shaders = shaders,
 		.textures = {},
 		.materials = {},
 		.meshes = MeshStorage::create(),
@@ -40,11 +47,13 @@ void Module::destroy() {
 	graphics::destroy(meshes, device.device);
 	graphics::destroy(materials, device.device);
 	graphics::destroy(textures, device.device);
-	resources.shaders.destroyBy(device.device);
+    graphics::destroy(shaders, device.device);
 	instances.destroyBy(device.device);
 	ui.destroy(device);
 	device.destroy();
 	LLOG_INFO << "Graphics Module Destroyed";
+
+	glslang::FinalizeProcess();
 }
 
 void Module::beginFrame() {
@@ -349,7 +358,9 @@ void Module::recordCommandBuffer(
 	);
 }
 
-TextureID Module::loadTexture(std::string_view filePath, vk::Format imageFormat) {
+TextureID Module::loadTexture(
+	std::string_view filePath, vk::Format imageFormat
+) {
 	return pushTextureFromFile(
 		textures,
 		filePath,
@@ -358,6 +369,21 @@ TextureID Module::loadTexture(std::string_view filePath, vk::Format imageFormat)
 		device.commandPool,
 		device.graphicsQueue,
 		imageFormat
+	);
+}
+
+MeshID Module::loadMesh(
+	const std::vector<graphics::Vertex>& vertices,
+	const std::vector<graphics::IndexType>& indices
+) {
+	return load(
+		meshes,
+		vertices,
+		indices,
+		device.device,
+		device.physicalDevice,
+		device.commandPool,
+		device.graphicsQueue
 	);
 }
 

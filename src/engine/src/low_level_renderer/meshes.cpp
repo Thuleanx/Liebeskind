@@ -17,9 +17,26 @@ MeshID load(
 	vk::Queue graphicsQueue,
     std::string_view meshFilePath
 ) {
-	const algo::GenerationIndexPair index = algo::pushBack(storage.indices);
+	const algo::GenerationIndexPair index = algo::reserveIndex(storage.indices);
 	const graphics::VertexBuffer vertexBuffer = graphics::VertexBuffer::create(
 		meshFilePath, device, physicalDevice, commandPool, graphicsQueue
+	);
+	storage.meshes[index.index] = vertexBuffer;
+	return {index};
+}
+
+MeshID load(
+	MeshStorage &storage,
+	const std::vector<graphics::Vertex>& vertices,
+	const std::vector<graphics::IndexType>& indices,
+	vk::Device device,
+	vk::PhysicalDevice physicalDevice,
+	vk::CommandPool commandPool,
+	vk::Queue graphicsQueue
+) {
+	const algo::GenerationIndexPair index = algo::reserveIndex(storage.indices);
+	const graphics::VertexBuffer vertexBuffer = graphics::VertexBuffer::create(
+		vertices, indices, device, physicalDevice, commandPool, graphicsQueue
 	);
 	storage.meshes[index.index] = vertexBuffer;
 	return {index};

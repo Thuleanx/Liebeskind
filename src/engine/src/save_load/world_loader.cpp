@@ -160,7 +160,7 @@ void WorldLoader::load(
 		return result;
 	}();
 
-    LLOG_INFO << "All materials loaded into engine";
+	LLOG_INFO << "All materials loaded into engine";
 
 	const auto [transforms, materials, meshes] = [&]() {
 		const size_t numStatics = serializedWorld.statics.transform.size();

@@ -20,12 +20,16 @@ struct GenerationIndexArray {
 	static_assert(N <= (1 << 16), "N is too large, keep it under 2^{16}");
 
    public:
+    GenerationIndexArray() = delete;
 	static GenerationIndexArray create();
+
+   private:
+    GenerationIndexArray(std::vector<uint16_t> free);
 };
 
 template <size_t N>
 [[nodiscard]]
-GenerationIndexPair pushBack(GenerationIndexArray<N>& array);
+GenerationIndexPair reserveIndex(GenerationIndexArray<N>& array);
 
 template <size_t N>
 std::vector<uint16_t> getLiveIndices(const GenerationIndexArray<N>& array);

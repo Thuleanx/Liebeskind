@@ -1,25 +1,27 @@
 #include "core/file_system/file.h"
 
-#include "core/logger/logger.h"
 #include <fstream>
 
-namespace FileUtilities {
-    std::optional<std::vector<char>> readFile(const std::string& fileName) {
-        std::ifstream file(fileName, std::ios::ate | std::ios::binary);
+#include "core/logger/logger.h"
 
-        if (!file.is_open()) {
-            LLOG_ERROR << "Can't open file " << fileName;
-            return {};
-        }
+namespace file_system {
+std::optional<std::vector<char>> readFile(std::string_view fileName) {
+	std::ifstream file(fileName.data(), std::ios::ate | std::ios::binary);
 
-        size_t fileSize = (size_t) file.tellg();
-        std::vector<char> buffer(fileSize);
+	if (!file.is_open()) {
+		LLOG_ERROR << "Can't open file " << fileName;
+		return {};
+	}
 
-        file.seekg(0);
-        file.read(buffer.data(), fileSize);
+	size_t fileSize = static_cast<size_t>(file.tellg());
+	std::vector<char> buffer(fileSize);
+    buffer.reserve(fileSize);
 
-        file.close();
+	file.seekg(0);
+	file.read(buffer.data(), fileSize);
 
-        return buffer;
-    }
+	file.close();
+
+	return buffer;
 }
+}  // namespace file_system

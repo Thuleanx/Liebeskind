@@ -12,8 +12,8 @@
 #include "low_level_renderer/queue_family.h"
 #include "low_level_renderer/sampler.h"
 #include "low_level_renderer/shader_data.h"
+#include "low_level_renderer/shaders.h"
 #include "low_level_renderer/swapchain_data.h"
-#include "resource_management/resource_manager.h"
 
 constexpr char APP_SHORT_NAME[] = "Game";
 constexpr char ENGINE_NAME[] = "Liebeskind";
@@ -52,9 +52,7 @@ struct GraphicsDeviceInterface {
     DescriptorWriteBuffer writeBuffer;
 
    public:
-    static GraphicsDeviceInterface createGraphicsDevice(
-        ResourceManager& resources
-    );
+    static GraphicsDeviceInterface createGraphicsDevice(ShaderStorage& shaders);
     void destroy();
 
     void handleEvent(const SDL_Event& sdlEvent);

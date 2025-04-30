@@ -62,4 +62,8 @@ vk::Pipeline createVariant(
 	vk::ShaderModule fragmentShader
 );
 
+std::vector<std::string> getGLSLDefinesFragment(
+	const PipelineSpecializationConstants& variant
+);
+
 }  // namespace graphics

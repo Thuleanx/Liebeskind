@@ -44,9 +44,9 @@ struct GraphicsDeviceInterface {
 	RenderPassData renderPasses;
 	MaterialPipeline pipeline;
 	struct Shaders {
-		ShaderID vertex;
-		ShaderID vertexInstanced;
-		ShaderID fragment;
+        UncompiledShader vertex;
+        UncompiledShader vertexInstanced;
+        UncompiledShader fragment;
 	};
 	Shaders mainShaders;
 	std::optional<SwapchainData> swapchain;

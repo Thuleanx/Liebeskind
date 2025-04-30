@@ -181,4 +181,31 @@ vk::Pipeline createVariant(
 	return pipelineCreation.value;
 }
 
+std::vector<std::string> getGLSLDefinesFragment(
+	const PipelineSpecializationConstants& variant
+) {
+    constexpr size_t NUM_OF_SAMPLER_OPTIONS = 4;
+    
+    constexpr std::array<SamplerInclusionBits, NUM_OF_SAMPLER_OPTIONS> samplerInclusionBit = {
+        SamplerInclusionBits::eAlbedo,
+        SamplerInclusionBits::eNormal,
+        SamplerInclusionBits::eDisplacement,
+        SamplerInclusionBits::eEmission,
+    };
+    const std::array<std::string, NUM_OF_SAMPLER_OPTIONS> glslDefineForSampleInclusion = {
+        "HAS_ALBEDO",
+        "HAS_NORMAL",
+        "HAS_DISPLACEMENT",
+        "HAS_EMISSION",
+    };
+
+    std::vector<std::string> glslDefines;
+
+    for (size_t i = 0; i < NUM_OF_SAMPLER_OPTIONS; i++)
+        if (variant.samplerInclusion & samplerInclusionBit[i])
+            glslDefines.push_back(glslDefineForSampleInclusion[i]);
+
+    return glslDefines;
+}
+
 }  // namespace graphics

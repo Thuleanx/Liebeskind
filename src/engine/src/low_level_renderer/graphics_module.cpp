@@ -3,7 +3,9 @@
 #include <glslang/Public/ShaderLang.h>
 
 #include "game_specific/cameras/module.h"
+#include "low_level_renderer/pipeline_template.h"
 #include "low_level_renderer/render_submission.h"
+#include "private/shader_helper.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wold-style-cast"
@@ -279,11 +281,11 @@ void Module::recordCommandBuffer(
 			renderSubmission,
 			buffer,
 			device.pipeline.instanceRenderingPipelineLayout,
-            instances,
-            device.pipeline,
-            materials,
-            meshes,
-            device.currentFrame
+			instances,
+			device.pipeline,
+			materials,
+			meshes,
+			device.currentFrame
 		);
 
 		buffer.endRenderPass();
@@ -423,19 +425,52 @@ RenderInstanceID Module::registerInstance(uint16_t numberOfEntries) {
 }
 
 void Module::createPipelineVariant(
-    const PipelineSpecializationConstants& specializationConstants
+	const PipelineSpecializationConstants& specializationConstants
 ) {
 	const bool isPipelineMissing =
-		!device.pipeline.regularPipelineVariants.contains(specializationConstants);
+		!device.pipeline.regularPipelineVariants.contains(
+			specializationConstants
+		);
 	if (isPipelineMissing) {
+		const std::vector<uint32_t> vertexShaderSPIRV =
+			compileFromGLSLToSPIRV(device.mainShaders.vertex, {});
+		const ShaderID vertexShaderID = loadFromBytecode(
+			shaders,
+			device.device,
+			vertexShaderSPIRV.data(),
+			vertexShaderSPIRV.size() * 4
+		);
+
+		const std::vector<uint32_t> vertexInstancedShaderSPIRV =
+			compileFromGLSLToSPIRV(device.mainShaders.vertexInstanced, {});
+		const ShaderID vertexInstancedShaderID = loadFromBytecode(
+			shaders,
+			device.device,
+			vertexInstancedShaderSPIRV.data(),
+			vertexInstancedShaderSPIRV.size() * 4
+		);
+
+		const std::vector<uint32_t> fragmentShaderSPIRV =
+			compileFromGLSLToSPIRV(
+				device.mainShaders.fragment,
+				getGLSLDefinesFragment(specializationConstants)
+			);
+
+		const ShaderID fragmentShaderID = loadFromBytecode(
+			shaders,
+			device.device,
+			fragmentShaderSPIRV.data(),
+			fragmentShaderSPIRV.size() * 4
+		);
+
 		createNewVariant(
 			device.pipeline,
 			specializationConstants,
 			device.device,
 			device.renderPasses.mainPass,
-			getModule(shaders, device.mainShaders.vertex),
-			getModule(shaders, device.mainShaders.vertexInstanced),
-			getModule(shaders, device.mainShaders.fragment)
+			getModule(shaders, vertexShaderID),
+			getModule(shaders, vertexInstancedShaderID),
+			getModule(shaders, fragmentShaderID)
 		);
 	}
 }

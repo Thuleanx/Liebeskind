@@ -10,6 +10,11 @@ constexpr size_t MAX_SHADERS = 1 << 8;
 
 using ShaderID = algo::GenerationIndexPair;
 
+struct UncompiledShader {
+    std::string code;
+    vk::ShaderStageFlagBits stage;
+};
+
 struct ShaderStorage {
 	std::array<vk::ShaderModule, MAX_SHADERS> shaders;
 	algo::GenerationIndexArray<MAX_SHADERS> indices;

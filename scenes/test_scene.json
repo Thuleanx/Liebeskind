@@ -53,6 +53,7 @@
             "shininess": 128,
             "albedoMap": 0,
             "normalMap": 1,
+            "displacementMap": 2,
             "emissionMap": 3,
             "sampler": "linear"
         }

@@ -219,6 +219,21 @@ std::vector<UniformBuffer<T>> init_createUniformBuffers(
 	return result;
 }
 
+UncompiledShader loadUncompiledShaderFromFile(
+	std::string_view filePath, vk::ShaderStageFlagBits stage
+) {
+	const std::optional<std::vector<char>> bytecode =
+		file_system::readFile(filePath);
+	ASSERT(
+		bytecode.has_value(),
+		"Shader needs to be able to be loaded from " << filePath
+	);
+	return UncompiledShader{
+		.code = std::string(bytecode.value().begin(), bytecode.value().end()),
+		.stage = stage
+	};
+}
+
 ShaderID loadShaderFromFile(
 	ShaderStorage& shaders, vk::Device device, std::string_view filePath
 ) {
@@ -244,7 +259,7 @@ ShaderID compileThenLoadShaderFromFile(
 		"Shader needs to be able to be loaded from " << filePath
 	);
 	const std::vector<uint32_t> SPIRVCode =
-		compileFromGLSLToSPIRV(glslCode.value().data(), shaderStage);
+		compileFromGLSLToSPIRV({glslCode.value().data(), shaderStage}, {});
 	return loadFromBytecode(
 		shaders, device, SPIRVCode.data(), SPIRVCode.size() * 4
 	);
@@ -281,17 +296,16 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
 	const vk::CommandPool commandPool =
 		init_createCommandPool(device, queueFamily);
 
-	const ShaderID vertexShader = compileThenLoadShaderFromFile(
-		shaders,
-		device,
-		"shaders/test_triangle.vert.glsl",
+	const UncompiledShader vertexShader = loadUncompiledShaderFromFile(
+		"shaders/test_triangle.vert.glsl", vk::ShaderStageFlagBits::eVertex
+	);
+	const UncompiledShader instancedVertexShader = loadUncompiledShaderFromFile(
+		"shaders/test_triangle_instanced.vert.glsl",
 		vk::ShaderStageFlagBits::eVertex
 	);
-	const ShaderID instancedVertexShader = loadShaderFromFile(
-		shaders, device, "shaders/test_triangle_instanced.vert.glsl.spv"
-	);
-	const ShaderID fragmentShader = loadShaderFromFile(
-		shaders, device, "shaders/test_triangle.frag.glsl.spv"
+	const UncompiledShader fragmentShader = loadUncompiledShaderFromFile(
+		"shaders/test_triangle.frag.glsl",
+		vk::ShaderStageFlagBits::eFragment
 	);
 	const Shaders mainShaders{
 		.vertex = vertexShader,

@@ -128,25 +128,26 @@ void main() {
 
     vec2 uv = inFragTexCoord; 
 
-    if ((samplerInclusion | HasDisplacementMap) > 0) {
-        uv = applyParallaxMapping(viewDirectionTangent, inFragTexCoord);
+#ifdef HAS_DISPLACEMENT
+    uv = applyParallaxMapping(viewDirectionTangent, inFragTexCoord);
 
-        bool isOutOfTexture = uv.x < 0 || uv.x > 1 || uv.y < 0 || uv.y > 1;
-        if (isOutOfTexture)
-            discard;
-    }
+    bool isOutOfTexture = uv.x < 0 || uv.x > 1 || uv.y < 0 || uv.y > 1;
+    if (isOutOfTexture)
+        discard;
+#endif
 
     vec4 texColor = vec4(inFragColor, 1.0);
-    if ((samplerInclusion | HasTextureMap) > 0)
-        texColor *= texture(texSampler, uv);
+#ifdef HAS_ALBEDO
+    texColor *= texture(texSampler, uv);
+#endif
 
     // Who allowed these to not be normalized
     vec3 normalWorld = tangentSpace.normalWorld;
 
-    if ((samplerInclusion | HasNormalMap) > 0) {
-        vec3 sampledNormalTangent = 2.0 * texture(normalSampler, uv).xyz - 1.0;
-        normalWorld = normalize(tangentSpace.tangentToWorld * sampledNormalTangent);
-    }
+#ifdef HAS_NORMAL
+    vec3 sampledNormalTangent = 2.0 * texture(normalSampler, uv).xyz - 1.0;
+    normalWorld = normalize(tangentSpace.tangentToWorld * sampledNormalTangent);
+#endif
 
     // by convention, these vectors points outwards from the surface
     vec3 lightDirection = -normalize(scene.mainLightDirection);
@@ -160,10 +161,10 @@ void main() {
         scene.mainLightColor * diffuse * materialProperties.diffuse +
         scene.mainLightColor * specular * materialProperties.specular;
 
-    if ((samplerInclusion | HasEmissionMap) > 0)  {
-        vec3 emissiveColor = texture(emissiveSampler, uv).xyz;
-        lighting += emissiveColor * materialProperties.emission;
-    }
+#ifdef HAS_EMISSION
+    vec3 emissiveColor = texture(emissiveSampler, uv).xyz;
+    lighting += emissiveColor * materialProperties.emission;
+#endif
 
     outColor = vec4(lighting, 1) * texColor;
     //outColor = vec4(vec3(diffuse), 1);

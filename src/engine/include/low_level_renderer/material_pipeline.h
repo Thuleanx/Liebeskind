@@ -1,8 +1,10 @@
 #pragma once
 
+#include <unordered_map>
 #include <vulkan/vulkan.hpp>
 
 #include "low_level_renderer/descriptor_allocator.h"
+#include "low_level_renderer/pipeline_template.h"
 #include "low_level_renderer/renderpass_data.h"
 
 namespace graphics {
@@ -25,8 +27,16 @@ struct PipelineDescriptorData {
 };
 
 struct MaterialPipeline {
-	PipelineData regularPipeline;
-	PipelineData instanceRenderingPipeline;
+	using VariantMap = std::unordered_map<
+		PipelineSpecializationConstants,
+		vk::Pipeline,
+		PipelineSpecializationConstantsHashFunction>;
+    
+	PipelineTemplate pipelineTemplate;
+	VariantMap regularPipelineVariants;
+	VariantMap instanceRenderingPipelineVariants;
+	vk::PipelineLayout regularPipelineLayout;
+	vk::PipelineLayout instanceRenderingPipelineLayout;
 	PipelineData postProcessingPipeline;
 	PipelineDescriptorData globalDescriptor;
 	PipelineDescriptorData instanceRenderingDescriptor;
@@ -37,23 +47,16 @@ struct MaterialPipeline {
 	static MaterialPipeline create(
 		vk::Device device,
 		const RenderPassData& renderPasses,
-		vk::ShaderModule vertexShader,
-		vk::ShaderModule instanceRenderingVertexShader,
-		vk::ShaderModule fragmentShader,
 		vk::ShaderModule postProcessingVertexShader,
 		vk::ShaderModule postProcessingFragmentShader
 	);
 };
 
-std::array<PipelineData, 2> createMainPipelines(
+std::array<vk::PipelineLayout, 2> createMainPipelinesLayouts(
 	vk::Device device,
-	const RenderPassData& renderPasses,
 	const PipelineDescriptorData& globalDescriptorData,
 	const PipelineDescriptorData& materialDescriptorData,
-	const PipelineDescriptorData& instanceRenderingDescriptorData,
-	vk::ShaderModule vertexShader,
-	vk::ShaderModule instanceRenderingVertexShader,
-	vk::ShaderModule fragmentShader
+	const PipelineDescriptorData& instanceRenderingDescriptorData
 );
 
 std::array<PipelineData, 1> createPostProcessingPipelines(
@@ -62,6 +65,26 @@ std::array<PipelineData, 1> createPostProcessingPipelines(
 	const PipelineDescriptorData& postProcessingDescriptorData,
 	vk::ShaderModule vertexShader,
 	vk::ShaderModule fragmentShader
+);
+
+void createNewVariant(
+	MaterialPipeline& materialPipeline,
+	const PipelineSpecializationConstants& specializationConstants,
+	vk::Device device,
+	vk::RenderPass renderPass,
+	vk::ShaderModule vertexShader,
+	vk::ShaderModule vertexShaderInstanced,
+	vk::ShaderModule fragmentShader
+);
+
+vk::Pipeline getRegularPipeline(
+	const MaterialPipeline& materialPipeline,
+	const PipelineSpecializationConstants& specializationConstants
+);
+
+vk::Pipeline getInstanceRenderingPipeline(
+	const MaterialPipeline& materialPipeline,
+	const PipelineSpecializationConstants& specializationConstants
 );
 
 void destroy(const MaterialPipeline& pipeline, vk::Device device);

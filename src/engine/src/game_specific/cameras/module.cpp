@@ -8,7 +8,7 @@ std::optional<Module> module;
 Module Module::create() {
 	PerspectiveCamera camera = PerspectiveCamera::create(
 		glm::lookAt(
-			glm::vec3(5.0f, 0.0f, 0.0f),
+			glm::vec3(10.0f, 0.0f, 0.0f),
 			glm::vec3(0.0f, 0.0f, 0.f),
 			glm::vec3(0.0f, 0.0f, 1.0f)
 		),

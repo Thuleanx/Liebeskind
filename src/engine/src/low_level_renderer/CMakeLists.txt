@@ -2,6 +2,7 @@ set(SRC
     graphics_module.cpp
     render_submission.cpp
     material_pipeline.cpp
+    pipeline_template.cpp
     materials.cpp
     meshes.cpp
     shaders.cpp

@@ -9,6 +9,7 @@
 #include "core/logger/assert.h"
 #include "core/logger/vulkan_ensures.h"
 #include "low_level_renderer/descriptor_write_buffer.h"
+#include "low_level_renderer/material_pipeline.h"
 #include "low_level_renderer/queue_family.h"
 #include "private/graphics_device_helper.h"
 #include "private/shader_helper.h"
@@ -292,6 +293,11 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
 	const ShaderID fragmentShader = loadShaderFromFile(
 		shaders, device, "shaders/test_triangle.frag.glsl.spv"
 	);
+	const Shaders mainShaders{
+		.vertex = vertexShader,
+		.vertexInstanced = instancedVertexShader,
+		.fragment = fragmentShader
+	};
 	const ShaderID postProcessingVertexShader = loadShaderFromFile(
 		shaders, device, "shaders/post_processing.vert.glsl.spv"
 	);
@@ -340,9 +346,6 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
 	MaterialPipeline pipeline = MaterialPipeline::create(
 		device,
 		renderPasses,
-		getModule(shaders, vertexShader),
-		getModule(shaders, instancedVertexShader),
-		getModule(shaders, fragmentShader),
 		getModule(shaders, postProcessingVertexShader),
 		getModule(shaders, postProcessingFragmentShader)
 	);
@@ -415,6 +418,7 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
 		.presentQueue = presentQueue,
 		.renderPasses = renderPasses,
 		.pipeline = pipeline,
+		.mainShaders = mainShaders,
 		.swapchain = {},
 		.commandPool = commandPool,
 		.samplers = allSamplers,

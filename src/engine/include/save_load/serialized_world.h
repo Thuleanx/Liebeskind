@@ -1,6 +1,7 @@
 #pragma once
 
 #include <glm/glm.hpp>
+#include <optional>
 #include <vector>
 #include <vulkan/vulkan.hpp>
 
@@ -27,10 +28,10 @@ struct SerializedMaterials {
 	std::vector<glm::vec3> ambient;
 	std::vector<glm::vec3> emission;
 	std::vector<float> shininess;
-	std::vector<IDType> albedoMap;
-	std::vector<IDType> normalMap;
-	std::vector<IDType> displacementMap;
-	std::vector<IDType> emissionMap;
+	std::vector<std::optional<IDType>> albedoMap;
+	std::vector<std::optional<IDType>> normalMap;
+	std::vector<std::optional<IDType>> displacementMap;
+	std::vector<std::optional<IDType>> emissionMap;
 	std::vector<std::string> sampler;
 };
 

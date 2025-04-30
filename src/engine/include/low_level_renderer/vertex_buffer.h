@@ -16,7 +16,7 @@ struct Vertex {
 	glm::vec2 texCoord;
 
    public:
-	static vk::VertexInputBindingDescription getBindingDescription() {
+	constexpr static vk::VertexInputBindingDescription getBindingDescription() {
 		return vk::VertexInputBindingDescription(
 			0, sizeof(Vertex), vk::VertexInputRate::eVertex
 		);

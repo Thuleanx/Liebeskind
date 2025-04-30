@@ -6,6 +6,7 @@ namespace game_world {
 
 void emplaceStatics(
 	World& world,
+	std::span<const graphics::PipelineSpecializationConstants> variants,
 	std::span<const glm::mat4> transforms,
 	std::span<const graphics::MaterialInstanceID> materials,
 	std::span<const graphics::MeshID> meshes
@@ -17,6 +18,9 @@ void emplaceStatics(
 		"mismatched: "
 			<< transforms.size() << " transforms; " << materials.size()
 			<< " materials; " << meshes.size() << " meshes"
+	);
+	world.statics.variant.insert(
+		world.statics.variant.end(), variants.begin(), variants.end()
 	);
 	world.statics.transform.insert(
 		world.statics.transform.end(), transforms.begin(), transforms.end()
@@ -36,6 +40,7 @@ void addToSceneGraph(const World& world, scene_graph::Module& sceneGraph) {
 		result.reserve(numStatics);
 		for (size_t i = 0; i < numStatics; i++) {
 			result.emplace_back(
+				world.statics.variant[i],
 				world.statics.transform[i],
 				world.statics.material[i],
 				world.statics.mesh[i]
@@ -43,7 +48,7 @@ void addToSceneGraph(const World& world, scene_graph::Module& sceneGraph) {
 		}
 		return result;
 	}();
-    sceneGraph.addObjects(renderObjects);
+	sceneGraph.addObjects(renderObjects);
 }
 
 }  // namespace game_world

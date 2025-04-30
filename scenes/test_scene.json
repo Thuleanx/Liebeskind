@@ -24,7 +24,7 @@
     "meshes": [
         {
             "id": 0,
-            "file_path": "models/sponza.obj"
+            "file_path": "models/quad.obj"
         }
     ],
     "materials": [
@@ -53,7 +53,6 @@
             "shininess": 128,
             "albedoMap": 0,
             "normalMap": 1,
-            "displacementMap": 2,
             "emissionMap": 3,
             "sampler": "linear"
         }
@@ -66,17 +65,17 @@
                 "position": [
                     0,
                     0,
-                    0.5
+                    0.0
                 ],
                 "rotation": [
-                    90.0,
                     0,
+                    90.0,
                     0
                 ],
                 "scale": [
-                    0.01,
-                    0.01,
-                    0.01
+                    3.00,
+                    3.00,
+                    3.00
                 ]
             },
             "material": 0,

@@ -33,13 +33,11 @@ layout(set = 1, binding = 1) uniform sampler2D texSampler;
 layout(set = 1, binding = 2) uniform sampler2D normalSampler;
 layout(set = 1, binding = 3) uniform sampler2D displacementSampler;
 layout(set = 1, binding = 4) uniform sampler2D emissiveSampler;
-layout(set = 1, binding = 5) uniform sampler2D tungstenSampler;
 
 const uint HasTextureMap = 1u;
 const uint HasNormalMap = 2u;
 const uint HasDisplacementMap = 4u;
 const uint HasEmissionMap = 8u;
-const uint HasTungstenMap = 16u;
 const uint HasAllMaps = HasTextureMap | HasNormalMap | HasDisplacementMap | HasEmissionMap;
 
 layout(constant_id = 0) const uint samplerInclusion = HasAllMaps;
@@ -123,37 +121,49 @@ void main() {
     vec3 eyePosition = vec3(scene.inverseView[3][0], scene.inverseView[3][1], scene.inverseView[3][2]);
 
     TangentSpace tangentSpace = calculateTangentSpace();
+
     // by convention, this vector points outwards from the surface
     vec3 viewDirection = normalize(eyePosition - inPositionWorld);
     vec3 viewDirectionTangent = tangentSpace.worldToTangent * viewDirection;
 
-    vec2 parallaxUV = applyParallaxMapping(viewDirectionTangent, inFragTexCoord);
-    bool isOutOfTexture = parallaxUV.x < 0 || parallaxUV.x > 1 || parallaxUV.y < 0 || parallaxUV.y > 1;
-    if (isOutOfTexture)
-        discard;
+    vec2 uv = inFragTexCoord; 
 
-    vec4 texColor = texture(texSampler, parallaxUV) * vec4(inFragColor, 1.0);
+    if ((samplerInclusion | HasDisplacementMap) > 0) {
+        uv = applyParallaxMapping(viewDirectionTangent, inFragTexCoord);
+
+        bool isOutOfTexture = uv.x < 0 || uv.x > 1 || uv.y < 0 || uv.y > 1;
+        if (isOutOfTexture)
+            discard;
+    }
+
+    vec4 texColor = vec4(inFragColor, 1.0);
+    if ((samplerInclusion | HasTextureMap) > 0)
+        texColor *= texture(texSampler, uv);
 
     // Who allowed these to not be normalized
-    vec3 sampledNormalTangent = 2.0 * texture(normalSampler, parallaxUV).xyz - 1.0;
-    vec3 sampledNormalWorld = normalize(tangentSpace.tangentToWorld * sampledNormalTangent);
+    vec3 normalWorld = tangentSpace.normalWorld;
+
+    if ((samplerInclusion | HasNormalMap) > 0) {
+        vec3 sampledNormalTangent = 2.0 * texture(normalSampler, uv).xyz - 1.0;
+        normalWorld = normalize(tangentSpace.tangentToWorld * sampledNormalTangent);
+    }
 
     // by convention, these vectors points outwards from the surface
     vec3 lightDirection = -normalize(scene.mainLightDirection);
     vec3 halfwayDirection = normalize(lightDirection + viewDirection);
-    vec3 reflectedDirection = 2 * (dot(sampledNormalWorld, lightDirection)) * sampledNormalWorld - lightDirection;
-
-    vec3 emissiveColor = texture(emissiveSampler, parallaxUV).xyz;
-    
+    vec3 reflectedDirection = 2 * (dot(normalWorld, lightDirection)) * normalWorld - lightDirection;
     float specular = pow(max(0, dot(viewDirection, reflectedDirection)), materialProperties.shininess);
-    float diffuse = max(0, dot(sampledNormalWorld, lightDirection));
-
+    float diffuse = max(0, dot(normalWorld, lightDirection));
 
     vec3 lighting =
         scene.ambientColor * materialProperties.ambient + 
         scene.mainLightColor * diffuse * materialProperties.diffuse +
-        scene.mainLightColor * specular * materialProperties.specular +
-        emissiveColor * materialProperties.emission;
+        scene.mainLightColor * specular * materialProperties.specular;
+
+    if ((samplerInclusion | HasEmissionMap) > 0)  {
+        vec3 emissiveColor = texture(emissiveSampler, uv).xyz;
+        lighting += emissiveColor * materialProperties.emission;
+    }
 
     outColor = vec4(lighting, 1) * texColor;
     //outColor = vec4(vec3(diffuse), 1);

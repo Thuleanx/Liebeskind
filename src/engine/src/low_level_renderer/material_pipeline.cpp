@@ -1,4 +1,5 @@
 #include "low_level_renderer/material_pipeline.h"
+
 #include "core/logger/vulkan_ensures.h"
 #include "low_level_renderer/config.h"
 #include "low_level_renderer/materials.h"
@@ -10,9 +11,6 @@ namespace graphics {
 MaterialPipeline MaterialPipeline::create(
 	vk::Device device,
 	const RenderPassData& renderPasses,
-	vk::ShaderModule vertexShader,
-	vk::ShaderModule instanceRenderingVertexShader,
-	vk::ShaderModule fragmentShader,
 	vk::ShaderModule postProcessingVertexShader,
 	vk::ShaderModule postProcessingFragmentShader
 ) {
@@ -127,17 +125,16 @@ MaterialPipeline MaterialPipeline::create(
 		};
 	}
 
-	const auto [regularPipeline, instanceRenderingPipeline] =
-		createMainPipelines(
+	const PipelineTemplate pipelineTemplate =
+		PipelineTemplate::createDefault(renderPasses);
+	const auto [regularPipelineLayout, instanceRenderingPipelineLayout] =
+		createMainPipelinesLayouts(
 			device,
-			renderPasses,
 			globalDescriptorData,
 			materialDescriptorData,
-			instanceRenderingDescriptorData,
-			vertexShader,
-			instanceRenderingVertexShader,
-			fragmentShader
+			instanceRenderingDescriptorData
 		);
+
 	const auto [postProcessingPipeline] = createPostProcessingPipelines(
 		device,
 		renderPasses,
@@ -146,8 +143,11 @@ MaterialPipeline MaterialPipeline::create(
 		postProcessingFragmentShader
 	);
 	return {
-		.regularPipeline = regularPipeline,
-		.instanceRenderingPipeline = instanceRenderingPipeline,
+		.pipelineTemplate = pipelineTemplate,
+		.regularPipelineVariants = {},
+		.instanceRenderingPipelineVariants = {},
+		.regularPipelineLayout = regularPipelineLayout,
+		.instanceRenderingPipelineLayout = instanceRenderingPipelineLayout,
 		.postProcessingPipeline = postProcessingPipeline,
 		.globalDescriptor = globalDescriptorData,
 		.instanceRenderingDescriptor = instanceRenderingDescriptorData,
@@ -156,15 +156,11 @@ MaterialPipeline MaterialPipeline::create(
 	};
 }
 
-std::array<PipelineData, 2> createMainPipelines(
+std::array<vk::PipelineLayout, 2> createMainPipelinesLayouts(
 	vk::Device device,
-	const RenderPassData& renderPasses,
 	const PipelineDescriptorData& globalDescriptorData,
 	const PipelineDescriptorData& materialDescriptorData,
-	const PipelineDescriptorData& instanceRenderingDescriptorData,
-	vk::ShaderModule vertexShader,
-	vk::ShaderModule instanceRenderingVertexShader,
-	vk::ShaderModule fragmentShader
+	const PipelineDescriptorData& instanceRenderingDescriptorData
 ) {
 	const std::vector<vk::DescriptorSetLayout> instanceRenderingSetLayouts = {
 		globalDescriptorData.setLayout,
@@ -181,103 +177,7 @@ std::array<PipelineData, 2> createMainPipelines(
 		vk::ShaderStageFlagBits::eVertex, 0, sizeof(GPUPushConstants)
 	);
 
-	const vk::PipelineShaderStageCreateInfo vertexShaderStageInfo(
-		{}, vk::ShaderStageFlagBits::eVertex, vertexShader, "main"
-	);
-	const vk::PipelineShaderStageCreateInfo
-		instanceRenderingVertexShaderStageInfo(
-			{},
-			vk::ShaderStageFlagBits::eVertex,
-			instanceRenderingVertexShader,
-			"main"
-		);
-	const vk::PipelineShaderStageCreateInfo fragmentShaderStageInfo(
-		{}, vk::ShaderStageFlagBits::eFragment, fragmentShader, "main"
-	);
-
-	const std::vector<vk::DynamicState> dynamicStates = {
-		vk::DynamicState::eViewport,
-		vk::DynamicState::eScissor,
-	};
-	const vk::PipelineDynamicStateCreateInfo dynamicStateInfo(
-		{}, static_cast<uint32_t>(dynamicStates.size()), dynamicStates.data()
-	);
-
-	const auto bindingDescription = Vertex::getBindingDescription();
-	const auto attributeDescription = Vertex::getAttributeDescriptions();
-	const vk::PipelineVertexInputStateCreateInfo vertexInputStateInfo(
-		{},
-		1,
-		&bindingDescription,
-		static_cast<uint32_t>(attributeDescription.size()),
-		attributeDescription.data()
-	);
-	const vk::PipelineInputAssemblyStateCreateInfo inputAssemblyStateInfo(
-		{},
-		vk::PrimitiveTopology::eTriangleList,
-		vk::False  // primitive restart
-	);
-	const vk::PipelineViewportStateCreateInfo viewportStateInfo(
-		{}, 1, nullptr, 1, nullptr
-	);
-	const vk::PipelineRasterizationStateCreateInfo rasterizerCreateInfo(
-		{},
-		vk::False,	// depth clamp enable. only useful for shadow mapping
-		vk::False,	// rasterizerDiscardEnable
-		vk::PolygonMode::eFill,	 // fill polygon with fragments
-		vk::CullModeFlagBits::eBack,
-		vk::FrontFace::eCounterClockwise,
-		vk::False,	// depth bias, probably useful for shadow mapping
-		0.0f,
-		0.0f,
-		0.0f,
-		1.0f  // line width
-	);
-	const vk::PipelineMultisampleStateCreateInfo multisamplingInfo(
-		{},
-		renderPasses.multisampleAntialiasingSampleCount,
-		vk::True,
-		0.2f,
-		nullptr,
-		vk::False,
-		vk::False
-	);
-	const vk::PipelineColorBlendAttachmentState colorBlendAttachment(
-		vk::True,  // enable blend
-		vk::BlendFactor::eSrcAlpha,
-		vk::BlendFactor::eOneMinusSrcAlpha,
-		vk::BlendOp::eAdd,
-		vk::BlendFactor::eOne,
-		vk::BlendFactor::eZero,
-		vk::BlendOp::eAdd,
-		vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
-			vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA
-	);
-	const std::array<float, 4> colorBlendingConstants = {
-		0.0f, 0.0f, 0.0f, 0.0f
-	};
-	const vk::PipelineColorBlendStateCreateInfo colorBlendingInfo(
-		{},
-		vk::False,
-		vk::LogicOp::eCopy,
-		1,
-		&colorBlendAttachment,
-		colorBlendingConstants
-	);
-	const vk::PipelineDepthStencilStateCreateInfo depthStencilState(
-		{},
-		vk::True,  // enable depth test
-		vk::True,  // enable depth write
-		vk::CompareOp::eLess,
-		vk::False,	// disable depth bounds test
-		vk::False,	// disable stencil test
-		{},			// stencil front op state
-		{},			// stencil back op state
-		{},			// min depth bound
-		{}			// max depth bound
-	);
-
-	PipelineData regularPipeline;
+	vk::PipelineLayout regularPipelineLayout;
 	{
 		const vk::PipelineLayoutCreateInfo pipelineLayoutInfo(
 			{},
@@ -291,39 +191,10 @@ std::array<PipelineData, 2> createMainPipelines(
 		VULKAN_ENSURE_SUCCESS(
 			pipelineLayoutCreation.result, "Can't create pipeline layout:"
 		);
-		const vk::PipelineShaderStageCreateInfo shaderStages[] = {
-			vertexShaderStageInfo, fragmentShaderStageInfo
-		};
-		vk::GraphicsPipelineCreateInfo pipelineCreateInfo(
-			{},
-			2,
-			shaderStages,
-			&vertexInputStateInfo,
-			&inputAssemblyStateInfo,
-			nullptr,  // no tesselation viewport
-			&viewportStateInfo,
-			&rasterizerCreateInfo,
-			&multisamplingInfo,
-			&depthStencilState,
-			&colorBlendingInfo,
-			&dynamicStateInfo,
-			pipelineLayoutCreation.value,
-			renderPasses.mainPass,
-			0
-		);
-		const vk::ResultValue<vk::Pipeline> pipelineCreation =
-			device.createGraphicsPipeline(nullptr, pipelineCreateInfo);
-		VULKAN_ENSURE_SUCCESS(
-			pipelineCreation.result, "Can't create graphics pipeline:"
-		);
-
-		regularPipeline = {
-			.pipeline = pipelineCreation.value,
-			.layout = pipelineLayoutCreation.value,
-		};
+		regularPipelineLayout = pipelineLayoutCreation.value;
 	}
 
-	PipelineData instanceRenderingPipeline;
+	vk::PipelineLayout instanceRenderingPipelineLayout;
 	{
 		const vk::PipelineLayoutCreateInfo pipelineLayoutInfo(
 			{},
@@ -337,39 +208,10 @@ std::array<PipelineData, 2> createMainPipelines(
 		VULKAN_ENSURE_SUCCESS(
 			pipelineLayoutCreation.result, "Can't create pipeline layout:"
 		);
-		const std::array<vk::PipelineShaderStageCreateInfo, 2> shaderStages = {
-			instanceRenderingVertexShaderStageInfo, fragmentShaderStageInfo
-		};
-		vk::GraphicsPipelineCreateInfo pipelineCreateInfo(
-			{},
-			shaderStages.size(),
-			shaderStages.data(),
-			&vertexInputStateInfo,
-			&inputAssemblyStateInfo,
-			nullptr,  // no tesselation viewport
-			&viewportStateInfo,
-			&rasterizerCreateInfo,
-			&multisamplingInfo,
-			&depthStencilState,
-			&colorBlendingInfo,
-			&dynamicStateInfo,
-			pipelineLayoutCreation.value,
-			renderPasses.mainPass,
-			0
-		);
-		const vk::ResultValue<vk::Pipeline> pipelineCreation =
-			device.createGraphicsPipeline(nullptr, pipelineCreateInfo);
-		VULKAN_ENSURE_SUCCESS(
-			pipelineCreation.result, "Can't create graphics pipeline:"
-		);
-
-		instanceRenderingPipeline = {
-			.pipeline = pipelineCreation.value,
-			.layout = pipelineLayoutCreation.value,
-		};
+		instanceRenderingPipelineLayout = pipelineLayoutCreation.value;
 	}
 
-	return {regularPipeline, instanceRenderingPipeline};
+	return {regularPipelineLayout, instanceRenderingPipelineLayout};
 }
 
 std::array<PipelineData, 1> createPostProcessingPipelines(
@@ -507,14 +349,90 @@ std::array<PipelineData, 1> createPostProcessingPipelines(
 	}};
 }
 
+void createNewVariant(
+	MaterialPipeline& materialPipeline,
+	const PipelineSpecializationConstants& specializationConstants,
+	vk::Device device,
+	vk::RenderPass renderPass,
+	vk::ShaderModule vertexShader,
+	vk::ShaderModule vertexShaderInstanced,
+	vk::ShaderModule fragmentShader
+) {
+	const vk::Pipeline regularPipeline = createVariant(
+		materialPipeline.pipelineTemplate,
+		specializationConstants,
+		device,
+		renderPass,
+		materialPipeline.regularPipelineLayout,
+		vertexShader,
+		fragmentShader
+	);
+
+	const vk::Pipeline instancedPipeline = createVariant(
+		materialPipeline.pipelineTemplate,
+		specializationConstants,
+		device,
+		renderPass,
+		materialPipeline.instanceRenderingPipelineLayout,
+		vertexShaderInstanced,
+		fragmentShader
+	);
+
+	materialPipeline.regularPipelineVariants[specializationConstants] =
+		regularPipeline;
+	materialPipeline
+		.instanceRenderingPipelineVariants[specializationConstants] =
+		instancedPipeline;
+}
+
+vk::Pipeline getRegularPipeline(
+	const MaterialPipeline& materialPipeline,
+	const PipelineSpecializationConstants& specializationConstants
+) {
+	ASSERT(
+		materialPipeline.regularPipelineVariants.contains(
+			specializationConstants
+		),
+		"Material pipeline has no entry for specialization constant: "
+			<< specializationConstants.samplerInclusion
+	);
+	return materialPipeline.regularPipelineVariants.at(specializationConstants);
+}
+
+vk::Pipeline getInstanceRenderingPipeline(
+	const MaterialPipeline& materialPipeline,
+	const PipelineSpecializationConstants& specializationConstants
+) {
+	ASSERT(
+		materialPipeline.instanceRenderingPipelineVariants.contains(
+			specializationConstants
+		),
+		"Material pipeline has no entry for specialization constant: "
+			<< specializationConstants.samplerInclusion
+	);
+	return materialPipeline.instanceRenderingPipelineVariants.at(
+		specializationConstants
+	);
+}
+
+vk::Pipeline getInstanceRenderingPipeline(
+	const MaterialPipeline& materialPipeline,
+	const PipelineSpecializationConstants& specializationConstants
+);
+
 void destroy(const MaterialPipeline& pipeline, vk::Device device) {
 	destroy(pipeline.globalDescriptor, device);
 	destroy(pipeline.instanceRenderingDescriptor, device);
 	destroy(pipeline.materialDescriptor, device);
-    destroy(pipeline.postProcessingDescriptor, device);
-	destroy(pipeline.regularPipeline, device);
-	destroy(pipeline.instanceRenderingPipeline, device);
-    destroy(pipeline.postProcessingPipeline, device);
+	for (const auto& [constants, pipeline] : pipeline.regularPipelineVariants)
+		device.destroyPipeline(pipeline);
+	for (const auto& [constants, pipeline] :
+		 pipeline.instanceRenderingPipelineVariants)
+		device.destroyPipeline(pipeline);
+	device.destroyPipelineLayout(pipeline.regularPipelineLayout);
+	device.destroyPipelineLayout(pipeline.instanceRenderingPipelineLayout);
+	destroy(pipeline.postProcessingDescriptor, device);
+	destroy(pipeline.postProcessingPipeline, device);
 }
 
 void destroy(const PipelineData& pipelineData, vk::Device device) {

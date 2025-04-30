@@ -21,7 +21,7 @@ Module Module::create() {
 		.inverseView = glm::mat4(1.0),
 		.projection = glm::mat4(1),
 		.viewProjection = {},
-		.ambientColor = glm::vec3(0.05),
+		.ambientColor = glm::vec3(1),
 		.mainLightDirection = glm::normalize(glm::vec3(-1.0, 0.0, 0.0)),
 		.mainLightColor = glm::vec3(1, 1, 1),
 	};
@@ -100,11 +100,11 @@ bool Module::drawFrame(graphics::Module& graphics) {
 	sceneData.inverseView = glm::inverse(sceneData.view);
 	sceneData.viewProjection = sceneData.projection * sceneData.view;
 
-	renderSubmission.submit(renderObjects);
-	renderSubmission.submit(instancedRenderObjects, instancedRenderData);
+	submit(renderSubmission, renderObjects);
+	submit(renderSubmission, instancedRenderObjects, instancedRenderData);
 
 	bool isRenderSuccessful = graphics.drawFrame(renderSubmission, sceneData);
-	renderSubmission.clear();
+	clear(renderSubmission);
 	return isRenderSuccessful;
 }
 }  // namespace scene_graph

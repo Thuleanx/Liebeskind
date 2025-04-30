@@ -1,10 +1,14 @@
 #pragma once
 
+#include <optional>
 #include <glm/glm.hpp>
 #include <vulkan/vulkan.hpp>
 
+#include "core/algo/generation_index_array.h"
 #include "low_level_renderer/data_buffer.h"
 #include "low_level_renderer/descriptor_allocator.h"
+#include "low_level_renderer/pipeline_template.h"
+#include "low_level_renderer/sampler.h"
 #include "low_level_renderer/texture.h"
 
 namespace graphics {
@@ -48,13 +52,14 @@ constexpr std::array<vk::DescriptorPoolSize, 2> MATERIAL_DESCRIPTOR_POOL_SIZES =
 		vk::DescriptorPoolSize(vk::DescriptorType::eCombinedImageSampler, 4),
 };
 
-struct MaterialInstanceID {
-	uint16_t index;
-
-	inline bool operator==(const MaterialInstanceID& other) const {
-		return this->index == other.index;
-	}
+enum class DescriptorSetBindingPoint {
+	eAlbedo = 1,
+	eNormal = 2,
+	eDisplacement = 3,
+	eEmission = 4
 };
+
+using MaterialInstanceID = algo::GenerationIndexPair;
 
 struct MaterialInstanceIDHashFunction {
 	inline size_t operator()(const MaterialInstanceID& pos) const {
@@ -71,21 +76,35 @@ struct MaterialProperties {
 };
 
 struct MaterialStorage {
-	size_t numOfMaterials = 0;
+	algo::GenerationIndexArray<MAX_MATERIAL_INSTANCES> indices;
 	std::array<vk::DescriptorSet, MAX_MATERIAL_INSTANCES> descriptors;
 	std::array<UniformBuffer<MaterialProperties>, MAX_MATERIAL_INSTANCES>
 		uniforms;
+	std::array<PipelineSpecializationConstants, MAX_MATERIAL_INSTANCES>
+		specializationConstant;
+
+   public:
+	static MaterialStorage create();
 };
+
+struct MaterialCreateInfo {
+	std::optional<TextureID> albedo;
+	std::optional<TextureID> normal;
+	std::optional<TextureID> displacement;
+	std::optional<TextureID> emission;
+	MaterialProperties materialProperties;
+	SamplerType sampler;
+};
+
+PipelineSpecializationConstants createSpecializationConstant(
+	const MaterialCreateInfo& info
+);
 
 [[nodiscard]]
 MaterialInstanceID create(
 	MaterialStorage& materials,
 	const TextureStorage& textures,
-	TextureID albedo,
-	TextureID normalMap,
-	TextureID displacementMap,
-	TextureID emissionMap,
-	const MaterialProperties& materialProperties,
+	const MaterialCreateInfo& createInfo,
 	vk::Device device,
 	vk::PhysicalDevice physicalDevice,
 	vk::DescriptorSetLayout setLayout,
@@ -97,7 +116,11 @@ MaterialInstanceID create(
 void update(
 	const MaterialStorage& materials,
 	const MaterialProperties& materialProperties,
-    MaterialInstanceID instance
+	MaterialInstanceID instance
+);
+
+PipelineSpecializationConstants getSpecializationConstant(
+	const MaterialStorage& material, MaterialInstanceID id
 );
 
 void bind(

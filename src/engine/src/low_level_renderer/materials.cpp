@@ -1,17 +1,40 @@
 #include "low_level_renderer/materials.h"
 
+#include "core/algo/generation_index_array.h"
 #include "core/logger/assert.h"
 #include "low_level_renderer/material_pipeline.h"
 
 namespace graphics {
+
+PipelineSpecializationConstants createSpecializationConstant(
+	const MaterialCreateInfo& info
+) {
+	const uint32_t samplerInclusion = static_cast<uint32_t>(
+		(info.albedo.has_value() ? SamplerInclusionBits::eAlbedo
+								 : SamplerInclusionBits::eNone) |
+		(info.normal.has_value() ? SamplerInclusionBits::eNormal
+								 : SamplerInclusionBits::eNone) |
+		(info.displacement.has_value() ? SamplerInclusionBits::eDisplacement
+									   : SamplerInclusionBits::eNone) |
+		(info.emission.has_value() ? SamplerInclusionBits::eEmission
+								   : SamplerInclusionBits::eNone)
+	);
+	return {.samplerInclusion = samplerInclusion};
+}
+
+MaterialStorage MaterialStorage::create() {
+	return {
+		.indices = algo::GenerationIndexArray<MAX_MATERIAL_INSTANCES>::create(),
+		.descriptors = {},
+		.uniforms = {},
+		.specializationConstant = {}
+	};
+}
+
 MaterialInstanceID create(
 	MaterialStorage& materials,
 	const TextureStorage& textures,
-	TextureID albedo,
-	TextureID normalMap,
-	TextureID displacementMap,
-	TextureID emissionMap,
-	const MaterialProperties& materialProperties,
+	const MaterialCreateInfo& createInfo,
 	vk::Device device,
 	vk::PhysicalDevice physicalDevice,
 	vk::DescriptorSetLayout setLayout,
@@ -19,41 +42,78 @@ MaterialInstanceID create(
 	DescriptorAllocator& allocator,
 	DescriptorWriteBuffer& writeBuffer
 ) {
-	MaterialInstanceID id{
-		.index = static_cast<uint16_t>(materials.numOfMaterials++)
-	};
-	UniformBuffer<MaterialProperties> uniformBuffer =
+	const MaterialInstanceID id = algo::reserveIndex(materials.indices);
+
+	const UniformBuffer<MaterialProperties> uniformBuffer =
 		UniformBuffer<MaterialProperties>::create(device, physicalDevice);
-	uniformBuffer.update(materialProperties);
-	std::vector<vk::DescriptorSet> descriptorSets =
+	uniformBuffer.update(createInfo.materialProperties);
+	const std::vector<vk::DescriptorSet> descriptorSets =
 		allocator.allocate(device, setLayout, 1);
 	ASSERT(
 		descriptorSets.size() == 1,
 		"Tried to allocate 1 descriptor set, but received "
 			<< descriptorSets.size()
 	);
-	vk::DescriptorSet descriptorSet = descriptorSets[0];
+	const vk::DescriptorSet descriptorSet = descriptorSets[0];
 	// binding 0 is for material specific properties
 	uniformBuffer.bind(writeBuffer, descriptorSet, 0);
-	// binding 1 is for albedo texture
-	bindTextureToDescriptor(
-		textures, albedo, descriptorSet, 1, sampler, writeBuffer
-	);
-	// binding 2 is for normal texture
-	bindTextureToDescriptor(
-		textures, normalMap, descriptorSet, 2, sampler, writeBuffer
-	);
-	// binding 3 is for displacement map
-	bindTextureToDescriptor(
-		textures, displacementMap, descriptorSet, 3, sampler, writeBuffer
-	);
-	// binding 4 is for emissino map
-	bindTextureToDescriptor(
-		textures, emissionMap, descriptorSet, 4, sampler, writeBuffer
-	);
+
+	if (createInfo.albedo.has_value()) {
+		bindTextureToDescriptor(
+			textures,
+			createInfo.albedo.value(),
+			descriptorSet,
+			static_cast<int>(DescriptorSetBindingPoint::eAlbedo),
+			sampler,
+			writeBuffer
+		);
+	}
+	if (createInfo.normal.has_value()) {
+		bindTextureToDescriptor(
+			textures,
+			createInfo.normal.value(),
+			descriptorSet,
+			static_cast<int>(DescriptorSetBindingPoint::eNormal),
+			sampler,
+			writeBuffer
+		);
+	}
+	if (createInfo.displacement.has_value()) {
+		bindTextureToDescriptor(
+			textures,
+			createInfo.displacement.value(),
+			descriptorSet,
+			static_cast<int>(DescriptorSetBindingPoint::eDisplacement),
+			sampler,
+			writeBuffer
+		);
+	}
+	if (createInfo.emission.has_value()) {
+		bindTextureToDescriptor(
+			textures,
+			createInfo.emission.value(),
+			descriptorSet,
+			static_cast<int>(DescriptorSetBindingPoint::eEmission),
+			sampler,
+			writeBuffer
+		);
+	}
 	materials.descriptors[id.index] = descriptorSet;
 	materials.uniforms[id.index] = uniformBuffer;
+	const PipelineSpecializationConstants variant =
+		createSpecializationConstant(createInfo);
+	materials.specializationConstant[id.index] = variant;
 	return id;
+}
+
+PipelineSpecializationConstants getSpecializationConstant(
+	const MaterialStorage& material, MaterialInstanceID id
+) {
+	ASSERT(
+		algo::isIndexValid(material.indices, id),
+		"Invalid material index " << id.index << " " << id.generation
+	);
+	return material.specializationConstant[id.index];
 }
 
 void update(
@@ -62,9 +122,9 @@ void update(
 	MaterialInstanceID instance
 ) {
 	ASSERT(
-		instance.index < materials.uniforms.size(),
-		"Invalid material index " << instance.index
-								  << " >= " << materials.uniforms.size()
+		algo::isIndexValid(materials.indices, instance),
+		"Invalid material index " << instance.index << " "
+								  << instance.generation
 	);
 	materials.uniforms[instance.index].update(materialProperties);
 }
@@ -87,7 +147,7 @@ void bind(
 }
 
 void destroy(MaterialStorage& materials, vk::Device device) {
-	for (size_t i = 0; i < materials.numOfMaterials; i++)
-		materials.uniforms[i].destroyBy(device);
+	for (size_t index : algo::getLiveIndices(materials.indices))
+		materials.uniforms[index].destroyBy(device);
 }
 }  // namespace graphics

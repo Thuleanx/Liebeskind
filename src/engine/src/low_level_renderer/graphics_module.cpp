@@ -3,6 +3,7 @@
 #include <glslang/Public/ShaderLang.h>
 
 #include "game_specific/cameras/module.h"
+#include "low_level_renderer/render_submission.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wold-style-cast"
@@ -22,7 +23,7 @@ Module Module::create() {
 	LLOG_INFO << "glslang initialized with version: "
 			  << glslang::GetGlslVersionString();
 
-    ShaderStorage shaders = ShaderStorage::create();
+	ShaderStorage shaders = ShaderStorage::create();
 	GraphicsDeviceInterface device =
 		GraphicsDeviceInterface::createGraphicsDevice(shaders);
 	GraphicsUserInterface ui = GraphicsUserInterface::create(device);
@@ -34,7 +35,7 @@ Module Module::create() {
 		.instances = {},
 		.shaders = shaders,
 		.textures = {},
-		.materials = {},
+		.materials = MaterialStorage::create(),
 		.meshes = MeshStorage::create(),
 		.mainWindowExtent = {},
 	};
@@ -47,7 +48,7 @@ void Module::destroy() {
 	graphics::destroy(meshes, device.device);
 	graphics::destroy(materials, device.device);
 	graphics::destroy(textures, device.device);
-    graphics::destroy(shaders, device.device);
+	graphics::destroy(shaders, device.device);
 	instances.destroyBy(device.device);
 	ui.destroy(device);
 	device.destroy();
@@ -89,7 +90,7 @@ void Module::handleEvent(const SDL_Event& event) {
 }
 
 bool Module::drawFrame(
-	const RenderSubmission& renderSubmission, GPUSceneData& sceneData
+	RenderSubmission& renderSubmission, GPUSceneData& sceneData
 ) {
 	ASSERT(device.swapchain, "Attempt to draw frame without a swapchain");
 
@@ -196,7 +197,7 @@ void Module::endFrame() {
 }
 
 void Module::recordCommandBuffer(
-	const RenderSubmission& renderSubmission,
+	RenderSubmission& renderSubmission,
 	vk::CommandBuffer buffer,
 	uint32_t imageIndex
 ) {
@@ -243,14 +244,11 @@ void Module::recordCommandBuffer(
 			clearColors.data()
 		);
 		buffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
-		buffer.bindPipeline(
-			vk::PipelineBindPoint::eGraphics,
-			device.pipeline.regularPipeline.pipeline
-		);
+		prepForRecording(renderSubmission, instances, device.currentFrame);
 
 		buffer.bindDescriptorSets(
 			vk::PipelineBindPoint::eGraphics,
-			device.pipeline.regularPipeline.layout,
+			device.pipeline.regularPipelineLayout,
 			static_cast<int>(MainPipelineDescriptorSetBindingPoint::eGlobal),
 			1,
 			&device.frameDatas[device.currentFrame].globalDescriptor,
@@ -258,22 +256,18 @@ void Module::recordCommandBuffer(
 			nullptr
 		);
 
-		renderSubmission.recordNonInstanced(
+		recordRegularDrawCalls(
+			renderSubmission,
 			buffer,
-			device.pipeline.regularPipeline.layout,
+			device.pipeline.regularPipelineLayout,
+			device.pipeline,
 			materials,
-			meshes,
-			device.currentFrame
-		);
-
-		buffer.bindPipeline(
-			vk::PipelineBindPoint::eGraphics,
-			device.pipeline.instanceRenderingPipeline.pipeline
+			meshes
 		);
 
 		buffer.bindDescriptorSets(
 			vk::PipelineBindPoint::eGraphics,
-			device.pipeline.instanceRenderingPipeline.layout,
+			device.pipeline.instanceRenderingPipelineLayout,
 			static_cast<int>(MainPipelineDescriptorSetBindingPoint::eGlobal),
 			1,
 			&device.frameDatas[device.currentFrame].globalDescriptor,
@@ -281,13 +275,15 @@ void Module::recordCommandBuffer(
 			nullptr
 		);
 
-		renderSubmission.recordInstanced(
+		recordInstancedDrawCalls(
+			renderSubmission,
 			buffer,
-			device.pipeline.instanceRenderingPipeline.layout,
-			instances,
-			materials,
-			meshes,
-			device.currentFrame
+			device.pipeline.instanceRenderingPipelineLayout,
+            instances,
+            device.pipeline,
+            materials,
+            meshes,
+            device.currentFrame
 		);
 
 		buffer.endRenderPass();
@@ -398,25 +394,14 @@ MeshID Module::loadMesh(std::string_view filePath) {
 	);
 }
 
-MaterialInstanceID Module::loadMaterial(
-	TextureID albedo,
-	TextureID normal,
-	TextureID displacementMap,
-	TextureID emissionMap,
-	MaterialProperties properties,
-	SamplerType samplerType
-) {
-	vk::Sampler sampler = samplerType == SamplerType::eLinear
+MaterialInstanceID Module::loadMaterial(const MaterialCreateInfo& createInfo) {
+	vk::Sampler sampler = createInfo.sampler == SamplerType::eLinear
 							  ? device.samplers.linear
 							  : device.samplers.point;
 	return ::graphics::create(
 		materials,
 		textures,
-		albedo,
-		normal,
-		displacementMap,
-		emissionMap,
-		properties,
+		createInfo,
 		device.device,
 		device.physicalDevice,
 		device.pipeline.materialDescriptor.setLayout,
@@ -435,6 +420,24 @@ RenderInstanceID Module::registerInstance(uint16_t numberOfEntries) {
 		device.writeBuffer,
 		numberOfEntries
 	);
+}
+
+void Module::createPipelineVariant(
+    const PipelineSpecializationConstants& specializationConstants
+) {
+	const bool isPipelineMissing =
+		!device.pipeline.regularPipelineVariants.contains(specializationConstants);
+	if (isPipelineMissing) {
+		createNewVariant(
+			device.pipeline,
+			specializationConstants,
+			device.device,
+			device.renderPasses.mainPass,
+			getModule(shaders, device.mainShaders.vertex),
+			getModule(shaders, device.mainShaders.vertexInstanced),
+			getModule(shaders, device.mainShaders.fragment)
+		);
+	}
 }
 
 void Module::updateMaterial(

@@ -20,52 +20,58 @@ constexpr char ENGINE_NAME[] = "Liebeskind";
 
 namespace graphics {
 struct GraphicsDeviceInterface {
-    struct FrameData {
-        vk::DescriptorSet globalDescriptor;
-        vk::DescriptorSet postProcessingDescriptor;
-        UniformBuffer<GPUSceneData> sceneDataBuffer;
-        vk::CommandBuffer drawCommandBuffer;
-        vk::Semaphore isImageAvailable;
-        vk::Semaphore isRenderingFinished;
-        vk::Fence isRenderingInFlight;
-    };
-    std::array<FrameData, MAX_FRAMES_IN_FLIGHT> frameDatas;
+	struct FrameData {
+		vk::DescriptorSet globalDescriptor;
+		vk::DescriptorSet postProcessingDescriptor;
+		UniformBuffer<GPUSceneData> sceneDataBuffer;
+		vk::CommandBuffer drawCommandBuffer;
+		vk::Semaphore isImageAvailable;
+		vk::Semaphore isRenderingFinished;
+		vk::Fence isRenderingInFlight;
+	};
+	std::array<FrameData, MAX_FRAMES_IN_FLIGHT> frameDatas;
 
-    SDL_Window* window;
+	SDL_Window* window;
 
-    vk::Instance instance;
-    vk::DebugUtilsMessengerEXT debugUtilsMessenger;
-    vk::SurfaceKHR surface;
-    vk::Device device;
-    vk::PhysicalDevice physicalDevice;
-    QueueFamilyIndices queueFamily;
-    vk::Queue graphicsQueue, presentQueue;
+	vk::Instance instance;
+	vk::DebugUtilsMessengerEXT debugUtilsMessenger;
+	vk::SurfaceKHR surface;
+	vk::Device device;
+	vk::PhysicalDevice physicalDevice;
+	QueueFamilyIndices queueFamily;
+	vk::Queue graphicsQueue, presentQueue;
 
-    RenderPassData renderPasses;
-    MaterialPipeline pipeline;
-    std::optional<SwapchainData> swapchain;
+	RenderPassData renderPasses;
+	MaterialPipeline pipeline;
+	struct Shaders {
+		ShaderID vertex;
+		ShaderID vertexInstanced;
+		ShaderID fragment;
+	};
+	Shaders mainShaders;
+	std::optional<SwapchainData> swapchain;
 
-    vk::CommandPool commandPool;
-    Samplers samplers;
+	vk::CommandPool commandPool;
+	Samplers samplers;
 
-    uint32_t currentFrame = 0;
-    DescriptorWriteBuffer writeBuffer;
+	uint32_t currentFrame = 0;
+	DescriptorWriteBuffer writeBuffer;
 
    public:
-    static GraphicsDeviceInterface createGraphicsDevice(ShaderStorage& shaders);
-    void destroy();
+	static GraphicsDeviceInterface createGraphicsDevice(ShaderStorage& shaders);
+	void destroy();
 
-    void handleEvent(const SDL_Event& sdlEvent);
-    void recreateSwapchain();
+	void handleEvent(const SDL_Event& sdlEvent);
+	void recreateSwapchain();
 
    private:
-    void cleanupSwapchain();
-    void handleWindowResize(int width, int height);
+	void cleanupSwapchain();
+	void handleWindowResize(int width, int height);
 
    public:
-    // Constructors
-    [[nodiscard]]
-    SwapchainData createSwapchain() const;
-    void destroy(SwapchainData& swapchainData);
+	// Constructors
+	[[nodiscard]]
+	SwapchainData createSwapchain() const;
+	void destroy(SwapchainData& swapchainData);
 };
-}  // namespace Graphics
+}  // namespace graphics

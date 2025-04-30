@@ -3,6 +3,7 @@
 #include <array>
 #include <span>
 #include <vector>
+
 #include "core/logger/assert.h"
 
 namespace algo {
@@ -10,6 +11,14 @@ namespace algo {
 struct GenerationIndexPair {
 	uint16_t index;
 	uint16_t generation;
+
+   public:
+	bool operator<(const GenerationIndexPair& other) const {
+		return index < other.index;
+	}
+	bool operator==(const GenerationIndexPair& other) const {
+		return index == other.index && generation == other.generation;
+	}
 };
 
 template <size_t N>
@@ -20,11 +29,11 @@ struct GenerationIndexArray {
 	static_assert(N <= (1 << 16), "N is too large, keep it under 2^{16}");
 
    public:
-    GenerationIndexArray() = delete;
+	GenerationIndexArray() = delete;
 	static GenerationIndexArray create();
 
    private:
-    GenerationIndexArray(std::vector<uint16_t> free);
+	GenerationIndexArray(std::vector<uint16_t> free);
 };
 
 template <size_t N>

@@ -77,7 +77,8 @@ save_load::SerializedTextures loadTextures(const nlohmann::json& data) {
 	for (const nlohmann::json& entry : data) {
 		const save_load::IDType id = safeGet(entry, "id");
 		const vk::Format format =
-			stringToFormat(safeGet(entry, "format").template get<std::string>());
+			stringToFormat(safeGet(entry, "format").template get<std::string>()
+			);
 		const std::string filePath = safeGet(entry, "file_path");
 
 		ids.push_back(id);
@@ -136,10 +137,10 @@ save_load::SerializedMaterials loadMaterials(const nlohmann::json& data) {
 	std::vector<glm::vec3> ambients;
 	std::vector<glm::vec3> emissions;
 	std::vector<float> shininesss;
-	std::vector<save_load::IDType> albedoMaps;
-	std::vector<save_load::IDType> normalMaps;
-	std::vector<save_load::IDType> displacementMaps;
-	std::vector<save_load::IDType> emissionMaps;
+	std::vector<std::optional<save_load::IDType>> albedoMaps;
+	std::vector<std::optional<save_load::IDType>> normalMaps;
+	std::vector<std::optional<save_load::IDType>> displacementMaps;
+	std::vector<std::optional<save_load::IDType>> emissionMaps;
 	std::vector<std::string> samplers;
 
 	ids.reserve(numTextures);
@@ -161,10 +162,21 @@ save_load::SerializedMaterials loadMaterials(const nlohmann::json& data) {
 		const glm::vec3 ambient = toVec3(safeGet(entry, "ambient"));
 		const glm::vec3 emission = toVec3(safeGet(entry, "emission"));
 		const float shininess = safeGet(entry, "shininess");
-		const save_load::IDType albedoMap = safeGet(entry, "albedoMap");
-		const save_load::IDType normalMap = safeGet(entry, "normalMap");
-		const save_load::IDType displacementMap = safeGet(entry, "displacementMap");
-		const save_load::IDType emissionMap = safeGet(entry, "emissionMap");
+
+		const std::optional<save_load::IDType> albedoMap =
+			entry.contains("albedoMap") ? std::optional(entry["albedoMap"])
+										: std::nullopt;
+		const std::optional<save_load::IDType> normalMap =
+			entry.contains("normalMap") ? std::optional(entry["normalMap"])
+										: std::nullopt;
+		const std::optional<save_load::IDType> displacementMap =
+			entry.contains("displacementMap")
+				? std::optional(entry["displacementMap"])
+				: std::nullopt;
+		const std::optional<save_load::IDType> emissionMap =
+			entry.contains("emissionMap") ? std::optional(entry["emissionMap"])
+										  : std::nullopt;
+
 		const std::string sampler = safeGet(entry, "sampler");
 
 		ids.push_back(id);
@@ -213,7 +225,8 @@ save_load::SerializedStatics loadStatics(const nlohmann::json& data) {
 	meshes.reserve(numStatics);
 
 	for (const nlohmann::json& entry : data) {
-		const math::Transform transform = toTransform(safeGet(entry, "transform"));
+		const math::Transform transform =
+			toTransform(safeGet(entry, "transform"));
 		const save_load::IDType material = safeGet(entry, "material");
 		const save_load::IDType mesh = safeGet(entry, "mesh");
 
@@ -248,14 +261,16 @@ SerializedWorld JsonSerializer::loadWorld(std::string_view filePath) const {
 		loadTextures(safeGet(data, "textures"));
 	LLOG_INFO << "Textures loaded from json";
 
-	const save_load::SerializedMeshes meshes = loadMeshes(safeGet(data, "meshes"));
+	const save_load::SerializedMeshes meshes =
+		loadMeshes(safeGet(data, "meshes"));
 	LLOG_INFO << "Meshes loaded from json";
 
 	const save_load::SerializedMaterials materials =
 		loadMaterials(safeGet(data, "materials"));
 	LLOG_INFO << "Materials loaded from json";
 
-	const save_load::SerializedStatics statics = loadStatics(safeGet(data, "statics"));
+	const save_load::SerializedStatics statics =
+		loadStatics(safeGet(data, "statics"));
 	LLOG_INFO << "Statics loaded from json";
 
 	fileStream.close();

@@ -22,18 +22,20 @@ consteval vk::IndexType getIndexType() {
 
 namespace std {
 
-size_t hash<graphics::Vertex>::operator()(graphics::Vertex const& vertex) const {
-    size_t hash_value = 0;
-    hash_value = (hash_value << 1) ^ hash<glm::vec3>()(vertex.position);
-    hash_value = (hash_value << 1) ^ hash<glm::vec3>()(vertex.normal);
-    hash_value = (hash_value << 1) ^ hash<glm::vec3>()(vertex.color);
-    hash_value = (hash_value << 1) ^ hash<glm::vec2>()(vertex.texCoord);
-    return hash_value;
+size_t hash<graphics::Vertex>::operator()(graphics::Vertex const& vertex
+) const {
+	size_t hash_value = 0;
+	hash_value = (hash_value << 1) ^ hash<glm::vec3>()(vertex.position);
+	hash_value = (hash_value << 1) ^ hash<glm::vec3>()(vertex.normal);
+	hash_value = (hash_value << 1) ^ hash<glm::vec3>()(vertex.color);
+	hash_value = (hash_value << 1) ^ hash<glm::vec2>()(vertex.texCoord);
+	return hash_value;
 }
 
 }  // namespace std
 
 namespace graphics {
+
 std::array<vk::VertexInputAttributeDescription, 5>
 Vertex::getAttributeDescriptions() {
 	static std::array<vk::VertexInputAttributeDescription, 5>
@@ -97,7 +99,6 @@ VertexBuffer VertexBuffer::create(
 
 	{  // populate vertices and indices arrays
 		std::unordered_map<Vertex, uint32_t> unique_vertices;
-		LLOG_INFO << shapes.size() << " " << materials.size();
 		for (const auto& shape : shapes) {
 			size_t indexBegin = indices.size();
 
@@ -200,7 +201,9 @@ VertexBuffer VertexBuffer::create(
 }
 
 glm::vec3 getTangent(
-	const graphics::Vertex& v0, const graphics::Vertex& v1, const graphics::Vertex& v2
+	const graphics::Vertex& v0,
+	const graphics::Vertex& v1,
+	const graphics::Vertex& v2
 ) {
 	const glm::vec3 edge01 = v1.position - v0.position;
 	const glm::vec3 edge02 = v2.position - v0.position;
@@ -213,7 +216,7 @@ glm::vec3 getTangent(
 
 	const glm::vec3 tangent =
 		(deltaUV02.y * edge01 - deltaUV01.y * edge02) * normalizer;
-    return tangent;
+	return tangent;
 }
 
 VertexBuffer VertexBuffer::create(

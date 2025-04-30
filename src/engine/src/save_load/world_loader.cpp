@@ -27,31 +27,28 @@ bool WorldLoader::isValid(const SerializedWorld& serializedWorld) const {
 
 	const size_t numMaterials = serializedWorld.materials.id.size();
 	for (size_t i = 0; i < numMaterials; i++) {
-		const IDType albedoID = serializedWorld.materials.albedoMap[i];
-		if (!textureIndexMap.contains(albedoID)) {
-			LLOG_ERROR << "albedo id (" << albedoID << ") is not defined";
-			return false;
-		}
-
-		const IDType normalID = serializedWorld.materials.normalMap[i];
-		if (!textureIndexMap.contains(normalID)) {
-			LLOG_ERROR << "normal id (" << normalID << ") is not defined";
-			return false;
-		}
-
-		const IDType displacementID =
-			serializedWorld.materials.displacementMap[i];
-		if (!textureIndexMap.contains(displacementID)) {
-			LLOG_ERROR << "displacement id (" << displacementID
+		const auto doesTextureExistOrUndefined =
+			[&](const std::optional<IDType>& textureID) -> bool {
+			if (!textureID || textureIndexMap.contains(textureID.value()))
+				return true;
+			LLOG_ERROR << "Texture id (" << textureID.value()
 					   << ") is not defined";
 			return false;
-		}
+		};
 
-		const IDType emissionID = serializedWorld.materials.emissionMap[i];
-		if (!textureIndexMap.contains(emissionID)) {
-			LLOG_ERROR << "emission id (" << emissionID << ") is not defined";
-			return false;
-		}
+		const bool isAnyTextureBad =
+			!doesTextureExistOrUndefined(serializedWorld.materials.albedoMap[i]
+			) ||
+			!doesTextureExistOrUndefined(serializedWorld.materials.normalMap[i]
+			) ||
+			!doesTextureExistOrUndefined(
+				serializedWorld.materials.displacementMap[i]
+			) ||
+			!doesTextureExistOrUndefined(
+				serializedWorld.materials.emissionMap[i]
+			);
+
+		if (isAnyTextureBad) return false;
 
 		const std::string_view samplerTypeAsString =
 			serializedWorld.materials.sampler[i];
@@ -116,21 +113,23 @@ void WorldLoader::load(
 		return result;
 	}();
 
-	const std::vector<graphics::MaterialInstanceID> loadedMaterials = [&]() {
-		std::vector<graphics::MaterialInstanceID> result;
-		const size_t numMaterials = serializedWorld.materials.id.size();
-		result.reserve(numMaterials);
-		for (size_t i = 0; i < numMaterials; i++) {
-			const IDType albedoID = serializedWorld.materials.albedoMap[i];
-			const IDType normalID = serializedWorld.materials.normalMap[i];
-			const IDType displacementID =
-				serializedWorld.materials.displacementMap[i];
-			const IDType emissionID = serializedWorld.materials.emissionMap[i];
+	const auto [loadedMaterials, variants] = [&]() {
+		std::vector<graphics::MaterialInstanceID> materials;
+		std::vector<graphics::PipelineSpecializationConstants> variants;
 
-			const size_t albedoIndex = textureIndexMap.at(albedoID);
-			const size_t normalIndex = textureIndexMap.at(normalID);
-			const size_t displacementIndex = textureIndexMap.at(displacementID);
-			const size_t emissionIndex = textureIndexMap.at(emissionID);
+		const size_t numMaterials = serializedWorld.materials.id.size();
+		materials.reserve(numMaterials);
+		variants.reserve(numMaterials);
+		for (size_t i = 0; i < numMaterials; i++) {
+			const auto getTexture =
+				[&](const std::optional<save_load::IDType>& id
+				) -> std::optional<graphics::TextureID> {
+				if (id.has_value()) {
+					const size_t textureIndex = textureIndexMap.at(id.value());
+					return std::optional(loadedTextures.at(textureIndex));
+				}
+				return std::nullopt;
+			};
 
 			const graphics::SamplerType sampler = [&]() {
 				const std::string_view samplerTypeAsString =
@@ -142,22 +141,34 @@ void WorldLoader::load(
 				__builtin_unreachable();
 			}();
 
-			result.push_back(graphics.loadMaterial(
-				loadedTextures[albedoIndex],
-				loadedTextures[normalIndex],
-				loadedTextures[displacementIndex],
-				loadedTextures[emissionIndex],
-				graphics::MaterialProperties{
-					.specular = serializedWorld.materials.specular[i],
-					.diffuse = serializedWorld.materials.diffuse[i],
-					.ambient = serializedWorld.materials.ambient[i],
-					.emission = serializedWorld.materials.emission[i],
-					.shininess = serializedWorld.materials.shininess[i]
-				},
-				sampler
-			));
+			const graphics::MaterialCreateInfo createInfo = {
+				.albedo = getTexture(serializedWorld.materials.albedoMap[i]),
+				.normal = getTexture(serializedWorld.materials.normalMap[i]),
+				.displacement =
+					getTexture(serializedWorld.materials.displacementMap[i]),
+				.emission =
+					getTexture(serializedWorld.materials.emissionMap[i]),
+				.materialProperties =
+					graphics::MaterialProperties{
+						.specular = serializedWorld.materials.specular[i],
+						.diffuse = serializedWorld.materials.diffuse[i],
+						.ambient = serializedWorld.materials.ambient[i],
+						.emission = serializedWorld.materials.emission[i],
+						.shininess = serializedWorld.materials.shininess[i]
+					},
+				.sampler = sampler
+			};
+
+			const auto material = graphics.loadMaterial(createInfo);
+			const auto variant =
+				graphics::createSpecializationConstant(createInfo);
+
+            graphics.createPipelineVariant(variant);
+
+			materials.push_back(material);
+			variants.push_back(variant);
 		}
-		return result;
+		return std::make_tuple(materials, variants);
 	}();
 
 	LLOG_INFO << "All materials loaded into engine";
@@ -189,6 +200,6 @@ void WorldLoader::load(
 		return std::make_tuple(transforms, materials, meshes);
 	}();
 
-	game_world::emplaceStatics(world, transforms, materials, meshes);
+	game_world::emplaceStatics(world, variants, transforms, materials, meshes);
 }
 }  // namespace save_load

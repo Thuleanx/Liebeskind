@@ -16,7 +16,7 @@ struct Module {
 	GraphicsDeviceInterface device;
 	GraphicsUserInterface ui;
 	RenderInstanceManager instances;
-    ShaderStorage shaders;
+	ShaderStorage shaders;
 	TextureStorage textures;
 	MaterialStorage materials;
 	MeshStorage meshes;
@@ -28,9 +28,7 @@ struct Module {
 
 	void beginFrame();
 	void handleEvent(const SDL_Event& event);
-	bool drawFrame(
-		const RenderSubmission& renderSubmission, GPUSceneData& sceneData
-	);
+	bool drawFrame(RenderSubmission& renderSubmission, GPUSceneData& sceneData);
 	void endFrame();
 
 	[[nodiscard]] TextureID loadTexture(
@@ -42,14 +40,13 @@ struct Module {
 	);
 	[[nodiscard]] MeshID loadMesh(std::string_view filePath);
 	[[nodiscard]] MaterialInstanceID loadMaterial(
-		TextureID albedo,
-		TextureID normal,
-		TextureID displacementMap,
-		TextureID emissionMap,
-		MaterialProperties properties,
-		SamplerType samplerType
+		const MaterialCreateInfo& createInfo
 	);
 	[[nodiscard]] RenderInstanceID registerInstance(uint16_t numberOfEntries);
+
+	void createPipelineVariant(
+		const PipelineSpecializationConstants& specializationConstants
+	);
 
 	void updateMaterial(
 		MaterialInstanceID material, const MaterialProperties& properties
@@ -57,7 +54,7 @@ struct Module {
 
    private:
 	void recordCommandBuffer(
-		const RenderSubmission& renderSubmission,
+		RenderSubmission& renderSubmission,
 		vk::CommandBuffer buffer,
 		uint32_t image_index
 	);

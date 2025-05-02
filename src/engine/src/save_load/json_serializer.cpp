@@ -214,29 +214,88 @@ save_load::SerializedStatics loadStatics(const nlohmann::json& data) {
 		data.type() == nlohmann::json::value_t::array,
 		"Material data must be an array of objects"
 	);
-	const size_t numStatics = data.size();
 
-	std::vector<math::Transform> transforms;
-	std::vector<save_load::IDType> materials;
-	std::vector<save_load::IDType> meshes;
-
-	transforms.reserve(numStatics);
-	materials.reserve(numStatics);
-	meshes.reserve(numStatics);
+	std::vector<save_load::SerializedStatics::RegularData> regulars;
+	std::vector<math::Transform> regularTransforms;
+	std::vector<save_load::SerializedStatics::ObjData> objects;
+	std::vector<math::Transform> objectTransforms;
 
 	for (const nlohmann::json& entry : data) {
 		const math::Transform transform =
 			toTransform(safeGet(entry, "transform"));
-		const save_load::IDType material = safeGet(entry, "material");
-		const save_load::IDType mesh = safeGet(entry, "mesh");
 
-		transforms.push_back(transform);
-		materials.push_back(material);
-		meshes.push_back(mesh);
+		const save_load::SerializedStatics::Type type = [&]() {
+			std::string value = safeGet(entry, "type");
+			if (value == "obj") return save_load::SerializedStatics::Type::eObj;
+			if (value == "regular")
+				return save_load::SerializedStatics::Type::eRegular;
+			LLOG_ERROR << "Type " << value << " is not valid";
+			return save_load::SerializedStatics::Type::eRegular;
+		}();
+
+		switch (type) {
+			case save_load::SerializedStatics::Type::eRegular: {
+				const save_load::IDType material = safeGet(entry, "material");
+				const save_load::IDType mesh = safeGet(entry, "mesh");
+				regulars.push_back({.mesh = mesh, .material = material});
+				regularTransforms.push_back(transform);
+				break;
+			}
+			case save_load::SerializedStatics::Type::eObj: {
+				const save_load::IDType id = safeGet(entry, "objID");
+				objects.push_back({id});
+				objectTransforms.push_back(transform);
+				break;
+			}
+			default: __builtin_unreachable();
+		};
 	}
 
 	return save_load::SerializedStatics{
-		.transform = transforms, .material = materials, .mesh = meshes
+		.regular = regulars,
+		.regularTransform = regularTransforms,
+		.object = objects,
+		.objectTransform = objectTransforms,
+	};
+}
+
+save_load::SerializedObjs loadObjects(const nlohmann::json& data) {
+	if (data.is_null()) return save_load::SerializedObjs{};
+
+	ASSERT(
+		data.type() == nlohmann::json::value_t::array,
+		"Objects data must be an array of objects"
+	);
+
+	const size_t numData = data.size();
+
+	std::vector<save_load::IDType> ids;
+	std::vector<std::string> modelPaths;
+	std::vector<std::string> mtlPaths;
+	std::vector<std::string> texturePaths;
+
+	ids.reserve(numData);
+	modelPaths.reserve(numData);
+	mtlPaths.reserve(numData);
+	texturePaths.reserve(numData);
+
+	for (const nlohmann::json& entry : data) {
+		const save_load::IDType id = safeGet(entry, "id");
+		const std::string modelPath = safeGet(entry, "modelPath");
+		const std::string mtlPath = safeGet(entry, "mtlPath");
+		const std::string texturePath = safeGet(entry, "texturePath");
+
+		ids.push_back(id);
+		modelPaths.push_back(modelPath);
+		mtlPaths.push_back(mtlPath);
+		texturePaths.push_back(texturePath);
+	}
+
+	return {
+		.id = ids,
+		.modelPath = modelPaths,
+		.mtlPath = mtlPaths,
+		.texturePath = texturePaths
 	};
 }
 
@@ -248,6 +307,8 @@ SerializedWorld JsonSerializer::loadWorld(std::string_view filePath) const {
 	std::ifstream fileStream(filePath.data());
 
 	const nlohmann::json data = nlohmann::json::parse(fileStream);
+
+	fileStream.close();
 
 	ASSERT(
 		data.type() == nlohmann::json::value_t::object,
@@ -269,16 +330,19 @@ SerializedWorld JsonSerializer::loadWorld(std::string_view filePath) const {
 		loadMaterials(safeGet(data, "materials"));
 	LLOG_INFO << "Materials loaded from json";
 
+	const save_load::SerializedObjs objects =
+		loadObjects(safeGet(data, "objects"));
+	LLOG_INFO << "Objects loaded from json";
+
 	const save_load::SerializedStatics statics =
 		loadStatics(safeGet(data, "statics"));
 	LLOG_INFO << "Statics loaded from json";
-
-	fileStream.close();
 
 	return {
 		.textures = textures,
 		.meshes = meshes,
 		.materials = materials,
+		.objects = objects,
 		.statics = statics
 	};
 }

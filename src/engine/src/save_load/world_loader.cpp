@@ -4,6 +4,7 @@
 #include "core/math/transform.h"
 #include "game_world/world.h"
 #include "low_level_renderer/materials.h"
+#include "resource_management/obj_loader.h"
 
 namespace {
 
@@ -23,7 +24,91 @@ bool WorldLoader::isValid(const SerializedWorld& serializedWorld) const {
 		extractIndexMap(serializedWorld.textures.id);
 	const IndexMap materialIndexMap =
 		extractIndexMap(serializedWorld.materials.id);
+	const IndexMap objectIndexMap = extractIndexMap(serializedWorld.objects.id);
 	const IndexMap meshIndexMap = extractIndexMap(serializedWorld.meshes.id);
+
+	{  // check size : texture
+		const size_t numTextures = serializedWorld.textures.id.size();
+		if (numTextures != serializedWorld.textures.format.size()) {
+			LLOG_ERROR << "Number of formats ("
+					   << serializedWorld.textures.format.size()
+					   << ") does not match the number of textures ("
+					   << numTextures << ")";
+			return false;
+		}
+
+		if (numTextures != serializedWorld.textures.filePath.size()) {
+			LLOG_ERROR << "Number of filepaths ("
+					   << serializedWorld.textures.filePath.size()
+					   << ") does not match the number of textures ("
+					   << numTextures << ")";
+			return false;
+		}
+	}
+
+	{  // check size : mesh
+		const size_t numMeshes = serializedWorld.meshes.id.size();
+		if (numMeshes != serializedWorld.meshes.filePath.size()) {
+			LLOG_ERROR << "Number of filepaths ("
+					   << serializedWorld.meshes.filePath.size()
+					   << ") does not match the number of meshes (" << numMeshes
+					   << ")";
+			return false;
+		}
+	}
+
+	{  // check size : materials
+		const size_t numMaterials = serializedWorld.materials.id.size();
+		const std::array<size_t, 11> sizes = {
+			serializedWorld.materials.id.size(),
+			serializedWorld.materials.specular.size(),
+			serializedWorld.materials.diffuse.size(),
+			serializedWorld.materials.ambient.size(),
+			serializedWorld.materials.emission.size(),
+			serializedWorld.materials.shininess.size(),
+			serializedWorld.materials.albedoMap.size(),
+			serializedWorld.materials.normalMap.size(),
+			serializedWorld.materials.displacementMap.size(),
+			serializedWorld.materials.emissionMap.size(),
+			serializedWorld.materials.sampler.size(),
+		};
+		for (size_t i = 0; i < sizes.size(); i++) {
+			if (sizes[i] != numMaterials) {
+				LLOG_ERROR << "Member variable at index " << i
+						   << " in SerializedMaterials has mismatched size";
+				return false;
+			}
+		}
+	}
+
+	{  // check size : objects
+		const std::array<size_t, 3> sizes = {
+			serializedWorld.objects.id.size(),
+			serializedWorld.objects.modelPath.size(),
+			serializedWorld.objects.mtlPath.size(),
+		};
+		for (size_t i = 0; i < sizes.size(); i++) {
+			if (sizes[i] != sizes[0]) {
+				LLOG_ERROR << "Member variable at index " << i
+						   << " in SerializedObjs has mismatched size";
+				return false;
+			}
+		}
+	}
+
+	{  // check size : statics
+		if (serializedWorld.statics.object.size() !=
+			serializedWorld.statics.objectTransform.size()) {
+            LLOG_ERROR << "Mismatch object and object transform sizes";
+			return false;
+		}
+
+		if (serializedWorld.statics.regular.size() !=
+			serializedWorld.statics.regularTransform.size()) {
+            LLOG_ERROR << "Mismatch regular and regular transform sizes";
+			return false;
+		}
+	}
 
 	const size_t numMaterials = serializedWorld.materials.id.size();
 	for (size_t i = 0; i < numMaterials; i++) {
@@ -59,15 +144,26 @@ bool WorldLoader::isValid(const SerializedWorld& serializedWorld) const {
 		}
 	}
 
-	const size_t numStatics = serializedWorld.statics.mesh.size();
-	for (size_t i = 0; i < numStatics; i++) {
-		const IDType meshID = serializedWorld.statics.mesh[i];
+	const size_t numObjectStatics =
+		serializedWorld.statics.objectTransform.size();
+	for (size_t i = 0; i < numObjectStatics; i++) {
+		const IDType objectID = serializedWorld.statics.object[i].id;
+		if (!objectIndexMap.contains(objectID)) {
+			LLOG_ERROR << "object id (" << objectID << ") is not defined";
+			return false;
+		}
+	}
+
+	const size_t numRegularStatics =
+		serializedWorld.statics.regularTransform.size();
+	for (size_t i = 0; i < numRegularStatics; i++) {
+		const IDType meshID = serializedWorld.statics.regular[i].mesh;
 		if (!meshIndexMap.contains(meshID)) {
 			LLOG_ERROR << "mesh id (" << meshID << ") is not defined";
 			return false;
 		}
 
-		const IDType materialID = serializedWorld.statics.material[i];
+		const IDType materialID = serializedWorld.statics.regular[i].material;
 		if (!materialIndexMap.contains(materialID)) {
 			LLOG_ERROR << "material id (" << materialID << ") is not defined";
 			return false;
@@ -113,7 +209,7 @@ void WorldLoader::load(
 		return result;
 	}();
 
-	const auto [loadedMaterials, variants] = [&]() {
+	const auto [loadedMaterials, loadedMaterialVariants] = [&]() {
 		std::vector<graphics::MaterialInstanceID> materials;
 		std::vector<graphics::PipelineSpecializationConstants> variants;
 
@@ -163,7 +259,7 @@ void WorldLoader::load(
 			const auto variant =
 				graphics::createSpecializationConstant(createInfo);
 
-            graphics.createPipelineVariant(variant);
+			graphics.createPipelineVariant(variant);
 
 			materials.push_back(material);
 			variants.push_back(variant);
@@ -171,33 +267,74 @@ void WorldLoader::load(
 		return std::make_tuple(materials, variants);
 	}();
 
+	const std::vector<resource_management::Model> loadedModels = [&]() {
+		std::vector<resource_management::Model> result;
+
+		const size_t numObj = serializedWorld.objects.id.size();
+		result.reserve(numObj);
+
+		for (size_t i = 0; i < numObj; i++) {
+			result.push_back(resource_management::loadObj(
+				graphics,
+				serializedWorld.objects.modelPath[i],
+				serializedWorld.objects.mtlPath[i],
+				serializedWorld.objects.texturePath[i]
+			));
+		}
+
+		return result;
+	}();
+
 	LLOG_INFO << "All materials loaded into engine";
 
-	const auto [transforms, materials, meshes] = [&]() {
-		const size_t numStatics = serializedWorld.statics.transform.size();
+	const auto [variants, transforms, materials, meshes] = [&]() {
+		const size_t numRegulars =
+			serializedWorld.statics.regularTransform.size();
+		const size_t numObjects =
+			serializedWorld.statics.objectTransform.size();
+		const size_t numStatics = numRegulars + numObjects;
+		std::vector<graphics::PipelineSpecializationConstants> variants;
 		std::vector<glm::mat4> transforms;
 		std::vector<graphics::MaterialInstanceID> materials;
 		std::vector<graphics::MeshID> meshes;
 
+		variants.reserve(numStatics);
 		transforms.reserve(numStatics);
 		materials.reserve(numStatics);
 		meshes.reserve(numStatics);
 
-		for (size_t i = 0; i < numStatics; i++) {
+		for (size_t i = 0; i < numRegulars; i++) {
 			transforms.push_back(
-				math::toMat4(serializedWorld.statics.transform[i])
+				math::toMat4(serializedWorld.statics.regularTransform[i])
 			);
 
-			const IDType meshID = serializedWorld.statics.mesh[i];
+			const IDType meshID = serializedWorld.statics.regular[i].mesh;
 			const size_t meshIndex = meshIndexMap.at(meshID);
 			meshes.push_back(loadedMeshes[meshIndex]);
 
-			const IDType materialID = serializedWorld.statics.material[i];
+			const IDType materialID =
+				serializedWorld.statics.regular[i].material;
 			const size_t materialIndex = materialIndexMap.at(materialID);
+			variants.push_back(loadedMaterialVariants[materialIndex]);
 			materials.push_back(loadedMaterials[materialIndex]);
 		}
 
-		return std::make_tuple(transforms, materials, meshes);
+		for (size_t i = 0; i < numObjects; i++) {
+			const resource_management::Model& model =
+				loadedModels[serializedWorld.statics.object[i].id];
+			const glm::mat4 transform =
+				math::toMat4(serializedWorld.statics.objectTransform[i]);
+
+			const size_t numParts = model.materials.size();
+			for (size_t part = 0; part < numParts; part++) {
+				transforms.push_back(transform);
+				materials.push_back(model.materials[part]);
+				variants.push_back(model.variants[part]);
+				meshes.push_back(model.meshes[part]);
+			}
+		}
+
+		return std::make_tuple(variants, transforms, materials, meshes);
 	}();
 
 	game_world::emplaceStatics(world, variants, transforms, materials, meshes);

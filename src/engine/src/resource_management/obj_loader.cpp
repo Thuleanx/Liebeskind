@@ -9,7 +9,10 @@
 namespace resource_management {
 
 Model loadObj(
-	graphics::Module graphics, std::string_view objPath, std::string_view mtlDir
+	graphics::Module& graphics,
+	std::string_view objPath,
+	std::string_view mtlDir,
+	std::string_view texturePath
 ) {
 	tinyobj::attrib_t attrib;
 	std::vector<tinyobj::shape_t> shapes;
@@ -29,8 +32,10 @@ Model loadObj(
 	const size_t numMaterials = materials.size();
 
 	// We will be grouping these meshes so that it's one mesh per material
+	std::vector<graphics::PipelineSpecializationConstants> variants;
 	std::vector<graphics::MeshID> loadedMeshes;
 	std::vector<graphics::MaterialInstanceID> loadedMaterials;
+	variants.resize(numMaterials);
 	loadedMeshes.resize(numMaterials);
 	loadedMaterials.resize(numMaterials);
 
@@ -115,6 +120,7 @@ Model loadObj(
 					if (!faceMaterialData.uniqueVertices.count(vertex)) {
 						const size_t result =
 							faceMaterialData.uniqueVertices.size();
+						faceMaterialData.vertices.push_back(vertex);
 						faceMaterialData.uniqueVertices[vertex] = result;
 						return result;
 					}
@@ -149,6 +155,8 @@ Model loadObj(
 
 	std::unordered_map<std::string, graphics::Texture> textures;
 	for (size_t materialId = 0; materialId < numMaterials; materialId++) {
+
+        LLOG_INFO << "Loading material : " << materialId;
 		for (graphics::Vertex& vertex : materialDatas[materialId].vertices)
 			vertex.tangent = globalTangents[uniqueGlobalVertices[vertex]];
 
@@ -168,11 +176,46 @@ Model loadObj(
 			.shininess = material.shininess,
 		};
 
-		const graphics::TextureID albedo =
-			graphics.loadTexture(material.diffuse_texname, vk::Format::eR8G8B8A8Srgb);
+		const auto generateTexture = [&](const std::string& path,
+										 vk::Format format
+									 ) -> std::optional<graphics::TextureID> {
+			if (path.length() > 0)
+				return graphics.loadTexture(
+					std::string(texturePath) + path, format
+				);
+			return std::nullopt;
+		};
+
+		const std::optional<graphics::TextureID> albedo = generateTexture(
+			material.diffuse_texname, vk::Format::eR8G8B8A8Srgb
+		);
+		const std::optional<graphics::TextureID> normal = generateTexture(
+			material.normal_texname, vk::Format::eR8G8B8A8Unorm
+		);
+		const std::optional<graphics::TextureID> displacement = generateTexture(
+			material.displacement_texname, vk::Format::eR8G8B8A8Unorm
+		);
+		const std::optional<graphics::TextureID> emission = std::nullopt;
+
+		const graphics::MaterialCreateInfo createInfo{
+			.albedo = albedo,
+			.normal = normal,
+			.displacement = displacement,
+			.emission = emission,
+			.materialProperties = properties,
+			.sampler = graphics::SamplerType::eLinear
+		};
+
+		loadedMaterials[materialId] = graphics.loadMaterial(createInfo);
+		variants[materialId] =
+			graphics::createSpecializationConstant(createInfo);
 	}
 
-    return {};
+	return {
+		.variants = variants,
+		.meshes = loadedMeshes,
+		.materials = loadedMaterials
+	};
 }
 
 };	// namespace resource_management

@@ -47,6 +47,8 @@ MaterialInstanceID create(
 	const UniformBuffer<MaterialProperties> uniformBuffer =
 		UniformBuffer<MaterialProperties>::create(device, physicalDevice);
 	uniformBuffer.update(createInfo.materialProperties);
+
+    LLOG_INFO << "Allocating descriptor set ";
 	const std::vector<vk::DescriptorSet> descriptorSets =
 		allocator.allocate(device, setLayout, 1);
 	ASSERT(
@@ -54,10 +56,12 @@ MaterialInstanceID create(
 		"Tried to allocate 1 descriptor set, but received "
 			<< descriptorSets.size()
 	);
+    LLOG_INFO << "Binding descriptor set";
 	const vk::DescriptorSet descriptorSet = descriptorSets[0];
 	// binding 0 is for material specific properties
 	uniformBuffer.bind(writeBuffer, descriptorSet, 0);
 
+    LLOG_INFO << "Binding textures ";
 	if (createInfo.albedo.has_value()) {
 		bindTextureToDescriptor(
 			textures,

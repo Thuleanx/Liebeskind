@@ -385,6 +385,15 @@ void createNewVariant(
 		instancedPipeline;
 }
 
+bool hasPipeline(
+	const MaterialPipeline& materialPipeline,
+	const PipelineSpecializationConstants& specializationConstants
+) {
+	return materialPipeline.regularPipelineVariants.contains(
+		specializationConstants
+	);
+}
+
 vk::Pipeline getRegularPipeline(
 	const MaterialPipeline& materialPipeline,
 	const PipelineSpecializationConstants& specializationConstants
@@ -414,11 +423,6 @@ vk::Pipeline getInstanceRenderingPipeline(
 		specializationConstants
 	);
 }
-
-vk::Pipeline getInstanceRenderingPipeline(
-	const MaterialPipeline& materialPipeline,
-	const PipelineSpecializationConstants& specializationConstants
-);
 
 void destroy(const MaterialPipeline& pipeline, vk::Device device) {
 	destroy(pipeline.globalDescriptor, device);

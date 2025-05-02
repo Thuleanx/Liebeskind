@@ -13,11 +13,13 @@ void emplaceStatics(
 ) {
 	ASSERT(
 		(transforms.size() == materials.size()) &&
+			(transforms.size() == variants.size()) &&
 			(transforms.size() == meshes.size()),
 		"Emplacing static objects but the number of elements for each field is "
 		"mismatched: "
 			<< transforms.size() << " transforms; " << materials.size()
-			<< " materials; " << meshes.size() << " meshes"
+			<< " materials; " << meshes.size() << " meshes; " << variants.size()
+			<< " variants;"
 	);
 	world.statics.variant.insert(
 		world.statics.variant.end(), variants.begin(), variants.end()

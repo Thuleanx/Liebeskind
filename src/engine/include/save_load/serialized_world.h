@@ -35,16 +35,39 @@ struct SerializedMaterials {
 	std::vector<std::string> sampler;
 };
 
+struct SerializedObjs {
+    std::vector<IDType> id;
+    std::vector<std::string> modelPath;
+    std::vector<std::string> mtlPath;
+    std::vector<std::string> texturePath;
+};
+
 struct SerializedStatics {
-	std::vector<math::Transform> transform;
-	std::vector<IDType> material;
-	std::vector<IDType> mesh;
+    enum class Type : uint8_t {
+        eRegular,
+        eObj
+    };
+
+    struct RegularData {
+        IDType mesh;
+        IDType material;
+    };
+
+    struct ObjData {
+        IDType id;
+    };
+
+    std::vector<RegularData> regular;
+	std::vector<math::Transform> regularTransform;
+    std::vector<ObjData> object;
+	std::vector<math::Transform> objectTransform;
 };
 
 struct SerializedWorld {
 	SerializedTextures textures;
 	SerializedMeshes meshes;
 	SerializedMaterials materials;
+    SerializedObjs objects;
 	SerializedStatics statics;
 };
 }  // namespace save_load

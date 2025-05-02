@@ -77,6 +77,11 @@ void createNewVariant(
 	vk::ShaderModule fragmentShader
 );
 
+bool hasPipeline(
+	const MaterialPipeline& materialPipeline,
+	const PipelineSpecializationConstants& specializationConstants
+);
+
 vk::Pipeline getRegularPipeline(
 	const MaterialPipeline& materialPipeline,
 	const PipelineSpecializationConstants& specializationConstants

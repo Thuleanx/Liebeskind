@@ -55,13 +55,17 @@ std::vector<uint32_t> compileFromGLSLToSPIRV(
 
 	shader.parse(GetDefaultResources(), defaultVersion, false, EShMsgDefault);
 
-	LLOG_INFO << "Parsing shader " << shader.getInfoLog();
+    if (shader.getInfoDebugLog()) {
+	    LLOG_INFO << "Parsing shader " << shader.getInfoDebugLog();
+    }
 
 	glslang::TProgram program;
 	program.addShader(&shader);
 	program.link(EShMsgDefault);
 
-	LLOG_INFO << "Link program: " << program.getInfoLog();
+    if (program.getInfoDebugLog()) {
+	    LLOG_INFO << "Link program " << program.getInfoDebugLog();
+    }
 
 	const glslang::TIntermediate* intermediate =
 		program.getIntermediate(language);

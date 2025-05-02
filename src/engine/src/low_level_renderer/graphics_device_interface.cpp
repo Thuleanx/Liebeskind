@@ -246,25 +246,6 @@ ShaderID loadShaderFromFile(
 	return loadFromBytecode(shaders, device, bytecode.value());
 }
 
-ShaderID compileThenLoadShaderFromFile(
-	ShaderStorage& shaders,
-	vk::Device device,
-	std::string_view filePath,
-	vk::ShaderStageFlagBits shaderStage
-) {
-	const std::optional<std::vector<char>> glslCode =
-		file_system::readFile(filePath);
-	ASSERT(
-		glslCode.has_value(),
-		"Shader needs to be able to be loaded from " << filePath
-	);
-	const std::vector<uint32_t> SPIRVCode =
-		compileFromGLSLToSPIRV({glslCode.value().data(), shaderStage}, {});
-	return loadFromBytecode(
-		shaders, device, SPIRVCode.data(), SPIRVCode.size() * 4
-	);
-}
-
 }  // namespace
 GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
 	ShaderStorage& shaders

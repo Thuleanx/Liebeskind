@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.25)
 project(star_judgement)
 
 add_compile_definitions(VULKAN_HPP_NO_EXCEPTIONS)
+add_compile_definitions(VULKAN_HPP_ASSERT_ON_RESULT=VULKAN_HPP_NAMESPACE::detail::ignore)
 add_compile_definitions(DEBUG)
 add_compile_definitions(GLM_FORCE_RADIANS)
 add_compile_definitions(GLM_ENABLE_EXPERIMENTAL)

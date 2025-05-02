@@ -58,7 +58,7 @@
             "sampler": "linear"
         }
     ],
-    "obj": [
+    "objects": [
     ],
     "statics": [
         {
@@ -79,6 +79,7 @@
                     3.00
                 ]
             },
+            "type": "regular",
             "material": 0,
             "mesh": 0
         }

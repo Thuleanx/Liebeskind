@@ -17,6 +17,8 @@ Texture loadTextureFromFile(
 	vk::Queue graphicsQueue,
     vk::Format imageFormat
 ) {
+    LLOG_INFO << "Try loading texture at: " << filePath;
+
 	int width, height, channels;
 	stbi_uc* pixels =
 		stbi_load(filePath.data(), &width, &height, &channels, STBI_rgb_alpha);
@@ -95,6 +97,8 @@ Texture loadTextureFromFile(
 	const vk::ImageView imageView = Image::createImageView(
 		device, textureImage, imageFormat, vk::ImageAspectFlagBits::eColor
 	);
+
+    LLOG_INFO << "Finished loading texture at " << filePath;
 
 	return Texture{textureImage, imageView, textureMemory, imageFormat, 1};
 }

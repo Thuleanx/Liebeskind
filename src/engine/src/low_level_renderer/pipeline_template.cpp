@@ -110,13 +110,9 @@ vk::Pipeline createVariant(
 		{}, vk::ShaderStageFlagBits::eVertex, vertexShader, "main"
 	);
 
-	const std::array<vk::SpecializationMapEntry, 1> fragmentShaderConstants{
-		vk::SpecializationMapEntry{0, 0, sizeof(SamplerInclusion)}
-	};
-
 	const vk::SpecializationInfo specializationInfo{
-		fragmentShaderConstants.size(),
-		fragmentShaderConstants.data(),
+		SPECIALIZATION_INFO.size(),
+		SPECIALIZATION_INFO.data(),
 		sizeof(specializationConstants),
 		&specializationConstants
 	};

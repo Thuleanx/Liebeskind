@@ -100,6 +100,51 @@ bool Module::drawFrame(graphics::Module& graphics) {
 	sceneData.inverseView = glm::inverse(sceneData.view);
 	sceneData.viewProjection = sceneData.projection * sceneData.view;
 
+	ImGui::Begin("Render Objects");
+	for (size_t i = 0; i < renderObjects.size(); i++) {
+		const std::string label = "Object " + std::to_string(i);
+		ImGui::TextColored(
+			ImVec4(1, 0, 0, 1), "Object %ud", static_cast<uint32_t>(i)
+		);
+
+		graphics::PipelineSpecializationConstants& variant =
+			renderObjects[i].variant;
+		bool hasAlbedo =
+			variant.samplerInclusion & graphics::SamplerInclusionBits::eAlbedo;
+		bool hasNormal =
+			variant.samplerInclusion & graphics::SamplerInclusionBits::eNormal;
+		bool hasDisplacement = variant.samplerInclusion &
+							   graphics::SamplerInclusionBits::eDisplacement;
+		bool hasEmission = variant.samplerInclusion &
+						   graphics::SamplerInclusionBits::eEmission;
+		ImGui::Checkbox("Albedo: ", &hasAlbedo);
+		ImGui::Checkbox("Normal: ", &hasNormal);
+		ImGui::Checkbox("Displacement: ", &hasDisplacement);
+		ImGui::Checkbox("Emission: ", &hasEmission);
+
+		variant.samplerInclusion =
+			hasAlbedo * graphics::SamplerInclusionBits::eAlbedo +
+			hasNormal * graphics::SamplerInclusionBits::eNormal +
+			hasDisplacement * graphics::SamplerInclusionBits::eDisplacement +
+			hasEmission * graphics::SamplerInclusionBits::eEmission;
+
+		const std::array<const char*, 4> labelParallaxMappingMethods = {
+			"Basic", "Steep", "Parallax Occlusion", "Improv"
+		};
+		int parallaxMappingMode = static_cast<int>(variant.parallaxMappingMode);
+		ImGui::Combo(
+			"Parallax mapping method: ",
+			&parallaxMappingMode,
+			labelParallaxMappingMethods.data(),
+			labelParallaxMappingMethods.size()
+		);
+		variant.parallaxMappingMode =
+			static_cast<graphics::ParallaxMappingMode>(parallaxMappingMode);
+
+		graphics.createPipelineVariant(variant);
+	}
+	ImGui::End();
+
 	submit(renderSubmission, renderObjects);
 	submit(renderSubmission, instancedRenderObjects, instancedRenderData);
 

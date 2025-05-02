@@ -41,6 +41,7 @@ const uint HasEmissionMap = 8u;
 const uint HasAllMaps = HasTextureMap | HasNormalMap | HasDisplacementMap | HasEmissionMap;
 
 layout(constant_id = 0) const uint samplerInclusion = HasAllMaps;
+layout(constant_id = 1) const uint parallaxMappingMode = 0;
 
 struct TangentSpace {
     vec3 normalWorld;
@@ -68,36 +69,22 @@ vec2 applyParallaxMapping(vec3 viewDirectionTangent, vec2 uv) {
     const int numOfLayers = 10;
     const int numOfSecondaryLayers = 10;
 
-    float layerDepth = 1.0 / numOfLayers;
+    if (parallaxMappingMode == 0) {
+        float height = texture(displacementSampler, uv).r;
+        vec2 viewDirectionNormalizedByDepth = viewDirectionTangent.xy /
+            (viewDirectionTangent.z + parallaxMappingZBias);
+        vec2 deltaUV = -viewDirectionNormalizedByDepth * height_scale * height;
+        return uv + deltaUV;
+    } else {
+        float layerDepth = 1.0 / numOfLayers;
 
-    float currentLayerDepth = 0;
-    vec2 deltaUV = -viewDirectionTangent.xy * height_scale * layerDepth;
-    float currentSampledDepth = 0;
-    float lastSampledDepth = 0;
+        float currentLayerDepth = 0;
+        vec2 deltaUV = -viewDirectionTangent.xy * height_scale * layerDepth;
+        float currentSampledDepth = 0;
+        float lastSampledDepth = 0;
 
-    int layer = 0;
-    for (layer = 0; layer <= numOfLayers; layer++) {
-        currentSampledDepth = texture(displacementSampler, uv).r;
-
-        if (currentLayerDepth >= currentSampledDepth)
-            break;
-
-        lastSampledDepth = currentSampledDepth;
-        uv += deltaUV;
-        currentLayerDepth += layerDepth;
-    }
-
-    if (layer == 0) return uv;
-
-    {
-        // walk back one step
-        uv = uv - deltaUV;
-        currentLayerDepth -= layerDepth;
-        deltaUV = deltaUV * layerDepth;
-
-        layerDepth = layerDepth / numOfSecondaryLayers;
-
-        for (layer = 0; layer <= numOfSecondaryLayers; layer++) {
+        int layer = 0;
+        for (layer = 0; layer <= numOfLayers; layer++) {
             currentSampledDepth = texture(displacementSampler, uv).r;
 
             if (currentLayerDepth >= currentSampledDepth)
@@ -107,14 +94,40 @@ vec2 applyParallaxMapping(vec3 viewDirectionTangent, vec2 uv) {
             uv += deltaUV;
             currentLayerDepth += layerDepth;
         }
+
+        if (layer == 0) return uv;
+
+        if (parallaxMappingMode == 3) {
+            // walk back one step
+            uv = uv - deltaUV;
+            currentLayerDepth -= layerDepth;
+            deltaUV = deltaUV * layerDepth;
+
+            layerDepth = layerDepth / numOfSecondaryLayers;
+
+            for (layer = 0; layer <= numOfSecondaryLayers; layer++) {
+                currentSampledDepth = texture(displacementSampler, uv).r;
+
+                if (currentLayerDepth >= currentSampledDepth)
+                    break;
+
+                lastSampledDepth = currentSampledDepth;
+                uv += deltaUV;
+                currentLayerDepth += layerDepth;
+            }
+        }
+
+        if (parallaxMappingMode == 1) {
+            return uv;
+        } else if (parallaxMappingMode > 1) {
+            float afterDepth = currentSampledDepth - currentLayerDepth;
+            float beforeDepth = lastSampledDepth - currentLayerDepth + layerDepth;
+
+            float weight = afterDepth / (afterDepth - beforeDepth);
+
+            return uv - deltaUV * weight;
+        }
     }
-
-    float afterDepth = currentSampledDepth - currentLayerDepth;
-    float beforeDepth = lastSampledDepth - currentLayerDepth + layerDepth;
-
-    float weight = afterDepth / (afterDepth - beforeDepth);
-
-    return uv - deltaUV * weight;
 }
 
 void main() {

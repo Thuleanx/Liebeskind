@@ -3,22 +3,22 @@
         {
             "id": 0,
             "file_path": "textures/bricks_albedo.jpg",
-            "format": "R8G8B8A8Srgb"
+            "format_hint": "Gamma"
         },
         {
             "id": 1,
             "file_path": "textures/bricks_normal.jpg",
-            "format": "R8G8B8A8Unorm"
+            "format_hint": "Linear"
         },
         {
             "id": 2,
             "file_path": "textures/bricks_height.jpg",
-            "format": "R8G8B8A8Unorm"
+            "format_hint": "Linear"
         },
         {
             "id": 3,
             "file_path": "textures/robot_emissive.jpeg",
-            "format": "R8G8B8A8Unorm"
+            "format_hint": "Linear"
         }
     ],
     "meshes": [
@@ -59,6 +59,12 @@
         }
     ],
     "objects": [
+        {
+            "id": 0,
+            "modelPath": "models/sponza/sponza.obj",
+            "mtlPath": "models/sponza/",
+            "texturePath": "models/sponza/"
+        }
     ],
     "statics": [
         {
@@ -69,19 +75,18 @@
                     0.0
                 ],
                 "rotation": [
-                    0,
                     90.0,
+                    0.0,
                     0
                 ],
                 "scale": [
-                    3.00,
-                    3.00,
-                    3.00
+                    0.01,
+                    0.01,
+                    0.01
                 ]
             },
-            "type": "regular",
-            "material": 0,
-            "mesh": 0
+            "type": "obj",
+            "id": 0
         }
     ]
 }

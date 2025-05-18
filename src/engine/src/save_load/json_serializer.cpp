@@ -21,11 +21,11 @@ inline auto safeGet(const nlohmann::json& data, std::string_view key) {
 	return data[key];
 }
 
-vk::Format stringToFormat(std::string_view s) {
-	if (s == "R8G8B8A8Srgb") return vk::Format::eR8G8B8A8Srgb;
-	if (s == "R8G8B8A8Unorm") return vk::Format::eR8G8B8A8Unorm;
+graphics::TextureFormatHint stringToFormatHint(std::string_view s) {
+	if (s == "Linear") return graphics::TextureFormatHint::eLinear8;
+	if (s == "Gamma") return graphics::TextureFormatHint::eGamma8;
 
-	LLOG_ERROR << "Format " << s << " conversation not specified";
+	LLOG_ERROR << "Format " << s << " conversation not supported";
 
 	__builtin_unreachable();
 }
@@ -68,27 +68,27 @@ save_load::SerializedTextures loadTextures(const nlohmann::json& data) {
 
 	const size_t numTextures = data.size();
 	std::vector<save_load::IDType> ids;
-	std::vector<vk::Format> formats;
+	std::vector<graphics::TextureFormatHint> formatHints;
 	std::vector<std::string> filePaths;
 	ids.reserve(numTextures);
-	formats.reserve(numTextures);
+	formatHints.reserve(numTextures);
 	filePaths.reserve(numTextures);
 
 	for (const nlohmann::json& entry : data) {
 		const save_load::IDType id = safeGet(entry, "id");
-		const vk::Format format =
-			stringToFormat(safeGet(entry, "format").template get<std::string>()
+		const graphics::TextureFormatHint formatHint =
+			stringToFormatHint(safeGet(entry, "format_hint").template get<std::string>()
 			);
 		const std::string filePath = safeGet(entry, "file_path");
 
 		ids.push_back(id);
-		formats.push_back(format);
+		formatHints.push_back(formatHint);
 		filePaths.push_back(filePath);
 	}
 
 	return save_load::SerializedTextures{
 		.id = ids,
-		.format = formats,
+		.formatHint = formatHints,
 		.filePath = filePaths,
 	};
 }
@@ -242,7 +242,7 @@ save_load::SerializedStatics loadStatics(const nlohmann::json& data) {
 				break;
 			}
 			case save_load::SerializedStatics::Type::eObj: {
-				const save_load::IDType id = safeGet(entry, "objID");
+				const save_load::IDType id = safeGet(entry, "id");
 				objects.push_back({id});
 				objectTransforms.push_back(transform);
 				break;

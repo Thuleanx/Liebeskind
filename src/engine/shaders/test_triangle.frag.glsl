@@ -179,6 +179,5 @@ void main() {
     lighting += emissiveColor * materialProperties.emission;
 #endif
 
-    outColor = vec4(lighting, 1) * texColor;
-    //outColor = vec4(vec3(diffuse), 1);
+    outColor = vec4(texColor.xyz * lighting, 1);
 }

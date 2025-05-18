@@ -10,6 +10,11 @@ struct TextureID {
     uint32_t index;
 };
 
+enum class TextureFormatHint {
+    eLinear8,
+    eGamma8,
+};
+
 struct Texture {
     vk::Image image;
     vk::ImageView imageView;
@@ -21,6 +26,8 @@ struct Texture {
 struct TextureStorage {
     std::vector<Texture> data;
 };
+
+vk::Format getIdealTextureFormat(int channels, const TextureFormatHint& hint);
 
 Texture loadTextureFromFile(
     std::string_view filePath,
@@ -49,7 +56,7 @@ TextureID pushTextureFromFile(
     vk::PhysicalDevice physicalDevice,
     vk::CommandPool commandPool,
     vk::Queue graphicsQueue,
-    vk::Format imageFormat
+    TextureFormatHint formatHint
 );
 
 void bindTextureToDescriptor(

@@ -357,7 +357,8 @@ void Module::recordCommandBuffer(
 }
 
 TextureID Module::loadTexture(
-	std::string_view filePath, vk::Format imageFormat
+	std::string_view filePath,
+    TextureFormatHint formatHint
 ) {
 	return pushTextureFromFile(
 		textures,
@@ -366,7 +367,7 @@ TextureID Module::loadTexture(
 		device.physicalDevice,
 		device.commandPool,
 		device.graphicsQueue,
-		imageFormat
+        formatHint
 	);
 }
 

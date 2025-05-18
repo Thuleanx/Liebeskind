@@ -32,7 +32,7 @@ struct Module {
 	void endFrame();
 
 	[[nodiscard]] TextureID loadTexture(
-		std::string_view filePath, vk::Format imageFormat
+		std::string_view filePath, TextureFormatHint formatHint
 	);
 	[[nodiscard]] MeshID loadMesh(
 		const std::vector<graphics::Vertex>& vertices,

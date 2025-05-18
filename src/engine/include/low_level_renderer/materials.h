@@ -13,7 +13,7 @@
 
 namespace graphics {
 
-constexpr int MAX_MATERIAL_INSTANCES = 1000;
+constexpr int MAX_MATERIAL_INSTANCES = 10000;
 constexpr std::array<vk::DescriptorSetLayoutBinding, 5> MATERIAL_BINDINGS = {
 	vk::DescriptorSetLayoutBinding{
 		0,	// binding

@@ -29,9 +29,9 @@ bool WorldLoader::isValid(const SerializedWorld& serializedWorld) const {
 
 	{  // check size : texture
 		const size_t numTextures = serializedWorld.textures.id.size();
-		if (numTextures != serializedWorld.textures.format.size()) {
+		if (numTextures != serializedWorld.textures.formatHint.size()) {
 			LLOG_ERROR << "Number of formats ("
-					   << serializedWorld.textures.format.size()
+					   << serializedWorld.textures.formatHint.size()
 					   << ") does not match the number of textures ("
 					   << numTextures << ")";
 			return false;
@@ -191,7 +191,7 @@ void WorldLoader::load(
 		for (size_t i = 0; i < numTextures; i++) {
 			result.push_back(graphics.loadTexture(
 				serializedWorld.textures.filePath[i],
-				serializedWorld.textures.format[i]
+				serializedWorld.textures.formatHint[i]
 			));
 		}
 		return result;

@@ -72,8 +72,8 @@ PipelineTemplate PipelineTemplate::createDefault(
 	};
 	const vk::PipelineDepthStencilStateCreateInfo depthStencilState(
 		{},
-		vk::False,	// enable depth test
-		vk::False,	// enable depth write
+		vk::True,	// enable depth test
+		vk::True,	// enable depth write
 		vk::CompareOp::eLess,
 		vk::False,	// disable depth bounds test
 		vk::False,	// disable stencil test

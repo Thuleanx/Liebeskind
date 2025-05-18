@@ -25,7 +25,7 @@ GenerationIndexArray<N>::GenerationIndexArray(
 template <size_t N>
 GenerationIndexPair reserveIndex(GenerationIndexArray<N>& array) {
 	ASSERT(
-		!array.free.empty(),
+		array.free.size(),
 		"Exceeding the capacity of the generation index array (" << N << ")"
 	);
 	const uint16_t index = array.free.back();

@@ -54,9 +54,23 @@ Model loadObj(
 	materialDatas.resize(numMaterials);
 
 	for (const tinyobj::shape_t& shape : shapes) {
-		for (size_t face = 0, faceIndexOffset = 0;
-			 face < shape.mesh.num_face_vertices.size();
-			 faceIndexOffset += shape.mesh.num_face_vertices[face++]) {
+		ASSERT(
+			shape.mesh.material_ids.size() * 3 == shape.mesh.indices.size(),
+			"Not a mesh made of triangles"
+		);
+
+		ASSERT(
+			shape.mesh.material_ids.size() ==
+				shape.mesh.num_face_vertices.size(),
+			"Materials " << shape.mesh.material_ids.size()
+						 << " and num vertices arrays "
+						 << shape.mesh.num_face_vertices.size()
+						 << " are not of the same size"
+		);
+
+		size_t faceIndexOffset = 0;
+		for (size_t face = 0; face < shape.mesh.num_face_vertices.size();
+			 face++) {
 			ASSERT(
 				shape.mesh.num_face_vertices[face] == 3,
 				"Cannot support meshes with polygons of "
@@ -65,7 +79,6 @@ Model loadObj(
 			);
 
 			const int perFaceMaterialIndex = shape.mesh.material_ids[face];
-
 			const size_t numVertices = shape.mesh.num_face_vertices[face];
 
 			PerMaterialData& faceMaterialData =
@@ -107,13 +120,11 @@ Model loadObj(
 						}
 				};
 
-				{
-					// insert in global vertex map if needed
-					if (!uniqueGlobalVertices.count(vertex)) {
-						const size_t index = uniqueGlobalVertices.size();
-						uniqueGlobalVertices[vertex] = index;
-						globalTangents.emplace_back(0);
-					}
+				// insert in global vertex map if needed
+				if (!uniqueGlobalVertices.count(vertex)) {
+					const size_t vertexIndex = uniqueGlobalVertices.size();
+					uniqueGlobalVertices[vertex] = vertexIndex;
+					globalTangents.emplace_back(0);
 				}
 
 				const size_t vertexIndex = [&]() {
@@ -148,15 +159,21 @@ Model loadObj(
 			globalTangents.at(uniqueGlobalVertices[v0]) += tangent;
 			globalTangents.at(uniqueGlobalVertices[v1]) += tangent;
 			globalTangents.at(uniqueGlobalVertices[v2]) += tangent;
+
+			faceIndexOffset += numVertices;
 		}
+
+		ASSERT(
+			faceIndexOffset == shape.mesh.indices.size(),
+			"Have not parsed through all faces"
+		);
 	}
 
 	for (glm::vec3& tangent : globalTangents) tangent = glm::normalize(tangent);
 
 	std::unordered_map<std::string, graphics::Texture> textures;
 	for (size_t materialId = 0; materialId < numMaterials; materialId++) {
-
-        LLOG_INFO << "Loading material : " << materialId;
+		LLOG_INFO << "Loading material : " << materialId;
 		for (graphics::Vertex& vertex : materialDatas[materialId].vertices)
 			vertex.tangent = globalTangents[uniqueGlobalVertices[vertex]];
 
@@ -177,23 +194,23 @@ Model loadObj(
 		};
 
 		const auto generateTexture = [&](const std::string& path,
-										 vk::Format format
+										 graphics::TextureFormatHint formatHint
 									 ) -> std::optional<graphics::TextureID> {
 			if (path.length() > 0)
 				return graphics.loadTexture(
-					std::string(texturePath) + path, format
+					std::string(texturePath) + path, formatHint
 				);
 			return std::nullopt;
 		};
 
 		const std::optional<graphics::TextureID> albedo = generateTexture(
-			material.diffuse_texname, vk::Format::eR8G8B8A8Srgb
+			material.diffuse_texname, graphics::TextureFormatHint::eGamma8
 		);
 		const std::optional<graphics::TextureID> normal = generateTexture(
-			material.normal_texname, vk::Format::eR8G8B8A8Unorm
+			material.normal_texname, graphics::TextureFormatHint::eLinear8
 		);
 		const std::optional<graphics::TextureID> displacement = generateTexture(
-			material.displacement_texname, vk::Format::eR8G8B8A8Unorm
+			material.displacement_texname, graphics::TextureFormatHint::eLinear8
 		);
 		const std::optional<graphics::TextureID> emission = std::nullopt;
 

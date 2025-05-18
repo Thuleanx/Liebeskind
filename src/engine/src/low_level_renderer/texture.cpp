@@ -9,20 +9,82 @@
 #include "stb_image.h"
 
 namespace graphics {
+
+vk::Format getIdealTextureFormat(int channels, const TextureFormatHint& hint) {
+	switch (channels) {
+		case STBI_grey:
+			switch (hint) {
+				case TextureFormatHint::eLinear8: return vk::Format::eR8Unorm;
+				case TextureFormatHint::eGamma8:  return vk::Format::eR8Srgb;
+			}
+		case STBI_grey_alpha:
+			switch (hint) {
+				case TextureFormatHint::eLinear8: return vk::Format::eR8G8Unorm;
+				case TextureFormatHint::eGamma8:  return vk::Format::eR8G8Srgb;
+			}
+		case STBI_rgb:
+			switch (hint) {
+				case TextureFormatHint::eLinear8:
+					return vk::Format::eR8G8B8Unorm;
+				case TextureFormatHint::eGamma8: return vk::Format::eR8G8B8Srgb;
+			}
+		case STBI_rgb_alpha:
+			switch (hint) {
+				case TextureFormatHint::eLinear8:
+					return vk::Format::eR8G8B8A8Unorm;
+				case TextureFormatHint::eGamma8:
+					return vk::Format::eR8G8B8A8Srgb;
+			}
+	}
+	__builtin_unreachable();
+}
+
 Texture loadTextureFromFile(
-    std::string_view filePath,
+	std::string_view filePath,
 	vk::Device device,
 	vk::PhysicalDevice physicalDevice,
 	vk::CommandPool commandPool,
 	vk::Queue graphicsQueue,
-    vk::Format imageFormat
+	TextureFormatHint formatHint
 ) {
-    LLOG_INFO << "Try loading texture at: " << filePath;
+	LLOG_INFO << "Try loading texture at: " << filePath;
 
 	int width, height, channels;
 	stbi_uc* pixels =
-		stbi_load(filePath.data(), &width, &height, &channels, STBI_rgb_alpha);
-	const vk::DeviceSize size(width * height * 4);
+		stbi_load(filePath.data(), &width, &height, &channels, STBI_default);
+
+	const vk::FormatFeatureFlags requiredImageFormatFeatures =
+		vk::FormatFeatureFlagBits::eSampledImage |
+		vk::FormatFeatureFlagBits::eTransferSrc |
+		vk::FormatFeatureFlagBits::eTransferDst;
+
+	const vk::Format idealFormat = getIdealTextureFormat(channels, formatHint);
+
+	const std::array<vk::Format, 5> engineSupportedFormats = {
+		idealFormat,
+		vk::Format::eR8G8B8A8Srgb,
+		vk::Format::eR8G8B8A8Sint,
+		vk::Format::eR8G8B8A8Unorm,
+		vk::Format::eR8G8B8A8Uint,
+	};
+
+	const std::optional<vk::Format> bestFormat = Image::findSupportedFormat(
+		physicalDevice,
+		engineSupportedFormats,
+		vk::ImageTiling::eOptimal,
+		requiredImageFormatFeatures
+	);
+
+	ASSERT(
+		bestFormat.has_value(),
+		"No suitable engine format supported for the image at " << filePath
+	);
+
+	const vk::Format imageFormat = bestFormat.value();
+	const bool isIdealFormatChosen = idealFormat == imageFormat;
+
+	const int bytesPerPixel = (isIdealFormatChosen ? channels : STBI_rgb_alpha);
+	const vk::DeviceSize size(width * height * bytesPerPixel);
 
 	ASSERT(pixels, "Can't load texture at " << filePath);
 
@@ -37,7 +99,27 @@ Texture loadTextureFromFile(
 
 	void* data;
 	vkMapMemory(device, stagingBufferMemory, 0, size, 0, &data);
-	memcpy(data, pixels, static_cast<size_t>(size));
+
+	if (isIdealFormatChosen) {
+		memcpy(data, pixels, static_cast<size_t>(size));
+	} else {
+		const size_t numPixels = static_cast<size_t>(width * height);
+		const size_t numBytes = numPixels * bytesPerPixel;
+
+		std::vector<stbi_uc> pixelsPadded;
+		pixelsPadded.reserve(numBytes);
+
+		for (size_t i = 0; i < numPixels; i++) {
+			for (int j = 0; j < channels; j++)
+				pixelsPadded.push_back(pixels[i * channels + j]);
+			for (int j = channels; j < STBI_rgb_alpha; j++)
+				pixelsPadded.push_back(std::numeric_limits<unsigned char>::max()
+				);
+		}
+
+		memcpy(data, pixelsPadded.data(), static_cast<size_t>(size));
+	}
+
 	vkUnmapMemory(device, stagingBufferMemory);
 
 	stbi_image_free(pixels);
@@ -55,8 +137,9 @@ Texture loadTextureFromFile(
 		vk::ImageTiling::eOptimal,
 		vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
 		vk::MemoryPropertyFlagBits::eDeviceLocal,
-        vk::SampleCountFlagBits::e1, // We don't need antialiasing on these textures, 
-                                     // we're going to perform it on the entire framebuffer
+		vk::SampleCountFlagBits::e1,  // We don't need antialiasing on these
+									  // textures, we're going to perform it on
+									  // the entire framebuffer
 		mipLevels
 	);
 
@@ -98,7 +181,7 @@ Texture loadTextureFromFile(
 		device, textureImage, imageFormat, vk::ImageAspectFlagBits::eColor
 	);
 
-    LLOG_INFO << "Finished loading texture at " << filePath;
+	LLOG_INFO << "Finished loading texture at " << filePath;
 
 	return Texture{textureImage, imageView, textureMemory, imageFormat, 1};
 }
@@ -112,7 +195,7 @@ Texture createTexture(
 	vk::ImageTiling tiling,
 	vk::ImageUsageFlags usage,
 	vk::ImageAspectFlags aspect,
-    vk::SampleCountFlagBits samplesCount
+	vk::SampleCountFlagBits samplesCount
 ) {
 	const auto [image, memory] = Image::createImage(
 		device,
@@ -123,7 +206,7 @@ Texture createTexture(
 		tiling,
 		usage,
 		vk::MemoryPropertyFlagBits::eDeviceLocal,
-        samplesCount
+		samplesCount
 	);
 	const vk::ImageView imageView =
 		Image::createImageView(device, image, format, aspect);
@@ -132,16 +215,16 @@ Texture createTexture(
 
 TextureID pushTextureFromFile(
 	TextureStorage& textureStorage,
-    std::string_view filePath,
+	std::string_view filePath,
 	vk::Device device,
 	vk::PhysicalDevice physicalDevice,
 	vk::CommandPool commandPool,
 	vk::Queue graphicsQueue,
-    vk::Format imageFormat
+	TextureFormatHint formatHint
 ) {
 	TextureID id{.index = static_cast<uint32_t>(textureStorage.data.size())};
 	textureStorage.data.push_back(loadTextureFromFile(
-		filePath, device, physicalDevice, commandPool, graphicsQueue, imageFormat
+		filePath, device, physicalDevice, commandPool, graphicsQueue, formatHint
 	));
 	return id;
 }
@@ -165,21 +248,21 @@ void bindTextureToDescriptor(
 }
 
 void bindTextureToDescriptor(
-    vk::ImageView imageView,
+	vk::ImageView imageView,
 	vk::DescriptorSet descriptorSet,
 	int binding,
 	vk::Sampler sampler,
 	DescriptorWriteBuffer& writeBuffer,
-    vk::ImageLayout imageLayout
+	vk::ImageLayout imageLayout
 ) {
-    writeBuffer.writeImage(
+	writeBuffer.writeImage(
 		descriptorSet,
 		binding,
-        imageView,
+		imageView,
 		vk::DescriptorType::eCombinedImageSampler,
 		sampler,
-        imageLayout
-    );
+		imageLayout
+	);
 }
 
 void transitionLayout(

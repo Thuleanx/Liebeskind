@@ -6,7 +6,7 @@
 
 namespace graphics {
 
-constexpr size_t MAX_SHADERS = 1 << 8;
+constexpr size_t MAX_SHADERS = 1000;
 
 using ShaderID = algo::GenerationIndexPair;
 

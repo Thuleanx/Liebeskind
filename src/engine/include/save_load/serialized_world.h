@@ -3,16 +3,16 @@
 #include <glm/glm.hpp>
 #include <optional>
 #include <vector>
-#include <vulkan/vulkan.hpp>
 
 #include "core/math/transform.h"
+#include "low_level_renderer/texture.h"
 
 namespace save_load {
 using IDType = uint16_t;
 
 struct SerializedTextures {
 	std::vector<IDType> id;
-	std::vector<vk::Format> format;
+	std::vector<graphics::TextureFormatHint> formatHint;
 	std::vector<std::string> filePath;
 };
 

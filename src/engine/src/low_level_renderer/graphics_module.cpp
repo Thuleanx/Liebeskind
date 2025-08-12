@@ -145,6 +145,7 @@ bool Module::drawFrame(
 	commandBuffer.reset();
 
 	currentFrame.sceneDataBuffer.update(sceneData);
+	;LOG_INFO << "Scene data buffer updated";
 
 	recordCommandBuffer(renderSubmission, commandBuffer, imageIndex.value);
 
@@ -184,7 +185,12 @@ bool Module::drawFrame(
 
 	switch (this->device.presentQueue.presentKHR(presentInfo)) {
 		case vk::Result::eErrorOutOfDateKHR:
-		case vk::Result::eSuboptimalKHR:	 this->device.recreateSwapchain();
+            LLOG_INFO << "OutOfDateKHR encountered when presenting swapchain";
+            this->device.recreateSwapchain();
+            break;
+		case vk::Result::eSuboptimalKHR:	 
+            LLOG_INFO << "SuboptimalKHR encountered when presenting swapchain";
+            this->device.recreateSwapchain();
 		case vk::Result::eSuccess:			 break;
 		default:
 			LLOG_ERROR << "Error submitting to present queue: "

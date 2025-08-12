@@ -44,9 +44,9 @@ struct GraphicsDeviceInterface {
 	RenderPassData renderPasses;
 	MaterialPipeline pipeline;
 	struct Shaders {
-        UncompiledShader vertex;
-        UncompiledShader vertexInstanced;
-        UncompiledShader fragment;
+		UncompiledShader vertex;
+		UncompiledShader vertexInstanced;
+		UncompiledShader fragment;
 	};
 	Shaders mainShaders;
 	std::optional<SwapchainData> swapchain;
@@ -62,6 +62,7 @@ struct GraphicsDeviceInterface {
 	void destroy();
 
 	void handleEvent(const SDL_Event& sdlEvent);
+
 	void recreateSwapchain();
 
    private:

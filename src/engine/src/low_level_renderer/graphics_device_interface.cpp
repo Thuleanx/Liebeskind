@@ -12,7 +12,6 @@
 #include "low_level_renderer/material_pipeline.h"
 #include "low_level_renderer/queue_family.h"
 #include "private/graphics_device_helper.h"
-#include "private/shader_helper.h"
 #include "private/swapchain.h"
 #include "private/validation.h"
 
@@ -494,6 +493,8 @@ void GraphicsDeviceInterface::cleanupSwapchain() {
 void GraphicsDeviceInterface::handleWindowResize(
 	[[maybe_unused]] int _width, [[maybe_unused]] int _height
 ) {
-	recreateSwapchain();
+    bool isMinimized = _width == 0 || _height == 0;
+    if (!isMinimized) recreateSwapchain();
+    else LLOG_INFO << "Window is minimized";
 }
 }  // namespace graphics

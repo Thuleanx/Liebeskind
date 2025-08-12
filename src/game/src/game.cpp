@@ -43,10 +43,9 @@ void game::run() {
 	float lastTime = 0;
 
 	bool shouldQuitGame = false;
+    bool isMinimized = false;
 
 	while (!shouldQuitGame) {
-		graphics::module->beginFrame();
-
 		const auto currentTime = std::chrono::high_resolution_clock::now();
 		const float time =
 			std::chrono::duration<float, std::chrono::seconds::period>(
@@ -54,6 +53,7 @@ void game::run() {
 			)
 				.count();
 		const float deltaTime = time - lastTime;
+
 
 		SDL_Event sdlEvent;
 		while (SDL_PollEvent(&sdlEvent)) {
@@ -64,26 +64,36 @@ void game::run() {
 						sdlEvent.window.data1, sdlEvent.window.data2
 					);
 					break;
+                case SDL_EVENT_WINDOW_MINIMIZED:
+                    isMinimized = true;
+                    break;
+                case SDL_EVENT_WINDOW_RESTORED:
+                    isMinimized = false;
+                    break;
 			}
 			graphics::module->handleEvent(sdlEvent);
 			input::manager->handleEvent(sdlEvent);
 		}
 
-		const ImGuiIO& io = ImGui::GetIO();
+        if (!isMinimized) {
+		    graphics::module->beginFrame();
+            const ImGuiIO& io = ImGui::GetIO();
 
-		ImGui::Begin("General debugging");
-		ImGui::Text(
-			"Application average %.3f ms/frame (%.1f FPS)",
-			1000.0f / io.Framerate,
-			io.Framerate
-		);
-		ImGui::End();
+            ImGui::Begin("General debugging");
+            ImGui::Text(
+                "Application average %.3f ms/frame (%.1f FPS)",
+                1000.0f / io.Framerate,
+                io.Framerate
+            );
+            ImGui::End();
 
-		game_cameras::module->update(deltaTime);
+            game_cameras::module->update(deltaTime);
 
-		if (!scene_graph::module->drawFrame(graphics::module.value())) break;
+            if (!scene_graph::module->drawFrame(graphics::module.value())) break;
 
-		graphics::module->endFrame();
+            graphics::module->endFrame();
+        }
+
 		lastTime = time;
 	}
 }

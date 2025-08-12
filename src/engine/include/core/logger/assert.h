@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cpptrace/cpptrace.hpp>
+
 #include "core/logger/logger.h"
 
 #ifdef NDEBUG
@@ -10,6 +12,7 @@
             if (! (condition)) { \
                 LLOG_ERROR << "Assertion `" #condition "` failed in " << __FILE__ \
                         << " line " << __LINE__ << ": " << message << std::endl; \
+                cpptrace::generate_trace().print(LLOG_ERROR);
                 std::terminate(); \
             } \
         } while (false)

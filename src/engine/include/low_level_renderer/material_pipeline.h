@@ -3,9 +3,11 @@
 #include <unordered_map>
 #include <vulkan/vulkan.hpp>
 
+#include "low_level_renderer/bloom.h"
 #include "low_level_renderer/descriptor_allocator.h"
 #include "low_level_renderer/pipeline_template.h"
 #include "low_level_renderer/renderpass_data.h"
+#include "low_level_renderer/shaders.h"
 
 namespace graphics {
 enum class MainPipelineDescriptorSetBindingPoint {
@@ -31,7 +33,7 @@ struct MaterialPipeline {
 		PipelineSpecializationConstants,
 		vk::Pipeline,
 		PipelineSpecializationConstantsHashFunction>;
-    
+
 	PipelineTemplate pipelineTemplate;
 	VariantMap regularPipelineVariants;
 	VariantMap instanceRenderingPipelineVariants;
@@ -42,13 +44,13 @@ struct MaterialPipeline {
 	PipelineDescriptorData instanceRenderingDescriptor;
 	PipelineDescriptorData materialDescriptor;
 	PipelineDescriptorData postProcessingDescriptor;
+    BloomPipeline bloomPipeline;
 
    public:
 	static MaterialPipeline create(
+        ShaderStorage& shaders,
 		vk::Device device,
-		const RenderPassData& renderPasses,
-		vk::ShaderModule postProcessingVertexShader,
-		vk::ShaderModule postProcessingFragmentShader
+		const RenderPassData& renderPasses
 	);
 };
 
@@ -60,11 +62,10 @@ std::array<vk::PipelineLayout, 2> createMainPipelinesLayouts(
 );
 
 std::array<PipelineData, 1> createPostProcessingPipelines(
+    ShaderStorage& shaders,
 	vk::Device device,
 	const RenderPassData& renderPasses,
-	const PipelineDescriptorData& postProcessingDescriptorData,
-	vk::ShaderModule vertexShader,
-	vk::ShaderModule fragmentShader
+	const PipelineDescriptorData& postProcessingDescriptorData
 );
 
 void createNewVariant(

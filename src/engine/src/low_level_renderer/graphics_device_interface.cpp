@@ -233,18 +233,6 @@ UncompiledShader loadUncompiledShaderFromFile(
 	};
 }
 
-ShaderID loadShaderFromFile(
-	ShaderStorage& shaders, vk::Device device, std::string_view filePath
-) {
-	const std::optional<std::vector<char>> bytecode =
-		file_system::readFile(filePath);
-	ASSERT(
-		bytecode.has_value(),
-		"Shader needs to be able to be loaded from " << filePath
-	);
-	return loadFromBytecode(shaders, device, bytecode.value());
-}
-
 }  // namespace
 GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
 	ShaderStorage& shaders
@@ -292,12 +280,6 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
 		.vertexInstanced = instancedVertexShader,
 		.fragment = fragmentShader
 	};
-	const ShaderID postProcessingVertexShader = loadShaderFromFile(
-		shaders, device, "shaders/post_processing.vert.glsl.spv"
-	);
-	const ShaderID postProcessingFragmentShader = loadShaderFromFile(
-		shaders, device, "shaders/post_processing.frag.glsl.spv"
-	);
 
 	const std::vector<vk::CommandBuffer> commandBuffers =
 		init_createCommandBuffers(device, commandPool, MAX_FRAMES_IN_FLIGHT);
@@ -338,10 +320,9 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
 		multisampleAntialiasingSampleCount
 	);
 	MaterialPipeline pipeline = MaterialPipeline::create(
+        shaders,
 		device,
-		renderPasses,
-		getModule(shaders, postProcessingVertexShader),
-		getModule(shaders, postProcessingFragmentShader)
+		renderPasses
 	);
 
 	const std::vector<vk::DescriptorSet> globalDescriptors =

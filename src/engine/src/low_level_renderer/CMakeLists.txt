@@ -31,6 +31,8 @@ set(SRC
     private/swapchain.cpp
     private/buffer.h
     private/buffer.cpp
+    private/bloom.h
+    private/bloom.cpp
 )
 
 add_library(low_level_renderer ${SRC})

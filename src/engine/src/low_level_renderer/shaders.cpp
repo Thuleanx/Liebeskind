@@ -1,6 +1,7 @@
 #include "low_level_renderer/shaders.h"
 
 #include "core/logger/vulkan_ensures.h"
+#include "core/file_system/file.h"
 
 namespace graphics {
 ShaderStorage ShaderStorage::create() {
@@ -36,6 +37,19 @@ ShaderID loadFromBytecode(
 		code.size()
 	);
 }
+
+ShaderID loadShaderFromFile(
+	ShaderStorage& shaders, vk::Device device, std::string_view filePath
+) {
+	const std::optional<std::vector<char>> bytecode =
+		file_system::readFile(filePath);
+	ASSERT(
+		bytecode.has_value(),
+		"Shader needs to be able to be loaded from " << filePath
+	);
+	return loadFromBytecode(shaders, device, bytecode.value());
+}
+
 
 vk::ShaderModule getModule(const ShaderStorage& shaders, ShaderID id) {
 	ASSERT(

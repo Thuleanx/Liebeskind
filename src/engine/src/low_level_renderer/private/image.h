@@ -48,7 +48,9 @@ vk::ImageView createImageView(
     const vk::Device& device,
     const vk::Image& image,
     vk::Format imageFormat,
-    vk::ImageAspectFlags imageAspect
+    vk::ImageAspectFlags imageAspect,
+    uint32_t mipBaseLevel,
+    uint32_t mipLevels
 );
 std::optional<vk::Format> findSupportedFormat(
     const vk::PhysicalDevice& physicalDevice,

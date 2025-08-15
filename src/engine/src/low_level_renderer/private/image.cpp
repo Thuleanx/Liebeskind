@@ -185,7 +185,9 @@ vk::ImageView Image::createImageView(
     const vk::Device &device,
     const vk::Image &image,
     vk::Format imageFormat,
-    vk::ImageAspectFlags imageAspect
+    vk::ImageAspectFlags imageAspect,
+    uint32_t mipBaseLevel,
+    uint32_t mipLevels
 ) {
     const vk::ImageViewCreateInfo imageViewInfo(
         {},
@@ -193,7 +195,7 @@ vk::ImageView Image::createImageView(
         vk::ImageViewType::e2D,
         imageFormat,
         {},
-        vk::ImageSubresourceRange(imageAspect, 0, 1, 0, 1)
+        vk::ImageSubresourceRange(imageAspect, mipBaseLevel, mipLevels, 0, 1)
     );
     const vk::ResultValue<vk::ImageView> imageViewCreation =
         device.createImageView(imageViewInfo);

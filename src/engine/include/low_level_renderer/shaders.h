@@ -11,8 +11,8 @@ constexpr size_t MAX_SHADERS = 1000;
 using ShaderID = algo::GenerationIndexPair;
 
 struct UncompiledShader {
-    std::string code;
-    vk::ShaderStageFlagBits stage;
+	std::string code;
+	vk::ShaderStageFlagBits stage;
 };
 
 struct ShaderStorage {
@@ -34,6 +34,11 @@ ShaderID loadFromBytecode(
 [[nodiscard]]
 ShaderID loadFromBytecode(
 	ShaderStorage& shaders, vk::Device device, const std::vector<char>& code
+);
+
+[[nodiscard]]
+ShaderID loadShaderFromFile(
+	ShaderStorage& shaders, vk::Device device, std::string_view filePath
 );
 
 vk::ShaderModule getModule(const ShaderStorage& shaders, ShaderID id);

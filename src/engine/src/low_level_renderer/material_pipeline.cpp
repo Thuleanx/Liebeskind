@@ -5,14 +5,13 @@
 #include "low_level_renderer/materials.h"
 #include "low_level_renderer/post_processing.h"
 #include "low_level_renderer/shader_data.h"
-#include "low_level_renderer/vertex_buffer.h"
+#include "private/bloom.h"
 
 namespace graphics {
 MaterialPipeline MaterialPipeline::create(
+	ShaderStorage& shaders,
 	vk::Device device,
-	const RenderPassData& renderPasses,
-	vk::ShaderModule postProcessingVertexShader,
-	vk::ShaderModule postProcessingFragmentShader
+	const RenderPassData& renderPasses
 ) {
 	PipelineDescriptorData globalDescriptorData;
 	{  // create global descriptor information
@@ -136,11 +135,7 @@ MaterialPipeline MaterialPipeline::create(
 		);
 
 	const auto [postProcessingPipeline] = createPostProcessingPipelines(
-		device,
-		renderPasses,
-		postProcessingDescriptorData,
-		postProcessingVertexShader,
-		postProcessingFragmentShader
+		shaders, device, renderPasses, postProcessingDescriptorData
 	);
 	return {
 		.pipelineTemplate = pipelineTemplate,
@@ -177,8 +172,7 @@ std::array<vk::PipelineLayout, 2> createMainPipelinesLayouts(
 		vk::ShaderStageFlagBits::eVertex, 0, sizeof(GPUPushConstants)
 	);
 
-	vk::PipelineLayout regularPipelineLayout;
-	{
+	const vk::PipelineLayout regularPipelineLayout = [&]() {
 		const vk::PipelineLayoutCreateInfo pipelineLayoutInfo(
 			{},
 			regularSetLayouts.size(),
@@ -191,11 +185,10 @@ std::array<vk::PipelineLayout, 2> createMainPipelinesLayouts(
 		VULKAN_ENSURE_SUCCESS(
 			pipelineLayoutCreation.result, "Can't create pipeline layout:"
 		);
-		regularPipelineLayout = pipelineLayoutCreation.value;
-	}
+		return pipelineLayoutCreation.value;
+	}();
 
-	vk::PipelineLayout instanceRenderingPipelineLayout;
-	{
+	const vk::PipelineLayout instanceRenderingPipelineLayout = [&]() {
 		const vk::PipelineLayoutCreateInfo pipelineLayoutInfo(
 			{},
 			instanceRenderingSetLayouts.size(),
@@ -208,28 +201,40 @@ std::array<vk::PipelineLayout, 2> createMainPipelinesLayouts(
 		VULKAN_ENSURE_SUCCESS(
 			pipelineLayoutCreation.result, "Can't create pipeline layout:"
 		);
-		instanceRenderingPipelineLayout = pipelineLayoutCreation.value;
-	}
+		return pipelineLayoutCreation.value;
+	}();
 
 	return {regularPipelineLayout, instanceRenderingPipelineLayout};
 }
 
 std::array<PipelineData, 1> createPostProcessingPipelines(
+	ShaderStorage& shaders,
 	vk::Device device,
 	const RenderPassData& renderPasses,
-	const PipelineDescriptorData& postProcessingDescriptorData,
-	vk::ShaderModule vertexShader,
-	vk::ShaderModule fragmentShader
+	const PipelineDescriptorData& postProcessingDescriptorData
 ) {
 	const std::vector<vk::DescriptorSetLayout> setLayouts = {
 		postProcessingDescriptorData.setLayout,
 	};
 
+	const ShaderID vertexShaderID = loadShaderFromFile(
+		shaders, device, "shaders/post_processing.vert.glsl.spv"
+	);
+	const ShaderID fragmentShaderID = loadShaderFromFile(
+		shaders, device, "shaders/post_processing.frag.glsl.spv"
+	);
+
 	const vk::PipelineShaderStageCreateInfo vertexShaderStageInfo(
-		{}, vk::ShaderStageFlagBits::eVertex, vertexShader, "main"
+		{},
+		vk::ShaderStageFlagBits::eVertex,
+		getModule(shaders, vertexShaderID),
+		"main"
 	);
 	const vk::PipelineShaderStageCreateInfo fragmentShaderStageInfo(
-		{}, vk::ShaderStageFlagBits::eFragment, fragmentShader, "main"
+		{},
+		vk::ShaderStageFlagBits::eFragment,
+		getModule(shaders, fragmentShaderID),
+		"main"
 	);
 
 	const std::vector<vk::DynamicState> dynamicStates = {
@@ -437,6 +442,7 @@ void destroy(const MaterialPipeline& pipeline, vk::Device device) {
 	device.destroyPipelineLayout(pipeline.instanceRenderingPipelineLayout);
 	destroy(pipeline.postProcessingDescriptor, device);
 	destroy(pipeline.postProcessingPipeline, device);
+	destroy(pipeline.bloomPipeline, device);
 }
 
 void destroy(const PipelineData& pipelineData, vk::Device device) {

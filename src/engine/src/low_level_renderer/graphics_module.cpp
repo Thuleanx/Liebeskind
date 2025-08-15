@@ -145,7 +145,6 @@ bool Module::drawFrame(
 	commandBuffer.reset();
 
 	currentFrame.sceneDataBuffer.update(sceneData);
-	;LOG_INFO << "Scene data buffer updated";
 
 	recordCommandBuffer(renderSubmission, commandBuffer, imageIndex.value);
 

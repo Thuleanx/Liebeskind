@@ -177,8 +177,14 @@ Texture loadTextureFromFile(
 	device.destroyBuffer(stagingBuffer);
 	device.freeMemory(stagingBufferMemory);
 
+    constexpr uint32_t mipLevelBase = 0;
 	const vk::ImageView imageView = Image::createImageView(
-		device, textureImage, imageFormat, vk::ImageAspectFlagBits::eColor
+		device,
+		textureImage,
+		imageFormat,
+		vk::ImageAspectFlagBits::eColor,
+        mipLevelBase,
+		mipLevels
 	);
 
 	LLOG_INFO << "Finished loading texture at " << filePath;
@@ -195,7 +201,8 @@ Texture createTexture(
 	vk::ImageTiling tiling,
 	vk::ImageUsageFlags usage,
 	vk::ImageAspectFlags aspect,
-	vk::SampleCountFlagBits samplesCount
+	vk::SampleCountFlagBits samplesCount,
+	uint32_t mipLevels
 ) {
 	const auto [image, memory] = Image::createImage(
 		device,
@@ -206,11 +213,13 @@ Texture createTexture(
 		tiling,
 		usage,
 		vk::MemoryPropertyFlagBits::eDeviceLocal,
-		samplesCount
+		samplesCount,
+		mipLevels
 	);
+    constexpr uint32_t mipLevelBase = 0;
 	const vk::ImageView imageView =
-		Image::createImageView(device, image, format, aspect);
-	return Texture{image, imageView, memory, format, 1};
+		Image::createImageView(device, image, format, aspect, mipLevelBase, mipLevels);
+	return Texture{image, imageView, memory, format, mipLevels};
 }
 
 TextureID pushTextureFromFile(

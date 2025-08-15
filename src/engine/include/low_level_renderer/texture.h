@@ -46,7 +46,8 @@ Texture createTexture(
     vk::ImageTiling tiling,
     vk::ImageUsageFlags usage,
     vk::ImageAspectFlags aspect,
-    vk::SampleCountFlagBits samplesCount
+    vk::SampleCountFlagBits samplesCount,
+    uint32_t mipLevels
 );
 
 TextureID pushTextureFromFile(

@@ -11,6 +11,7 @@ struct RenderPassData {
 	vk::SampleCountFlagBits multisampleAntialiasingSampleCount;
 
 	vk::RenderPass mainPass;
+    vk::RenderPass bloomPass;
 	vk::RenderPass postProcessingPass;
 
    public:

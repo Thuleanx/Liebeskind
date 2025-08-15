@@ -3,6 +3,7 @@
 #include "core/logger/logger.h"
 #include "core/logger/vulkan_ensures.h"
 #include "low_level_renderer/graphics_device_interface.h"
+#include "private/bloom.h"
 #include "private/image.h"
 #include "private/swapchain.h"
 
@@ -67,11 +68,15 @@ SwapchainData GraphicsDeviceInterface::createSwapchain() const {
 	const std::vector<vk::Image> colorAttachments = colorAttachmentsGet.value;
 	std::vector<vk::ImageView> colorAttachmentViews(colorAttachments.size());
 	for (size_t i = 0; i < colorAttachments.size(); i++) {
+        constexpr uint32_t mipLevelBase = 0;
+		constexpr uint32_t colorAttachmentMipLevels = 1;
 		colorAttachmentViews[i] = Image::createImageView(
 			device,
 			colorAttachments[i],
 			renderPasses.swapchainColorFormat.format,
-			vk::ImageAspectFlagBits::eColor
+			vk::ImageAspectFlagBits::eColor,
+            mipLevelBase,
+			colorAttachmentMipLevels
 		);
 	}
 
@@ -86,8 +91,12 @@ SwapchainData GraphicsDeviceInterface::createSwapchain() const {
 	std::vector<Texture> intermediateColorAttachments;
 	intermediateColorAttachments.reserve(swapchainSize);
 
+	const BloomData bloom =
+		createBloomData(*this, BLOOM_SETTINGS, extent, swapchainSize);
+
 	DescriptorWriteBuffer writeBuffer;
 	for (size_t i = 0; i < swapchainSize; i++) {
+		constexpr uint32_t depthMipLevels = 1;
 		depthAttachments.push_back(createTexture(
 			device,
 			physicalDevice,
@@ -98,7 +107,8 @@ SwapchainData GraphicsDeviceInterface::createSwapchain() const {
 			vk::ImageUsageFlagBits::eDepthStencilAttachment |
 				vk::ImageUsageFlagBits::eSampled,
 			vk::ImageAspectFlagBits::eDepth,
-			renderPasses.multisampleAntialiasingSampleCount
+			renderPasses.multisampleAntialiasingSampleCount,
+			depthMipLevels
 		));
 		transitionLayout(
 			depthAttachments.back(),
@@ -108,6 +118,7 @@ SwapchainData GraphicsDeviceInterface::createSwapchain() const {
 			commandPool,
 			graphicsQueue
 		);
+		constexpr uint32_t multisampleMipLevels = 1;
 		multisampleColorAttachments.push_back(createTexture(
 			device,
 			physicalDevice,
@@ -117,8 +128,10 @@ SwapchainData GraphicsDeviceInterface::createSwapchain() const {
 			vk::ImageTiling::eOptimal,
 			vk::ImageUsageFlagBits::eColorAttachment,
 			vk::ImageAspectFlagBits::eColor,
-			renderPasses.multisampleAntialiasingSampleCount
+			renderPasses.multisampleAntialiasingSampleCount,
+			multisampleMipLevels
 		));
+		constexpr uint32_t intermediateMipLevels = 1;
 		intermediateColorAttachments.push_back(createTexture(
 			device,
 			physicalDevice,
@@ -129,8 +142,10 @@ SwapchainData GraphicsDeviceInterface::createSwapchain() const {
 			vk::ImageUsageFlagBits::eColorAttachment |
 				vk::ImageUsageFlagBits::eSampled,
 			vk::ImageAspectFlagBits::eColor,
-			vk::SampleCountFlagBits::e1
+			vk::SampleCountFlagBits::e1,
+			intermediateMipLevels
 		));
+
 		bindTextureToDescriptor(
 			intermediateColorAttachments[i].imageView,
 			frameDatas[i].postProcessingDescriptor,
@@ -223,6 +238,7 @@ SwapchainData GraphicsDeviceInterface::createSwapchain() const {
 		.depthAttachments = depthAttachments,
 		.mainFramebuffers = mainFramebuffers,
 		.postProcessingFramebuffers = postProcessingFramebuffers,
+        .bloom = bloom,
 	};
 }
 
@@ -240,6 +256,7 @@ void GraphicsDeviceInterface::destroy(SwapchainData& swapchainData) {
 	graphics::destroy(swapchainData.intermediateColorAttachments, device);
 	graphics::destroy(swapchainData.depthAttachments, device);
 	graphics::destroy(swapchainData.multisampleColorAttachments, device);
+    graphics::destroy(swapchainData.bloom, device);
 
 	device.destroySwapchainKHR(swapchainData.swapchain);
 }

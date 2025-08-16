@@ -179,7 +179,8 @@ vk::RenderPass createBloomRenderpass(
 BloomPipeline createBloomPipeline(
 	ShaderStorage& shaders,
 	vk::Device device,
-	const RenderPassData& renderPasses
+	const RenderPassData& renderPasses,
+	vk::Extent2D swapchainExtent
 ) {
 	const vk::ResultValue<vk::DescriptorSetLayout> setLayoutCreation =
 		device.createDescriptorSetLayout(
@@ -206,20 +207,6 @@ BloomPipeline createBloomPipeline(
 		vk::ShaderStageFlagBits::eVertex,
 		getModule(shaders, vertexShaderID),
 		"main"
-	);
-
-	const vk::PipelineShaderStageCreateInfo downscaleShaderInfo(
-		{},
-		vk::ShaderStageFlagBits::eFragment,
-		getModule(shaders, fragmentShaderID),
-		"downsample"
-	);
-
-	const vk::PipelineShaderStageCreateInfo upscaleShaderInfo(
-		{},
-		vk::ShaderStageFlagBits::eFragment,
-		getModule(shaders, fragmentShaderID),
-		"upsample"
 	);
 
 	const std::vector<vk::DynamicState> dynamicStates = {
@@ -311,58 +298,88 @@ BloomPipeline createBloomPipeline(
 		pipelineLayoutCreation.result, "Can't create bloom pipeline layout:"
 	);
 	const vk::PipelineLayout pipelineLayout = pipelineLayoutCreation.value;
-	const std::array<vk::PipelineShaderStageCreateInfo, 2> upsampleStages = {
-		vertexShaderInfo, upscaleShaderInfo
-	};
-	const std::array<vk::PipelineShaderStageCreateInfo, 2> downsampleStages = {
-		vertexShaderInfo, downscaleShaderInfo
-	};
 
 	const uint32_t NUM_SUBPASSES = 2 * NUM_BLOOM_LAYERS;
-    std::array<vk::Pipeline, NUM_SUBPASSES> pipelines;
-    for (uint32_t subpass = 0; subpass < NUM_SUBPASSES; subpass++) {
-        const bool isUpsamplePass = subpass >= NUM_BLOOM_LAYERS;
+	std::array<vk::Pipeline, NUM_SUBPASSES> pipelines;
+	for (uint32_t subpass = 0; subpass < NUM_SUBPASSES; subpass++) {
+		const bool isUpsamplePass = subpass >= NUM_BLOOM_LAYERS;
 
-        const vk::GraphicsPipelineCreateInfo pipelineCreateInfo(
-            {},
-            isUpsamplePass ? upsampleStages.size() : downsampleStages.size(),
-            isUpsamplePass ? upsampleStages.data() : downsampleStages.data(),
-            &vertexInputStateInfo,
-            &inputAssemblyStateInfo,
-            nullptr,  // no tesselation viewport
-            &viewportStateInfo,
-            &rasterizerCreateInfo,
-            &multisamplingInfo,
-            &depthStencilState,
-            &colorBlendingInfo,
-            &dynamicStateInfo,
-            pipelineLayoutCreation.value,
-            renderPasses.bloomPass,
-            subpass
-        );
+		const uint32_t divisions =
+			isUpsamplePass ? NUM_SUBPASSES - subpass : subpass;
+		const uint32_t width =
+			std::max(1u, swapchainExtent.width / (1u << divisions));
+		const uint32_t height =
+			std::max(1u, swapchainExtent.height / (1u << divisions));
+        const glm::vec2 texelSize = glm::vec2(1.0f / width, 1.0f / height);
 
-        const vk::ResultValue<vk::Pipeline> pipelineCreation =
-            device.createGraphicsPipeline(nullptr, pipelineCreateInfo);
-        VULKAN_ENSURE_SUCCESS(
-            pipelineCreation.result, "Can't create bloom pipeline:"
-        );
+		const std::string kernelName =
+			isUpsamplePass ? "upsample" : "downsample";
 
-        pipelines[subpass] = pipelineCreation.value;
-    }
 
-    return BloomPipeline {
-        .pipelines = pipelines,
-        .layout = pipelineLayout,
-        .descriptorLayout = setLayout,
-        .allocator = setAllocator
-    };
+        const BloomSpecializationConstants constants = {
+            .texelSize = texelSize,
+            .sampleDistance = 0.5f
+        };
+
+        const vk::SpecializationInfo specializationInfo{
+            BLOOM_SPECIALIZATION_INFO.size(),
+            BLOOM_SPECIALIZATION_INFO.data(),
+            sizeof(constants),
+            &constants
+        };
+
+		const vk::PipelineShaderStageCreateInfo fragmentShaderInfo(
+			{},
+			vk::ShaderStageFlagBits::eFragment,
+			getModule(shaders, fragmentShaderID),
+			"upsample",
+            &specializationInfo
+		);
+
+        const std::array<vk::PipelineShaderStageCreateInfo, 2> shaderStages = {
+            vertexShaderInfo, fragmentShaderInfo
+        };
+
+		const vk::GraphicsPipelineCreateInfo pipelineCreateInfo(
+			{},
+            shaderStages.size(),
+            shaderStages.data(),
+			&vertexInputStateInfo,
+			&inputAssemblyStateInfo,
+			nullptr,  // no tesselation viewport
+			&viewportStateInfo,
+			&rasterizerCreateInfo,
+			&multisamplingInfo,
+			&depthStencilState,
+			&colorBlendingInfo,
+			&dynamicStateInfo,
+			pipelineLayoutCreation.value,
+			renderPasses.bloomPass,
+			subpass
+		);
+
+		const vk::ResultValue<vk::Pipeline> pipelineCreation =
+			device.createGraphicsPipeline(nullptr, pipelineCreateInfo);
+		VULKAN_ENSURE_SUCCESS(
+			pipelineCreation.result, "Can't create bloom pipeline:"
+		);
+
+		pipelines[subpass] = pipelineCreation.value;
+	}
+
+	return BloomPipeline{
+		.pipelines = pipelines,
+		.layout = pipelineLayout,
+		.descriptorLayout = setLayout,
+		.allocator = setAllocator
+	};
 }
 
 void destroy(const BloomPipeline& bloomPipeline, vk::Device device) {
-    for (const vk::Pipeline& pipeline : bloomPipeline.pipelines)
-        device.destroyPipeline(pipeline);
-    device.destroyPipelineLayout(bloomPipeline.layout);
-    bloomPipeline.allocator.destroyBy(device);
+	for (const vk::Pipeline& pipeline : bloomPipeline.pipelines)
+		device.destroyPipeline(pipeline);
+	device.destroyPipelineLayout(bloomPipeline.layout);
+	bloomPipeline.allocator.destroyBy(device);
 	device.destroy(bloomPipeline.descriptorLayout);
 }
 

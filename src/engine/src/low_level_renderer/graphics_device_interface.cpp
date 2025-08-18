@@ -11,6 +11,7 @@
 #include "low_level_renderer/descriptor_write_buffer.h"
 #include "low_level_renderer/material_pipeline.h"
 #include "low_level_renderer/queue_family.h"
+#include "private/bloom.h"
 #include "private/graphics_device_helper.h"
 #include "private/swapchain.h"
 #include "private/validation.h"
@@ -272,8 +273,7 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
 		vk::ShaderStageFlagBits::eVertex
 	);
 	const UncompiledShader fragmentShader = loadUncompiledShaderFromFile(
-		"shaders/test_triangle.frag.glsl",
-		vk::ShaderStageFlagBits::eFragment
+		"shaders/test_triangle.frag.glsl", vk::ShaderStageFlagBits::eFragment
 	);
 	const Shaders mainShaders{
 		.vertex = vertexShader,
@@ -319,11 +319,8 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
 		Swapchain::getSuitableDepthAttachmentFormat(physicalDevice),
 		multisampleAntialiasingSampleCount
 	);
-	MaterialPipeline pipeline = MaterialPipeline::create(
-        shaders,
-		device,
-		renderPasses
-	);
+	MaterialPipeline pipeline =
+		MaterialPipeline::create(shaders, device, physicalDevice, renderPasses);
 
 	const std::vector<vk::DescriptorSet> globalDescriptors =
 		pipeline.globalDescriptor.allocator.allocate(
@@ -402,6 +399,10 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
 	};
 
 	deviceInterface.swapchain = deviceInterface.createSwapchain();
+	updateBloomUniform(
+		deviceInterface.pipeline.bloomPipeline,
+		deviceInterface.swapchain->extent
+	);
 
 	return deviceInterface;
 }
@@ -462,6 +463,7 @@ void GraphicsDeviceInterface::recreateSwapchain() {
 		"swapchain"
 	);
 	swapchain = createSwapchain();
+	updateBloomUniform(pipeline.bloomPipeline, swapchain->extent);
 	LLOG_INFO << "Swapchain recreated";
 }
 
@@ -474,8 +476,8 @@ void GraphicsDeviceInterface::cleanupSwapchain() {
 void GraphicsDeviceInterface::handleWindowResize(
 	[[maybe_unused]] int _width, [[maybe_unused]] int _height
 ) {
-    bool isMinimized = _width == 0 || _height == 0;
-    if (!isMinimized) recreateSwapchain();
-    else LLOG_INFO << "Window is minimized";
+	bool isMinimized = _width == 0 || _height == 0;
+	if (!isMinimized) recreateSwapchain();
+	else LLOG_INFO << "Window is minimized";
 }
 }  // namespace graphics

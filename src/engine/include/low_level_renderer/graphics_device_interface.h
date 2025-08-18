@@ -72,7 +72,7 @@ struct GraphicsDeviceInterface {
    public:
 	// Constructors
 	[[nodiscard]]
-	SwapchainData createSwapchain() const;
+	SwapchainData createSwapchain();
 	void destroy(SwapchainData& swapchainData);
 };
 }  // namespace graphics

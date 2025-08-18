@@ -1,6 +1,7 @@
 #include "low_level_renderer/descriptor_allocator.h"
 
 #include "core/logger/vulkan_ensures.h"
+#include "private/descriptor.h"
 
 namespace {
 constexpr uint32_t MAX_DESCRIPTOR_SETS_PER_POOL = 4096;
@@ -27,19 +28,7 @@ vk::DescriptorPool DescriptorAllocator::createPool(const vk::Device& device
     for (size_t i = 0; i < instantiatedPoolSizes.size(); i++)
         instantiatedPoolSizes[i].descriptorCount *= setsPerPool;
 
-    const vk::DescriptorPoolCreateInfo poolInfo(
-        {},
-        setsPerPool,
-        static_cast<uint32_t>(instantiatedPoolSizes.size()),
-        instantiatedPoolSizes.data()
-    );
-
-    const vk::ResultValue<vk::DescriptorPool> descriptorPoolCreation =
-        device.createDescriptorPool(poolInfo);
-    VULKAN_ENSURE_SUCCESS(
-        descriptorPoolCreation.result, "Can't create descriptor pool:"
-    );
-    return descriptorPoolCreation.value;
+    return createDescriptorPool(device, setsPerPool, instantiatedPoolSizes);
 }
 
 std::vector<vk::DescriptorSet> DescriptorAllocator::allocate(

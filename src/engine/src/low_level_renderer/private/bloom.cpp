@@ -1,25 +1,29 @@
 #include "bloom.h"
 
+#include "core/logger/assert.h"
 #include "core/logger/vulkan_ensures.h"
+#include "descriptor.h"
 #include "image.h"
+#include "low_level_renderer/descriptor_write_buffer.h"
 #include "low_level_renderer/shaders.h"
 
 namespace graphics {
-BloomData createBloomData(
-	const GraphicsDeviceInterface& graphics,
+BloomSwapchainData createBloomData(
+	vk::Device device,
+	vk::PhysicalDevice physicalDevice,
 	const BloomSettings& settings,
+	BloomPipeline& pipeline,
+	vk::Format imageFormat,
 	vk::Extent2D swapchainExtent,
-	uint32_t swapchainSize
+	size_t swapchainSize
 ) {
-	std::vector<BloomData::Attachment> colorAttachments;
-	colorAttachments.reserve(swapchainSize);
-
-	const vk::Format imageFormat = graphics.renderPasses.colorAttachmentFormat;
+	std::vector<BloomSwapchainData::Attachment> attachments;
+	attachments.reserve(swapchainSize);
 
 	for (size_t i = 0; i < swapchainSize; i++) {
 		const auto [image, memory] = Image::createImage(
-			graphics.device,
-			graphics.physicalDevice,
+			device,
+			physicalDevice,
 			swapchainExtent.width,
 			swapchainExtent.height,
 			imageFormat,
@@ -31,10 +35,10 @@ BloomData createBloomData(
 			NUM_BLOOM_LAYERS
 		);
 
-		std::array<vk::ImageView, 3> mipViews;
+		std::array<vk::ImageView, NUM_BLOOM_LAYERS> mipViews;
 		for (int i = 0; i < NUM_BLOOM_LAYERS; i++) {
 			mipViews[i] = Image::createImageView(
-				graphics.device,
+				device,
 				image,
 				imageFormat,
 				vk::ImageAspectFlagBits::eColor,
@@ -42,13 +46,34 @@ BloomData createBloomData(
 				1
 			);
 		}
+
+		std::array<vk::DescriptorSet, NUM_BLOOM_PASSES> textureDescriptors;
+        {
+            const std::vector<vk::DescriptorSet> textureDescriptorsVec =
+                pipeline.textureDescriptorAllocator.allocate(
+                    device, pipeline.textureSetLayout, NUM_BLOOM_PASSES
+                );
+
+            for (int i = 0; i < NUM_BLOOM_PASSES; i++) {
+                ASSERT(textureDescriptorsVec[i] != 0, "Allocated texture descriptors are invalid");
+                textureDescriptors[i] = textureDescriptorsVec[i];
+            }
+        }
+
+		attachments.push_back(BloomSwapchainData::Attachment{
+			.image = image,
+			.memory = memory,
+			.mipViews = mipViews,
+			.textureDescriptors = textureDescriptors
+		});
 	}
 
-	return BloomData{.colorAttachments = colorAttachments};
+	return BloomSwapchainData{.attachments = attachments};
 }
 
-void destroy(const BloomData& bloomData, vk::Device device) {
-	for (const BloomData::Attachment& attachment : bloomData.colorAttachments) {
+void destroy(const BloomSwapchainData& bloomData, vk::Device device) {
+	for (const BloomSwapchainData::Attachment& attachment :
+		 bloomData.attachments) {
 		for (const vk::ImageView& view : attachment.mipViews)
 			device.destroyImageView(view);
 		device.destroyImage(attachment.image);
@@ -179,23 +204,21 @@ vk::RenderPass createBloomRenderpass(
 BloomPipeline createBloomPipeline(
 	ShaderStorage& shaders,
 	vk::Device device,
-	const RenderPassData& renderPasses,
-	vk::Extent2D swapchainExtent
+	vk::PhysicalDevice physicalDevice,
+	const RenderPassData& renderPasses
 ) {
-	const vk::ResultValue<vk::DescriptorSetLayout> setLayoutCreation =
-		device.createDescriptorSetLayout(
-			{{},
-			 static_cast<uint32_t>(BLOOM_BINDINGS.size()),
-			 BLOOM_BINDINGS.data()}
+	const vk::DescriptorSetLayout textureSetLayout =
+		createDescriptorLayout(device, BLOOM_TEXTURE_BINDINGS);
+	const vk::DescriptorSetLayout swapchainSetLayout =
+		createDescriptorLayout(device, BLOOM_SWAPCHAIN_BINDINGS);
+
+	const vk::DescriptorPool swapchainDescriptorPool =
+		createDescriptorPool(device, 1, BLOOM_SWAPCHAIN_DESCRIPTOR_POOL_SIZES);
+
+	const DescriptorAllocator textureDescriptorAllocator =
+		DescriptorAllocator::create(
+			device, BLOOM_TEXTURE_DESCRIPTOR_POOL_SIZES, NUM_BLOOM_PASSES
 		);
-	VULKAN_ENSURE_SUCCESS(
-		setLayoutCreation.result,
-		"Can't create postProcessing descriptor set layout"
-	);
-	const vk::DescriptorSetLayout setLayout = setLayoutCreation.value;
-	const DescriptorAllocator setAllocator = DescriptorAllocator::create(
-		device, BLOOM_DESCRIPTOR_POOL_SIZES, MAX_FRAMES_IN_FLIGHT
-	);
 
 	const ShaderID vertexShaderID =
 		loadShaderFromFile(shaders, device, "shaders/entire_screen.vert.glsl");
@@ -288,7 +311,9 @@ BloomPipeline createBloomPipeline(
 		{}			// max depth bound
 	);
 
-	const std::array<vk::DescriptorSetLayout, 1> setLayouts = {setLayout};
+	const std::array<vk::DescriptorSetLayout, 2> setLayouts = {
+		textureSetLayout, swapchainSetLayout
+	};
 	const vk::PipelineLayoutCreateInfo pipelineLayoutInfo(
 		{}, setLayouts.size(), setLayouts.data(), 0, nullptr
 	);
@@ -299,51 +324,69 @@ BloomPipeline createBloomPipeline(
 	);
 	const vk::PipelineLayout pipelineLayout = pipelineLayoutCreation.value;
 
-	const uint32_t NUM_SUBPASSES = 2 * NUM_BLOOM_LAYERS;
-	std::array<vk::Pipeline, NUM_SUBPASSES> pipelines;
-	for (uint32_t subpass = 0; subpass < NUM_SUBPASSES; subpass++) {
+	const UniformBuffer<BloomUniformBuffer> ubo =
+		UniformBuffer<BloomUniformBuffer>::create(device, physicalDevice, 1);
+	const vk::DescriptorSet swapchainDescriptor = [&]() {
+		const vk::DescriptorSetAllocateInfo allocateInfo(
+			swapchainDescriptorPool, 1, &swapchainSetLayout
+		);
+		const vk::ResultValue<std::vector<vk::DescriptorSet>>
+			descriptorSetCreation = device.allocateDescriptorSets(allocateInfo);
+		VULKAN_ENSURE_SUCCESS(
+			descriptorSetCreation.result,
+			"Unexpected error when creating descriptor sets"
+		);
+		ASSERT(
+			descriptorSetCreation.value.size() == 1,
+			"Requested " << 1 << " bloom swapchain descriptor sets, got "
+						 << descriptorSetCreation.value.size()
+		);
+		return descriptorSetCreation.value[0];
+	}();
+
+	{  // Bind ubo to swapchain descriptor
+		DescriptorWriteBuffer tempWriteBuffer;
+		ubo.bind(tempWriteBuffer, swapchainDescriptor, 0);
+		tempWriteBuffer.batchWrite(device);
+	}
+
+	std::array<vk::Pipeline, NUM_BLOOM_PASSES> pipelines;
+	for (uint32_t subpass = 0; subpass < NUM_BLOOM_PASSES; subpass++) {
 		const bool isUpsamplePass = subpass >= NUM_BLOOM_LAYERS;
 
 		const uint32_t divisions =
-			isUpsamplePass ? NUM_SUBPASSES - subpass : subpass;
-		const uint32_t width =
-			std::max(1u, swapchainExtent.width / (1u << divisions));
-		const uint32_t height =
-			std::max(1u, swapchainExtent.height / (1u << divisions));
-        const glm::vec2 texelSize = glm::vec2(1.0f / width, 1.0f / height);
-
+			isUpsamplePass ? NUM_BLOOM_PASSES - subpass : subpass;
 		const std::string kernelName =
 			isUpsamplePass ? "upsample" : "downsample";
 
+		const BloomSpecializationConstants constants = {
+			.texelScale = static_cast<float>(1u << divisions),
+			.sampleDistance = 0.5f
+		};
 
-        const BloomSpecializationConstants constants = {
-            .texelSize = texelSize,
-            .sampleDistance = 0.5f
-        };
-
-        const vk::SpecializationInfo specializationInfo{
-            BLOOM_SPECIALIZATION_INFO.size(),
-            BLOOM_SPECIALIZATION_INFO.data(),
-            sizeof(constants),
-            &constants
-        };
+		const vk::SpecializationInfo specializationInfo{
+			BLOOM_SPECIALIZATION_INFO.size(),
+			BLOOM_SPECIALIZATION_INFO.data(),
+			sizeof(constants),
+			&constants
+		};
 
 		const vk::PipelineShaderStageCreateInfo fragmentShaderInfo(
 			{},
 			vk::ShaderStageFlagBits::eFragment,
 			getModule(shaders, fragmentShaderID),
-			"upsample",
-            &specializationInfo
+			kernelName.c_str(),
+			&specializationInfo
 		);
 
-        const std::array<vk::PipelineShaderStageCreateInfo, 2> shaderStages = {
-            vertexShaderInfo, fragmentShaderInfo
-        };
+		const std::array<vk::PipelineShaderStageCreateInfo, 2> shaderStages = {
+			vertexShaderInfo, fragmentShaderInfo
+		};
 
 		const vk::GraphicsPipelineCreateInfo pipelineCreateInfo(
 			{},
-            shaderStages.size(),
-            shaderStages.data(),
+			shaderStages.size(),
+			shaderStages.data(),
 			&vertexInputStateInfo,
 			&inputAssemblyStateInfo,
 			nullptr,  // no tesselation viewport
@@ -370,17 +413,32 @@ BloomPipeline createBloomPipeline(
 	return BloomPipeline{
 		.pipelines = pipelines,
 		.layout = pipelineLayout,
-		.descriptorLayout = setLayout,
-		.allocator = setAllocator
+		.textureSetLayout = textureSetLayout,
+		.swapchainSetLayout = swapchainSetLayout,
+		.swapchainDescriptorPool = swapchainDescriptorPool,
+		.textureDescriptorAllocator = textureDescriptorAllocator,
+		.ubo = ubo
 	};
+}
+
+void updateBloomUniform(
+	BloomPipeline& bloomPipeline, vk::Extent2D swapchainExtent
+) {
+	bloomPipeline.ubo.update(BloomUniformBuffer{
+		.swapchainExtent =
+			glm::vec2(swapchainExtent.height, swapchainExtent.width)
+	});
 }
 
 void destroy(const BloomPipeline& bloomPipeline, vk::Device device) {
 	for (const vk::Pipeline& pipeline : bloomPipeline.pipelines)
 		device.destroyPipeline(pipeline);
+	bloomPipeline.textureDescriptorAllocator.destroyBy(device);
+	bloomPipeline.ubo.destroyBy(device);
 	device.destroyPipelineLayout(bloomPipeline.layout);
-	bloomPipeline.allocator.destroyBy(device);
-	device.destroy(bloomPipeline.descriptorLayout);
+	device.destroyDescriptorPool(bloomPipeline.swapchainDescriptorPool);
+	device.destroy(bloomPipeline.textureSetLayout);
+	device.destroy(bloomPipeline.swapchainSetLayout);
 }
 
 }  // namespace graphics

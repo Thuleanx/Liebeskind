@@ -50,6 +50,7 @@ struct MaterialPipeline {
 	static MaterialPipeline create(
         ShaderStorage& shaders,
 		vk::Device device,
+        vk::PhysicalDevice physicalDevice,
 		const RenderPassData& renderPasses
 	);
 };

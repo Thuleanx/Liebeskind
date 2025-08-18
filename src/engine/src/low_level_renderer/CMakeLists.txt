@@ -33,6 +33,8 @@ set(SRC
     private/buffer.cpp
     private/bloom.h
     private/bloom.cpp
+    private/descriptor.h
+    private/descriptor.cpp
 )
 
 add_library(low_level_renderer ${SRC})

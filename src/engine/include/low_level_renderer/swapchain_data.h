@@ -17,7 +17,7 @@ struct SwapchainData {
     std::vector<Texture> depthAttachments;
     std::vector<vk::Framebuffer> mainFramebuffers;
     std::vector<vk::Framebuffer> postProcessingFramebuffers;
-    BloomData bloom;
+    BloomSwapchainData bloom;
 
    public:
     float getAspectRatio() const;

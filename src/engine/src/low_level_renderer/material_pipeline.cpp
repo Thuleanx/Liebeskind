@@ -11,6 +11,7 @@ namespace graphics {
 MaterialPipeline MaterialPipeline::create(
 	ShaderStorage& shaders,
 	vk::Device device,
+	vk::PhysicalDevice physicalDevice,
 	const RenderPassData& renderPasses
 ) {
 	PipelineDescriptorData globalDescriptorData;
@@ -137,6 +138,10 @@ MaterialPipeline MaterialPipeline::create(
 	const auto [postProcessingPipeline] = createPostProcessingPipelines(
 		shaders, device, renderPasses, postProcessingDescriptorData
 	);
+
+	const BloomPipeline bloomPipeline =
+		createBloomPipeline(shaders, device, physicalDevice, renderPasses);
+
 	return {
 		.pipelineTemplate = pipelineTemplate,
 		.regularPipelineVariants = {},
@@ -148,6 +153,7 @@ MaterialPipeline MaterialPipeline::create(
 		.instanceRenderingDescriptor = instanceRenderingDescriptorData,
 		.materialDescriptor = materialDescriptorData,
 		.postProcessingDescriptor = postProcessingDescriptorData,
+		.bloomPipeline = bloomPipeline,
 	};
 }
 

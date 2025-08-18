@@ -28,13 +28,14 @@ void DescriptorWriteBuffer::writeImage(
     const vk::Sampler& sampler,
     vk::ImageLayout layout
 ) {
+    LLOG_INFO << "Writing Image";
     ASSERT(numberOfImagesInfo < MAX_DESCRIPTOR_WRITES, "Flush write buffer! It's exceeding its capacity");
 
     const vk::WriteDescriptorSet write(
         descriptorSet, binding, 0, 1, type, &images[numberOfImagesInfo]
     );
     images[numberOfImagesInfo++] = vk::DescriptorImageInfo(sampler, imageView, layout);
-    writes.push_back(std::move(write));
+    writes.push_back(write);
 }
 
 void DescriptorWriteBuffer::batchWrite(const vk::Device& device) {

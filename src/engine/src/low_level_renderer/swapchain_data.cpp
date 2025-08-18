@@ -12,7 +12,7 @@ float SwapchainData::getAspectRatio() const {
 	return extent.width / (float)extent.height;
 }
 
-SwapchainData GraphicsDeviceInterface::createSwapchain() const {
+SwapchainData GraphicsDeviceInterface::createSwapchain() {
 	QueueFamilyIndices queueFamily =
 		QueueFamilyIndices::findQueueFamilies(physicalDevice, surface);
 
@@ -67,15 +67,17 @@ SwapchainData GraphicsDeviceInterface::createSwapchain() const {
 	);
 	const std::vector<vk::Image> colorAttachments = colorAttachmentsGet.value;
 	std::vector<vk::ImageView> colorAttachmentViews(colorAttachments.size());
+
+	const vk::Format colorFormat = renderPasses.swapchainColorFormat.format;
 	for (size_t i = 0; i < colorAttachments.size(); i++) {
-        constexpr uint32_t mipLevelBase = 0;
+		constexpr uint32_t mipLevelBase = 0;
 		constexpr uint32_t colorAttachmentMipLevels = 1;
 		colorAttachmentViews[i] = Image::createImageView(
 			device,
 			colorAttachments[i],
-			renderPasses.swapchainColorFormat.format,
+			colorFormat,
 			vk::ImageAspectFlagBits::eColor,
-            mipLevelBase,
+			mipLevelBase,
 			colorAttachmentMipLevels
 		);
 	}
@@ -91,8 +93,15 @@ SwapchainData GraphicsDeviceInterface::createSwapchain() const {
 	std::vector<Texture> intermediateColorAttachments;
 	intermediateColorAttachments.reserve(swapchainSize);
 
-	const BloomData bloom =
-		createBloomData(*this, BLOOM_SETTINGS, extent, swapchainSize);
+	const BloomSwapchainData bloom = createBloomData(
+		device,
+		physicalDevice,
+		BLOOM_SETTINGS,
+        pipeline.bloomPipeline,
+		colorFormat,
+		extent,
+		swapchainSize
+	);
 
 	DescriptorWriteBuffer writeBuffer;
 	for (size_t i = 0; i < swapchainSize; i++) {
@@ -162,8 +171,51 @@ SwapchainData GraphicsDeviceInterface::createSwapchain() const {
 			writeBuffer,
 			vk::ImageLayout::eShaderReadOnlyOptimal
 		);
+
+        Image::transitionImageLayout(
+            device,
+            commandPool,
+            graphicsQueue,
+            bloom.attachments[i].image,
+            colorFormat,
+            vk::ImageLayout::eUndefined,
+            vk::ImageLayout::eShaderReadOnlyOptimal,
+            NUM_BLOOM_LAYERS
+        );
+
+        // binds bloom textures to descriptors
+        ASSERT(BLOOM_TEXTURE_BINDINGS.size() >= 1, "Bloom texture bindings have"
+                "only ");
+        ASSERT(bloom.attachments.size() > i, "Bloom attachments only have " << bloom.attachments.size() << " entries");
+        bindTextureToDescriptor(
+            intermediateColorAttachments[i].imageView,
+            bloom.attachments[i].textureDescriptors[0],
+            BLOOM_TEXTURE_BINDINGS[0].binding,
+            samplers.linear,
+            writeBuffer,
+            vk::ImageLayout::eShaderReadOnlyOptimal
+        );
+        for (int subpass = 1; subpass < NUM_BLOOM_LAYERS; subpass++) {
+            bindTextureToDescriptor(
+                bloom.attachments[i].mipViews[subpass-1],
+                bloom.attachments[i].textureDescriptors[subpass],
+                BLOOM_TEXTURE_BINDINGS[0].binding,
+                samplers.linear,
+                writeBuffer,
+                vk::ImageLayout::eShaderReadOnlyOptimal
+            );
+        }
+        for (int subpass = NUM_BLOOM_LAYERS; subpass < NUM_BLOOM_PASSES; subpass++) {
+            bindTextureToDescriptor(
+                bloom.attachments[i].mipViews[NUM_BLOOM_PASSES - 1 - subpass],
+                bloom.attachments[i].textureDescriptors[subpass],
+                BLOOM_TEXTURE_BINDINGS[0].binding,
+                samplers.linear,
+                writeBuffer,
+                vk::ImageLayout::eShaderReadOnlyOptimal
+            );
+        }
 	}
-	writeBuffer.batchWrite(device);
 
 	std::vector<vk::Framebuffer> mainFramebuffers(swapchainSize);
 	std::vector<vk::Framebuffer> postProcessingFramebuffers(swapchainSize);
@@ -228,6 +280,8 @@ SwapchainData GraphicsDeviceInterface::createSwapchain() const {
 		}
 	}
 
+	writeBuffer.batchWrite(device);
+
 	return SwapchainData{
 		.swapchain = swapchain,
 		.extent = extent,
@@ -238,7 +292,7 @@ SwapchainData GraphicsDeviceInterface::createSwapchain() const {
 		.depthAttachments = depthAttachments,
 		.mainFramebuffers = mainFramebuffers,
 		.postProcessingFramebuffers = postProcessingFramebuffers,
-        .bloom = bloom,
+		.bloom = bloom,
 	};
 }
 
@@ -256,8 +310,11 @@ void GraphicsDeviceInterface::destroy(SwapchainData& swapchainData) {
 	graphics::destroy(swapchainData.intermediateColorAttachments, device);
 	graphics::destroy(swapchainData.depthAttachments, device);
 	graphics::destroy(swapchainData.multisampleColorAttachments, device);
-    graphics::destroy(swapchainData.bloom, device);
+	graphics::destroy(swapchainData.bloom, device);
 
 	device.destroySwapchainKHR(swapchainData.swapchain);
+
+    // We allocate some descriptors for 
+    pipeline.bloomPipeline.textureDescriptorAllocator.clearPools(device);
 }
 }  // namespace graphics

@@ -25,9 +25,10 @@ void main() {
     vec2 texCoord = gl_FragCoord.xy;
     vec2 texelSize = texelScale / config.swapchainExtent;
 
-    const float COLOR_TO_LOWER_MIP_RATIO = 2;
-    vec3 source = texture(colorBuffer, texCoord * texelSize / COLOR_TO_LOWER_MIP_RATIO).xyz;
-    vec3 bloom = kawase_sample(texCoord * texelSize, sampleDistance * texelSize).xyz; 
+    vec2 uv = (texCoord + 0.5) * texelSize;
+
+    vec3 source = texelFetch(colorBuffer, ivec2(texCoord), 0).xyz;
+    vec3 bloom = kawase_sample(uv, sampleDistance * texelSize).xyz; 
 
     outColor = vec4(mix(source, bloom, 0.5f), 1);
 }

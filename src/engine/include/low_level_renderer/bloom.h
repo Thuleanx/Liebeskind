@@ -9,7 +9,7 @@
 
 namespace graphics {
 
-constexpr size_t NUM_BLOOM_LAYERS = 1;
+constexpr size_t NUM_BLOOM_LAYERS = 3;
 constexpr size_t NUM_BLOOM_MIPS = NUM_BLOOM_LAYERS + 1;
 // NUM_BLOOM_LAYERS downsample passes and NUM_BLOOM_LAYERS upsample passes
 constexpr size_t NUM_BLOOM_PASSES = NUM_BLOOM_LAYERS * 2;

@@ -34,7 +34,7 @@ void recordBloomRenderpass(
 
 	for (size_t pass = 0; pass < NUM_BLOOM_PASSES; pass++) {
 		const bool isCombinePass = pass == NUM_BLOOM_PASSES - 1;
-		const size_t mip = getBloomLayerMip(pass);
+		const size_t mip = getBloomRenderMip(pass);
 
 		const vk::Viewport viewport(
 			module.mainWindowExtent.offset.x,
@@ -324,8 +324,7 @@ BloomGraphicsObjects createBloomObjects(
 		const bool isUpsamplePass = subpass >= NUM_BLOOM_LAYERS;
 		const bool isLastSubpass = subpass == NUM_BLOOM_PASSES - 1;
 
-		const uint32_t divisions =
-			subpass > 0 ? getBloomLayerMip(subpass - 1) : 0;
+		const uint32_t divisions = getBloomRenderMip(subpass);
 		const std::string kernelName = "main";
 		const BloomSpecializationConstants constants = {
 			.texelScale = static_cast<float>(1u << divisions),
@@ -501,7 +500,7 @@ std::vector<BloomGraphicsObjects::SwapchainObject> createBloomSwapchainObjects(
 		}
 		std::array<vk::Framebuffer, NUM_BLOOM_PASSES> framebuffers;
 		for (size_t pass = 0; pass < NUM_BLOOM_PASSES; pass++) {
-			const size_t mip = getBloomLayerMip(pass);
+			const size_t mip = getBloomRenderMip(pass);
 			ASSERT(
 				mip >= 0 && mip < NUM_BLOOM_MIPS,
 				"Mip " << mip << " is not in range [0, " << NUM_BLOOM_MIPS
@@ -571,7 +570,7 @@ std::vector<BloomGraphicsObjects::SwapchainObject> createBloomSwapchainObjects(
 			writeBuffer.writeImage(
 				descriptors.texture[pass],
 				textureBinding,
-				colorViews[getBloomLayerMip(pass - 1)],
+				colorViews[getBloomSampleMip(pass)],
 				vk::DescriptorType::eCombinedImageSampler,
 				createInfo.linearSampler,
 				vk::ImageLayout::eShaderReadOnlyOptimal
@@ -607,7 +606,7 @@ std::vector<BloomGraphicsObjects::SwapchainObject> createBloomSwapchainObjects(
 
 	createInfo.bloomGraphicsObjects.buffers.swapchain.update(BloomUniformBuffer{
 		.swapchainExtent = glm::vec2(
-			createInfo.swapchainExtent.height, createInfo.swapchainExtent.width
+			createInfo.swapchainExtent.width, createInfo.swapchainExtent.height
 		)
 	});
 

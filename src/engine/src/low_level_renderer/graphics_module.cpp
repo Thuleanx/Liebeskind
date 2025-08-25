@@ -214,7 +214,6 @@ void Module::recordCommandBuffer(
 	VULKAN_ENSURE_SUCCESS_EXPR(
 		buffer.begin(beginInfo), "Can't begin recording command buffer:"
 	);
-    LLOG_INFO << "Begin command buffer record";
 
 	const vk::Rect2D screenExtent = {
 		vk::Offset2D{},

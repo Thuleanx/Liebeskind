@@ -22,5 +22,7 @@ vec4 kawase_sample(vec2 texCoord, vec2 texDisplacement) {
 void main() {
     vec2 texCoord = gl_FragCoord.xy;
     vec2 texelSize = texelScale / config.swapchainExtent;
-    outColor = kawase_sample(texCoord * texelSize, sampleDistance * texelSize);
+    vec2 uv = (texCoord + 0.5) * texelSize;
+
+    outColor = kawase_sample(uv, sampleDistance * texelSize);
 }

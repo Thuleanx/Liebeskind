@@ -31,7 +31,7 @@ void game::run() {
 	const save_load::JsonSerializer serializer = {};
 	const save_load::WorldLoader worldLoader = {};
 	const save_load::SerializedWorld serializedWorld =
-		serializer.loadWorld("scenes/sponza.json");
+		serializer.loadWorld("scenes/test_scene.json");
 
 	ASSERT(worldLoader.isValid(serializedWorld), "Loaded world is not valid");
 	game_world::World world = {};

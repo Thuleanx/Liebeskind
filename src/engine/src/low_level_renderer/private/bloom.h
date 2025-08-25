@@ -13,9 +13,14 @@ enum class BloomDescriptorSetBindingPoint {
 	eCombine = 0
 };
 
-inline size_t getBloomLayerMip(size_t pass) {
+inline size_t getBloomSampleMip(size_t pass) {
     ASSERT(pass >= 0 && pass < NUM_BLOOM_PASSES, "Invalid pass number: " << pass);
-	return pass + 1 < NUM_BLOOM_LAYERS ? pass + 1 : NUM_BLOOM_PASSES - (pass + 1);
+    return pass >= NUM_BLOOM_MIPS ? NUM_BLOOM_PASSES - pass : pass;
+}
+
+inline size_t getBloomRenderMip(size_t pass) {
+    ASSERT(pass >= 0 && pass < NUM_BLOOM_PASSES, "Invalid pass number: " << pass);
+    return pass + 1 >= NUM_BLOOM_MIPS ? NUM_BLOOM_PASSES - (pass + 1) : pass + 1;
 }
 
 BloomGraphicsObjects createBloomObjects(

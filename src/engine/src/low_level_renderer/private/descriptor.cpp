@@ -1,5 +1,6 @@
 #include "descriptor.h"
 
+#include "core/logger/assert.h"
 #include "core/logger/vulkan_ensures.h"
 
 namespace graphics {
@@ -33,6 +34,34 @@ vk::DescriptorPool createDescriptorPool(
 		descriptorPoolCreation.result, "Can't create desciptor pool:"
 	);
 	return descriptorPoolCreation.value;
+}
+
+std::vector<vk::DescriptorSet> createDescriptorSets(
+	vk::Device device,
+	vk::DescriptorPool pool,
+	vk::DescriptorSetLayout layout,
+	size_t numberOfSets
+) {
+	const std::vector<vk::DescriptorSetLayout> setLayouts(numberOfSets, layout);
+	const vk::DescriptorSetAllocateInfo allocateInfo(
+		pool, numberOfSets, setLayouts.data()
+	);
+
+	const vk::ResultValue<std::vector<vk::DescriptorSet>>
+		descriptorSetCreation = device.allocateDescriptorSets(allocateInfo);
+
+	VULKAN_ENSURE_SUCCESS(
+		descriptorSetCreation.result,
+		"Unexpected error when creating descriptor sets"
+	);
+
+	ASSERT(
+		descriptorSetCreation.value.size() == numberOfSets,
+		"Requested " << numberOfSets << " descriptors sets, received "
+					 << descriptorSetCreation.value.size()
+	);
+
+	return descriptorSetCreation.value;
 }
 
 }  // namespace graphics

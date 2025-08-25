@@ -15,6 +15,7 @@ DescriptorAllocator DescriptorAllocator::create(
 ) {
     std::vector<vk::DescriptorPoolSize> allocatorPoolSizes;
     allocatorPoolSizes.reserve(poolSizes.size());
+    // some comment
     for (const vk::DescriptorPoolSize& poolSize : poolSizes)
         allocatorPoolSizes.emplace_back(
             poolSize.type, poolSize.descriptorCount

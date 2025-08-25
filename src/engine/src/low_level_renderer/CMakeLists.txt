@@ -35,6 +35,8 @@ set(SRC
     private/bloom.cpp
     private/descriptor.h
     private/descriptor.cpp
+    private/pipeline.h
+    private/pipeline.cpp
 )
 
 add_library(low_level_renderer ${SRC})

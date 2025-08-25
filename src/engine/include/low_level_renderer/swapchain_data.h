@@ -2,7 +2,6 @@
 
 #include <vulkan/vulkan.hpp>
 
-#include "low_level_renderer/bloom.h"
 #include "low_level_renderer/texture.h"
 
 namespace graphics {
@@ -17,7 +16,6 @@ struct SwapchainData {
     std::vector<Texture> depthAttachments;
     std::vector<vk::Framebuffer> mainFramebuffers;
     std::vector<vk::Framebuffer> postProcessingFramebuffers;
-    BloomSwapchainData bloom;
 
    public:
     float getAspectRatio() const;

@@ -5,7 +5,6 @@
 #include "low_level_renderer/materials.h"
 #include "low_level_renderer/post_processing.h"
 #include "low_level_renderer/shader_data.h"
-#include "private/bloom.h"
 
 namespace graphics {
 MaterialPipeline MaterialPipeline::create(
@@ -26,6 +25,9 @@ MaterialPipeline MaterialPipeline::create(
 		const std::array<vk::DescriptorSetLayoutBinding, 1> globalBindings = {
 			globalSceneDataBinding
 		};
+        const vk::DescriptorSetLayoutCreateInfo layoutCreateInfo ({},
+					 static_cast<uint32_t>(globalBindings.size()),
+					 globalBindings.data());
 		const vk::ResultValue<vk::DescriptorSetLayout>
 			globalDescriptorSetLayoutCreation =
 				device.createDescriptorSetLayout(
@@ -139,9 +141,6 @@ MaterialPipeline MaterialPipeline::create(
 		shaders, device, renderPasses, postProcessingDescriptorData
 	);
 
-	const BloomPipeline bloomPipeline =
-		createBloomPipeline(shaders, device, physicalDevice, renderPasses);
-
 	return {
 		.pipelineTemplate = pipelineTemplate,
 		.regularPipelineVariants = {},
@@ -153,7 +152,6 @@ MaterialPipeline MaterialPipeline::create(
 		.instanceRenderingDescriptor = instanceRenderingDescriptorData,
 		.materialDescriptor = materialDescriptorData,
 		.postProcessingDescriptor = postProcessingDescriptorData,
-		.bloomPipeline = bloomPipeline,
 	};
 }
 
@@ -448,7 +446,6 @@ void destroy(const MaterialPipeline& pipeline, vk::Device device) {
 	device.destroyPipelineLayout(pipeline.instanceRenderingPipelineLayout);
 	destroy(pipeline.postProcessingDescriptor, device);
 	destroy(pipeline.postProcessingPipeline, device);
-	destroy(pipeline.bloomPipeline, device);
 }
 
 void destroy(const PipelineData& pipelineData, vk::Device device) {

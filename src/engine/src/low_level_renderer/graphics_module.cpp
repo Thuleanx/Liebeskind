@@ -5,6 +5,7 @@
 #include "game_specific/cameras/module.h"
 #include "low_level_renderer/pipeline_template.h"
 #include "low_level_renderer/render_submission.h"
+#include "private/bloom.h"
 #include "private/shader_helper.h"
 
 #pragma GCC diagnostic push
@@ -184,13 +185,13 @@ bool Module::drawFrame(
 
 	switch (this->device.presentQueue.presentKHR(presentInfo)) {
 		case vk::Result::eErrorOutOfDateKHR:
-            LLOG_INFO << "OutOfDateKHR encountered when presenting swapchain";
-            this->device.recreateSwapchain();
-            break;
-		case vk::Result::eSuboptimalKHR:	 
-            LLOG_INFO << "SuboptimalKHR encountered when presenting swapchain";
-            this->device.recreateSwapchain();
-		case vk::Result::eSuccess:			 break;
+			LLOG_INFO << "OutOfDateKHR encountered when presenting swapchain";
+			this->device.recreateSwapchain();
+			break;
+		case vk::Result::eSuboptimalKHR:
+			LLOG_INFO << "SuboptimalKHR encountered when presenting swapchain";
+			this->device.recreateSwapchain();
+		case vk::Result::eSuccess: break;
 		default:
 			LLOG_ERROR << "Error submitting to present queue: "
 					   << vk::to_string(imageIndex.result);
@@ -213,6 +214,7 @@ void Module::recordCommandBuffer(
 	VULKAN_ENSURE_SUCCESS_EXPR(
 		buffer.begin(beginInfo), "Can't begin recording command buffer:"
 	);
+    LLOG_INFO << "Begin command buffer record";
 
 	const vk::Rect2D screenExtent = {
 		vk::Offset2D{},
@@ -296,6 +298,13 @@ void Module::recordCommandBuffer(
 		buffer.endRenderPass();
 	}
 
+	recordBloomRenderpass(
+		*this,
+        renderSubmission,
+        buffer,
+        imageIndex
+	);
+
 	{  // Post processing RenderPass
 		const std::array<vk::ClearValue, 1> clearColors = {
 			vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f)
@@ -362,8 +371,7 @@ void Module::recordCommandBuffer(
 }
 
 TextureID Module::loadTexture(
-	std::string_view filePath,
-    TextureFormatHint formatHint
+	std::string_view filePath, TextureFormatHint formatHint
 ) {
 	return pushTextureFromFile(
 		textures,
@@ -372,7 +380,7 @@ TextureID Module::loadTexture(
 		device.physicalDevice,
 		device.commandPool,
 		device.graphicsQueue,
-        formatHint
+		formatHint
 	);
 }
 

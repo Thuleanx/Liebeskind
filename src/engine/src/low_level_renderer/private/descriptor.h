@@ -13,4 +13,12 @@ vk::DescriptorPool createDescriptorPool(
 	uint32_t maxSets,
 	std::span<const vk::DescriptorPoolSize> poolSizes
 );
+
+std::vector<vk::DescriptorSet> createDescriptorSets(
+	vk::Device device,
+	vk::DescriptorPool pool,
+	vk::DescriptorSetLayout layout,
+	size_t numberOfSets
+);
+
 };	// namespace graphics

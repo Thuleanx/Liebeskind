@@ -44,7 +44,6 @@ struct MaterialPipeline {
 	PipelineDescriptorData instanceRenderingDescriptor;
 	PipelineDescriptorData materialDescriptor;
 	PipelineDescriptorData postProcessingDescriptor;
-    BloomPipeline bloomPipeline;
 
    public:
 	static MaterialPipeline create(

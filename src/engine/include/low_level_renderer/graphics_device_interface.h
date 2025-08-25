@@ -50,6 +50,7 @@ struct GraphicsDeviceInterface {
 	};
 	Shaders mainShaders;
 	std::optional<SwapchainData> swapchain;
+    BloomGraphicsObjects bloom;
 
 	vk::CommandPool commandPool;
 	Samplers samplers;

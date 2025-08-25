@@ -1,7 +1,6 @@
 #include "low_level_renderer/renderpass_data.h"
 
 #include "core/logger/vulkan_ensures.h"
-#include "private/bloom.h"
 
 namespace graphics {
 RenderPassData RenderPassData::create(
@@ -16,8 +15,6 @@ RenderPassData RenderPassData::create(
 	);
 	const vk::RenderPass postProcessingPass =
 		createPostProcessingRenderPass(device, swapchainImageFormat.format);
-    const vk::RenderPass bloomPass =
-        createBloomRenderpass(device, swapchainImageFormat.format);
 
 	return {
 		.colorAttachmentFormat = colorAttachmentFormat,
@@ -25,7 +22,6 @@ RenderPassData RenderPassData::create(
 		.depthAttachmentFormat = swapchainDepthFormat,
 		.multisampleAntialiasingSampleCount = msaaSampleCount,
 		.mainPass = mainPass,
-        .bloomPass = bloomPass,
 		.postProcessingPass = postProcessingPass,
 	};
 }

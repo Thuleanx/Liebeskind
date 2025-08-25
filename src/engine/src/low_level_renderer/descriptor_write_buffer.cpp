@@ -28,7 +28,6 @@ void DescriptorWriteBuffer::writeImage(
     const vk::Sampler& sampler,
     vk::ImageLayout layout
 ) {
-    LLOG_INFO << "Writing Image";
     ASSERT(numberOfImagesInfo < MAX_DESCRIPTOR_WRITES, "Flush write buffer! It's exceeding its capacity");
 
     const vk::WriteDescriptorSet write(

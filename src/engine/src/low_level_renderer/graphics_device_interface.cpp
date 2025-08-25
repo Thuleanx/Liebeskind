@@ -377,6 +377,10 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
 		};
 	}
 
+	const BloomGraphicsObjects bloomObjects = createBloomObjects(
+		device, physicalDevice, shaders, colorAttachmentFormat
+	);
+
 	GraphicsDeviceInterface deviceInterface{
 		.frameDatas = frameDatas,
 		.window = window,
@@ -392,6 +396,7 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
 		.pipeline = pipeline,
 		.mainShaders = mainShaders,
 		.swapchain = {},
+        .bloom = bloomObjects,
 		.commandPool = commandPool,
 		.samplers = allSamplers,
 		.currentFrame = 0,
@@ -399,10 +404,6 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
 	};
 
 	deviceInterface.swapchain = deviceInterface.createSwapchain();
-	updateBloomUniform(
-		deviceInterface.pipeline.bloomPipeline,
-		deviceInterface.swapchain->extent
-	);
 
 	return deviceInterface;
 }
@@ -430,6 +431,7 @@ void GraphicsDeviceInterface::destroy() {
 	graphics::destroy(renderPasses, device);
 	graphics::destroy(pipeline, device);
 	LLOG_INFO << "Destroyed material pipeline";
+    graphics::destroy(bloom, device);
 
 	device.destroy();
 	LLOG_INFO << "Destroyed device";
@@ -463,12 +465,12 @@ void GraphicsDeviceInterface::recreateSwapchain() {
 		"swapchain"
 	);
 	swapchain = createSwapchain();
-	updateBloomUniform(pipeline.bloomPipeline, swapchain->extent);
 	LLOG_INFO << "Swapchain recreated";
 }
 
 void GraphicsDeviceInterface::cleanupSwapchain() {
 	ASSERT(swapchain.has_value(), "Swapchain does not exist to clean up");
+    destroyBloomSwapchainObjects(bloom, device);
 	destroy(swapchain.value());
 	swapchain = std::nullopt;
 }

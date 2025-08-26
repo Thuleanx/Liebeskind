@@ -174,7 +174,7 @@ bool Module::drawFrame(
 		ImGui::RenderPlatformWindowsDefault();
 	}
 
-	vk::PresentInfoKHR presentInfo(
+	const vk::PresentInfoKHR presentInfo(
 		1,
 		&currentFrame.isRenderingFinished,
 		1,
@@ -230,8 +230,8 @@ void Module::recordCommandBuffer(
 		0.0f,
 		1.0f
 	);
-	buffer.setViewport(0, 1, &viewport);
 	const vk::Rect2D scissor = mainWindowExtent;
+	buffer.setViewport(0, 1, &viewport);
 	buffer.setScissor(0, 1, &scissor);
 
 	{  // Main Renderpass
@@ -304,6 +304,11 @@ void Module::recordCommandBuffer(
         imageIndex
 	);
 
+    // Bloom renderpass can mess with viewport and scissor, 
+    // we make sure to reset them here
+	buffer.setViewport(0, 1, &viewport);
+	buffer.setScissor(0, 1, &scissor);
+
 	{  // Post processing RenderPass
 		const std::array<vk::ClearValue, 1> clearColors = {
 			vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f)
@@ -345,16 +350,11 @@ void Module::recordCommandBuffer(
 	buffer.setScissor(0, 1, &screenExtent);
 
 	{  // UI RenderPass
-		const std::array<vk::ClearValue, 1> clearColors = {
-			vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f)
-		};
-
 		const vk::RenderPassBeginInfo renderPassInfo(
 			ui.renderPass,
 			ui.framebuffers[imageIndex],
 			screenExtent,
-			static_cast<uint32_t>(clearColors.size()),
-			clearColors.data()
+            0, nullptr // We don't clear for UI
 		);
 
 		buffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);

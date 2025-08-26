@@ -23,7 +23,7 @@ Samplers Samplers::create(
         vk::CompareOp::eAlways,
         0,
         VK_LOD_CLAMP_NONE,
-        vk::BorderColor::eIntOpaqueBlack,
+        vk::BorderColor::eFloatTransparentBlack,
         vk::False
     );
     const vk::SamplerCreateInfo pointSamplerInfo(
@@ -41,7 +41,7 @@ Samplers Samplers::create(
         vk::CompareOp::eAlways,
         0,
         VK_LOD_CLAMP_NONE,
-        vk::BorderColor::eIntOpaqueBlack,
+        vk::BorderColor::eFloatOpaqueBlack,
         vk::False
     );
     const vk::ResultValue<vk::Sampler> linearSamplerCreation =

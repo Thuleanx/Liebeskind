@@ -12,7 +12,7 @@ const std::vector<const char*> Validation::validationLayers = {
 	const bool Validation::shouldEnableBestPractices = false;
 #else
 	const bool Validation::shouldEnableValidationLayers = true;
-	const bool Validation::shouldEnableBestPractices = false;
+	const bool Validation::shouldEnableBestPractices = true;
 #endif
 
 

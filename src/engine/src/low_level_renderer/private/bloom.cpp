@@ -36,20 +36,24 @@ void recordBloomRenderpass(
 		const bool isCombinePass = pass == NUM_BLOOM_PASSES - 1;
 		const size_t mip = getBloomRenderMip(pass);
 
+		// Technically we only have to bloom the main window,
+		// but just so that the bloom is consistent we shall bloom the entire image
 		const vk::Viewport viewport(
-			module.mainWindowExtent.offset.x,
-			module.mainWindowExtent.offset.y,
-			module.mainWindowExtent.extent.width / (1u << mip),
-			module.mainWindowExtent.extent.height / (1u << mip),
+			0,
+			0,
+			module.device.swapchain->extent.width / (1u << mip),
+			module.device.swapchain->extent.height / (1u << mip),
 			0.0f,
 			1.0f
 		);
 		buffer.setViewport(0, 1, &viewport);
 
 		const vk::Rect2D renderRect(
-			module.mainWindowExtent.offset,
-			{module.mainWindowExtent.extent.width / (1u << mip),
-			 module.mainWindowExtent.extent.height / (1u << mip)}
+			{0, 0},
+			{
+				module.device.swapchain->extent.width / (1u << mip),
+				module.device.swapchain->extent.height / (1u << mip),
+			}
 		);
 		buffer.setScissor(0, 1, &renderRect);
 		const vk::RenderPass renderPass =
@@ -62,9 +66,9 @@ void recordBloomRenderpass(
 			: pass < NUM_BLOOM_LAYERS
 				? module.device.bloom.pipelineLayouts.downsample
 				: module.device.bloom.pipelineLayouts.upsample;
-        const std::array<vk::ClearValue, 1> clearColors = {
-            vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f),
-        };
+		const std::array<vk::ClearValue, 1> clearColors = {
+			vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f),
+		};
 
 		const vk::RenderPassBeginInfo renderPassInfo(
 			renderPass,
@@ -443,11 +447,7 @@ BloomGraphicsObjects createBloomObjects(
 			UniformBuffer<BloomUniformBuffer>::create(device, physicalDevice, 1)
 	};
 
-	buffers.swapchain.bind(
-		writeBuffer,
-		descriptors.swapchain,
-        0
-	);
+	buffers.swapchain.bind(writeBuffer, descriptors.swapchain, 0);
 	writeBuffer.batchWrite(device);
 
 	return BloomGraphicsObjects{
@@ -652,7 +652,7 @@ void destroyBloomSwapchainObjects(
 		device.freeMemory(swapchainObject.colorMemory);
 	}
 
-    graphicsObjects.swapchainObjects = {};
+	graphicsObjects.swapchainObjects = {};
 }
 
 }  // namespace graphics

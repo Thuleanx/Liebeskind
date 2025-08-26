@@ -8,4 +8,5 @@ void main() {
     int index = min(gl_VertexIndex, 6 - gl_VertexIndex);
     vec2 texcoord = vec2(index & 1, index & 2);
     gl_Position = vec4(texcoord * 2 - 1, 0, 1);
+    uv = texcoord;
 }

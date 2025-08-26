@@ -13,9 +13,24 @@
 #include "swapchain.h"
 #include "validation.h"
 
+namespace {
+bool isInstanceExtensionSupported(const char* extension) {
+	const static vk::ResultValue<std::vector<vk::ExtensionProperties>>
+		supportedExtensions = vk::enumerateInstanceExtensionProperties();
+	VULKAN_ENSURE_SUCCESS(
+		supportedExtensions.result,
+		"Can't query for supported instance extensions"
+	);
+	for (const vk::ExtensionProperties property : supportedExtensions.value)
+		if (std::strcmp(property.extensionName.data(), extension) == 0)
+			return true;
+	return false;
+}
+}  // namespace
+
 namespace graphics {
 const std::vector<const char*> deviceExtensions = {
-	VK_KHR_SWAPCHAIN_EXTENSION_NAME
+	VK_KHR_SWAPCHAIN_EXTENSION_NAME,
 };
 
 std::vector<const char*> getInstanceExtensions() {
@@ -31,13 +46,42 @@ std::vector<const char*> getInstanceExtensions() {
 		allExtensions.emplace_back(extensions[i]);
 	}
 
-	LLOG_INFO << "\t" << count << ". "
-			  << VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME;
-	allExtensions.emplace_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+	if (isInstanceExtensionSupported(
+			VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME
+		)) {
+		LLOG_INFO << "\t" << count << ". "
+				  << VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME;
+		allExtensions.emplace_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME
+		);
+	}
 
-	if (Validation::shouldEnableValidationLayers) {
+	if (Validation::shouldEnableValidationLayers &&
+		isInstanceExtensionSupported(VK_EXT_DEBUG_UTILS_EXTENSION_NAME)) {
 		LLOG_INFO << "\t" << count << ". " << VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
 		allExtensions.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+	}
+
+	for (const char* extension : allExtensions) {
+		const bool isExtensionSupported =
+			isInstanceExtensionSupported(extension);
+		if (!isExtensionSupported) {
+			LLOG_INFO << "Supported extensions: ";
+			const static vk::ResultValue<std::vector<vk::ExtensionProperties>>
+				supportedExtensions =
+					vk::enumerateInstanceExtensionProperties();
+			VULKAN_ENSURE_SUCCESS(
+				supportedExtensions.result,
+				"Can't query for supported instance extensions"
+			);
+			for (const vk::ExtensionProperties property :
+				 supportedExtensions.value) {
+				LLOG_INFO << "\t" << property.extensionName.data();
+			}
+		}
+		ASSERT(
+			isExtensionSupported,
+			"Extension " << extension << " is not supported."
+		);
 	}
 
 	return allExtensions;
@@ -56,7 +100,8 @@ std::optional<vk::PhysicalDevice> getBestPhysicalDevice(
 	return {};
 }
 
-vk::Format getBestFloatingPointColorAttachmentFormat(vk::PhysicalDevice physicalDevice
+vk::Format getBestFloatingPointColorAttachmentFormat(
+	vk::PhysicalDevice physicalDevice
 ) {
 	constexpr std::array<vk::Format, 3> desiredAttachmentFormats = {
 		vk::Format::eR64G64B64A64Sfloat,

@@ -1,13 +1,27 @@
 #pragma once
 
-#include <vulkan/vulkan.hpp>
 #include <vector>
+#include <vulkan/vulkan.hpp>
 
 namespace Validation {
-    extern const std::vector<const char*> validationLayers;
-    extern const bool shouldEnableValidationLayers;
+constexpr std::array<vk::ValidationFeatureEnableEXT, 2>
+	ENABLED_VALIDATION_FEATURES = {
+		vk::ValidationFeatureEnableEXT::eBestPractices,
+		vk::ValidationFeatureEnableEXT::eGpuAssisted
+};
 
-    bool areValidationLayersSupported();
+extern const std::vector<const char*> validationLayers;
+extern const bool shouldEnableValidationLayers;
+extern const bool shouldEnableBestPractices;
 
-    vk::DebugUtilsMessengerEXT createDebugMessenger(const vk::Instance& instance);
-}
+bool areValidationLayersSupported();
+
+vk::DebugUtilsMessengerEXT createDebugMessenger(const vk::Instance& instance);
+
+constexpr vk::ValidationFeaturesEXT VALIDATION_FEATURES(
+	ENABLED_VALIDATION_FEATURES.size(),
+	ENABLED_VALIDATION_FEATURES.data(),
+	0,
+	nullptr
+);
+}  // namespace Validation

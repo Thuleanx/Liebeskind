@@ -28,13 +28,14 @@ std::tuple<vk::Instance, vk::DebugUtilsMessengerEXT> init_createInstance() {
 		VK_MAKE_VERSION(1, 0, 0),
 		VK_API_VERSION_1_3
 	);
-	std::vector<const char*> instanceExtensions = getInstanceExtensions();
+	const std::vector<const char*> instanceExtensions = getInstanceExtensions();
 	ASSERT(instanceExtensions.size(), "No supported extensions found");
 	ASSERT(
 		!Validation::shouldEnableValidationLayers ||
 			Validation::areValidationLayersSupported(),
 		"Validation layers enabled but not supported"
 	);
+
 	const vk::InstanceCreateInfo instanceInfo(
 		vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR,
 		&appInfo,
@@ -45,7 +46,10 @@ std::tuple<vk::Instance, vk::DebugUtilsMessengerEXT> init_createInstance() {
 			? Validation::validationLayers.data()
 			: nullptr,
 		instanceExtensions.size(),
-		instanceExtensions.data()
+		instanceExtensions.data(),
+		Validation::shouldEnableValidationLayers && Validation::shouldEnableBestPractices
+			? &Validation::VALIDATION_FEATURES
+			: nullptr
 	);
 	const vk::ResultValue<vk::Instance> instanceCreationResult =
 		vk::createInstance(instanceInfo, nullptr);
@@ -101,8 +105,20 @@ vk::Device init_createLogicalDevice(
 	}
 
 	vk::PhysicalDeviceFeatures deviceFeatures;
+	deviceFeatures.fragmentStoresAndAtomics = vk::True;
+	deviceFeatures.vertexPipelineStoresAndAtomics = vk::True;
+	deviceFeatures.shaderInt64 = vk::True;
 	deviceFeatures.samplerAnisotropy = vk::True;
 	deviceFeatures.sampleRateShading = vk::True;
+
+	// we are using semaphores
+	vk::PhysicalDevice8BitStorageFeaturesKHR storageFeatures(vk::True);
+	vk::PhysicalDeviceBufferDeviceAddressFeatures bufferDeviceAddress(
+		vk::True, vk::False, vk::False, std::addressof(storageFeatures)
+	);
+	vk::PhysicalDeviceTimelineSemaphoreFeatures semaphoreFeatures(
+		vk::True, std::addressof(bufferDeviceAddress)
+	);
 
 	const vk::DeviceCreateInfo deviceCreateInfo(
 		{},
@@ -116,7 +132,8 @@ vk::Device init_createLogicalDevice(
 			: nullptr,
 		static_cast<uint32_t>(deviceExtensions.size()),
 		deviceExtensions.data(),
-		&deviceFeatures
+		&deviceFeatures,
+		&semaphoreFeatures
 	);
 	vk::Device device;
 	vk::Result result =
@@ -396,7 +413,7 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
 		.pipeline = pipeline,
 		.mainShaders = mainShaders,
 		.swapchain = {},
-        .bloom = bloomObjects,
+		.bloom = bloomObjects,
 		.commandPool = commandPool,
 		.samplers = allSamplers,
 		.currentFrame = 0,
@@ -431,7 +448,7 @@ void GraphicsDeviceInterface::destroy() {
 	graphics::destroy(renderPasses, device);
 	graphics::destroy(pipeline, device);
 	LLOG_INFO << "Destroyed material pipeline";
-    graphics::destroy(bloom, device);
+	graphics::destroy(bloom, device);
 
 	device.destroy();
 	LLOG_INFO << "Destroyed device";
@@ -470,7 +487,7 @@ void GraphicsDeviceInterface::recreateSwapchain() {
 
 void GraphicsDeviceInterface::cleanupSwapchain() {
 	ASSERT(swapchain.has_value(), "Swapchain does not exist to clean up");
-    destroyBloomSwapchainObjects(bloom, device);
+	destroyBloomSwapchainObjects(bloom, device);
 	destroy(swapchain.value());
 	swapchain = std::nullopt;
 }

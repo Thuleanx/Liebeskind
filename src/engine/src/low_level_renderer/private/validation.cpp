@@ -4,13 +4,15 @@
 #include "core/logger/vulkan_ensures.h"
 
 const std::vector<const char*> Validation::validationLayers = {
-	"VK_LAYER_KHRONOS_validation"
+	"VK_LAYER_KHRONOS_validation",
 };
 
 #ifdef NDEBUG
 	const bool Validation::shouldEnableValidationLayers = false;
+	const bool Validation::shouldEnableBestPractices = false;
 #else
 	const bool Validation::shouldEnableValidationLayers = true;
+	const bool Validation::shouldEnableBestPractices = false;
 #endif
 
 

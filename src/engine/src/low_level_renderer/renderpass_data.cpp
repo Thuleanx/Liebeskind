@@ -38,7 +38,7 @@ vk::RenderPass createMainRenderPass(
 								  colorAttachmentImageFormat,
 								  msaaSampleCount,
 								  vk::AttachmentLoadOp::eClear,
-								  vk::AttachmentStoreOp::eStore,
+								  vk::AttachmentStoreOp::eDontCare,
 								  vk::AttachmentLoadOp::eClear,
 								  vk::AttachmentStoreOp::eDontCare,
 								  vk::ImageLayout::eUndefined,

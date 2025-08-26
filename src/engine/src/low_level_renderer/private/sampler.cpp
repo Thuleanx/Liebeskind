@@ -13,9 +13,9 @@ Samplers Samplers::create(
         vk::Filter::eLinear,
         vk::Filter::eLinear,
         vk::SamplerMipmapMode::eLinear,
-        vk::SamplerAddressMode::eRepeat,
-        vk::SamplerAddressMode::eRepeat,
-        vk::SamplerAddressMode::eRepeat,
+        vk::SamplerAddressMode::eClampToBorder,
+        vk::SamplerAddressMode::eClampToBorder,
+        vk::SamplerAddressMode::eClampToBorder,
         0,         // mip lod bias
         vk::True,  // enable anisotropy
         properties.limits.maxSamplerAnisotropy,
@@ -31,9 +31,9 @@ Samplers Samplers::create(
         vk::Filter::eNearest,
         vk::Filter::eNearest,
         vk::SamplerMipmapMode::eNearest,
-        vk::SamplerAddressMode::eRepeat,
-        vk::SamplerAddressMode::eRepeat,
-        vk::SamplerAddressMode::eRepeat,
+        vk::SamplerAddressMode::eClampToBorder,
+        vk::SamplerAddressMode::eClampToBorder,
+        vk::SamplerAddressMode::eClampToBorder,
         0,         // mip lod bias
         vk::True,  // enable anisotropy
         properties.limits.maxSamplerAnisotropy,

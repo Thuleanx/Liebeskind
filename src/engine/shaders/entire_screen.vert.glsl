@@ -1,5 +1,7 @@
 #version 450
 
+layout(location = 0) out vec2 uv;
+
 void main() {
     // this is so index will be [0,1,2,3,2,1] which correspond to 
     // two triangles covering the entire screen

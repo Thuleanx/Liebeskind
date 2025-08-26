@@ -1,5 +1,6 @@
 #version 450
 
+layout(location = 0) in vec2 uv;
 layout(location = 0) out vec4 outColor;
 
 layout(set = 0, binding = 0) uniform sampler2D lowerMip;
@@ -24,8 +25,6 @@ vec4 kawase_sample(vec2 texCoord, vec2 texDisplacement) {
 void main() {
     vec2 texCoord = gl_FragCoord.xy;
     vec2 texelSize = texelScale / config.swapchainExtent;
-
-    vec2 uv = (texCoord + 0.5) * texelSize;
 
     vec3 source = texelFetch(colorBuffer, ivec2(texCoord), 0).xyz;
     vec3 bloom = kawase_sample(uv, sampleDistance * texelSize).xyz; 

@@ -62,10 +62,10 @@ void recordBloomRenderpass(
 			: pass < NUM_BLOOM_LAYERS
 				? module.device.bloom.pipelineLayouts.downsample
 				: module.device.bloom.pipelineLayouts.upsample;
+        const std::array<vk::ClearValue, 1> clearColors = {
+            vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f),
+        };
 
-		constexpr std::array<vk::ClearValue, 3> clearColors{
-			vk::ClearColorValue(0.0f, 0.0f, 0.0f, 0.0f)
-		};
 		const vk::RenderPassBeginInfo renderPassInfo(
 			renderPass,
 			bloomSwapchainObject.framebuffers[pass],
@@ -328,7 +328,7 @@ BloomGraphicsObjects createBloomObjects(
 		const std::string kernelName = "main";
 		const BloomSpecializationConstants constants = {
 			.texelScale = static_cast<float>(1u << divisions),
-			.sampleDistance = 0.5f
+			.sampleDistance = isUpsamplePass ? 1.0f : 0.5f
 		};
 
 		constexpr std::array<vk::SpecializationMapEntry, 2>

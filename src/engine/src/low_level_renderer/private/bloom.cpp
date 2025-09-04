@@ -9,6 +9,10 @@
 #include "pipeline.h"
 
 namespace {
+struct CombineSpecializationConstants {
+	int numLayers;
+};
+
 struct UpsampleSpecializationConstants {
 	float currentMipScale;
 };
@@ -43,19 +47,6 @@ void recordBloomRenderpass(
 	const std::array<vk::ImageSubresourceRange, 1> subresources = {
 		vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, NUM_BLOOM_MIPS, 0, 1)
 	};
-
-	// buffer.clearColorImage(
-	// 	bloomSwapchainObject.colorBuffer[0],
-	// 	vk::ImageLayout::eUndefined,
-	// 	vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f),
-	// 	subresources
-	// );
-	// buffer.clearColorImage(
-	// 	bloomSwapchainObject.colorBuffer[1],
-	// 	vk::ImageLayout::eUndefined,
-	// 	vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f),
-	// 	subresources
-	// );
 
 	for (size_t pass = 0; pass < NUM_BLOOM_PASSES; pass++) {
 		const bool isCombinePass = pass == NUM_BLOOM_PASSES - 1;
@@ -98,6 +89,15 @@ void recordBloomRenderpass(
 		);
 		buffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
 		buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, module.device.bloom.pipelines[pass]);
+		buffer.bindDescriptorSets(
+			vk::PipelineBindPoint::eGraphics,
+			pipelineLayout,
+			static_cast<int>(BloomDescriptorSetBindingPoint::eShared),
+			1,
+			&module.device.bloom.descriptors.shared,
+			0,
+			nullptr
+		);
 
 		if (isCombinePass) {
 			buffer.bindDescriptorSets(
@@ -110,15 +110,6 @@ void recordBloomRenderpass(
 				nullptr
 			);
 		} else {
-			buffer.bindDescriptorSets(
-				vk::PipelineBindPoint::eGraphics,
-				pipelineLayout,
-				static_cast<int>(BloomDescriptorSetBindingPoint::eShared),
-				1,
-				&module.device.bloom.descriptors.shared,
-				0,
-				nullptr
-			);
 			const bool isDownsamplePass = pass < NUM_BLOOM_LAYERS;
 			if (isDownsamplePass) {
 				buffer.bindDescriptorSets(
@@ -275,7 +266,9 @@ BloomGraphicsObjects createBloomObjects(
 	const std::array<vk::DescriptorSetLayout, 2> upsamplePipelineLayoutSets = {
 		uniformLayouts.upsample, uniformLayouts.shared
 	};
-	const std::array<vk::DescriptorSetLayout, 1> combinePipelineLayoutSets = {uniformLayouts.combine};
+	const std::array<vk::DescriptorSetLayout, 2> combinePipelineLayoutSets = {
+		uniformLayouts.combine, uniformLayouts.shared
+	};
 	const BloomGraphicsObjects::PipelineLayouts pipelineLayouts = {
 		.downsample = createPipelineLayout(device, downsamplePipelineLayoutSets, {}),
 		.upsample = createPipelineLayout(device, upsamplePipelineLayoutSets, {}),
@@ -359,6 +352,9 @@ BloomGraphicsObjects createBloomObjects(
 	constexpr std::array<vk::SpecializationMapEntry, 1> SPECIALIZATION_INFO_UPSAMPLE_ENTRY = {
 		vk::SpecializationMapEntry{0, offsetof(UpsampleSpecializationConstants, currentMipScale), sizeof(float)},
 	};
+	constexpr std::array<vk::SpecializationMapEntry, 1> SPECIALIZATION_INFO_COMBINE_ENTRY = {
+		vk::SpecializationMapEntry{0, offsetof(CombineSpecializationConstants, numLayers), sizeof(int)},
+	};
 
 	std::array<vk::Pipeline, NUM_BLOOM_PASSES> pipelines;
 	std::array<DownsampleSpecializationConstants, NUM_BLOOM_LAYERS> downsampleConstants;
@@ -436,8 +432,21 @@ BloomGraphicsObjects createBloomObjects(
 
 	{
 		const std::string kernelName = "main";
+
+		const CombineSpecializationConstants specializationConstant = {.numLayers = NUM_BLOOM_LAYERS};
+		const vk::SpecializationInfo specializationInfo = {
+			SPECIALIZATION_INFO_COMBINE_ENTRY.size(),
+			SPECIALIZATION_INFO_COMBINE_ENTRY.data(),
+			sizeof(specializationConstant),
+			&specializationConstant
+		};
+
 		const vk::PipelineShaderStageCreateInfo fragmentShaderInfo(
-			{}, vk::ShaderStageFlagBits::eFragment, getModule(shaders, combineShaderID), kernelName.c_str()
+			{},
+			vk::ShaderStageFlagBits::eFragment,
+			getModule(shaders, combineShaderID),
+			kernelName.c_str(),
+			&specializationInfo
 		);
 
 		const std::array<vk::PipelineShaderStageCreateInfo, 2> shaderStages = {vertexShaderInfo, fragmentShaderInfo};
@@ -492,6 +501,7 @@ BloomGraphicsObjects createBloomObjects(
 
 	buffers.combine.update(BloomCombineBuffer{
 		.intensity = 0.5f,
+		.blurRadius = 2.5f,
 	});
 	buffers.upsample.update(BloomUpsampleBuffer{
 		.blurRadius = 2.5f,

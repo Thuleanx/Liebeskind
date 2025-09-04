@@ -24,6 +24,7 @@ struct BloomUpsampleBuffer {
 
 struct BloomCombineBuffer {
     float intensity;
+    float blurRadius;
 };
 
 struct BloomGraphicsObjects {

@@ -7,12 +7,6 @@
 
 namespace graphics {
 
-enum class BloomDescriptorSetBindingPoint {
-	eTexture = 0,
-	eSwapchain = 1,
-	eCombine = 0
-};
-
 inline size_t getBloomSampleMip(size_t pass) {
     ASSERT(pass >= 0 && pass < NUM_BLOOM_PASSES, "Invalid pass number: " << pass);
     return pass >= NUM_BLOOM_MIPS ? NUM_BLOOM_PASSES - pass : pass;

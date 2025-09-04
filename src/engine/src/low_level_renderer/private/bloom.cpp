@@ -8,21 +8,29 @@
 #include "low_level_renderer/shaders.h"
 #include "pipeline.h"
 
+namespace {
+struct UpsampleSpecializationConstants {
+	float currentMipScale;
+};
+
+struct DownsampleSpecializationConstants {
+	float currentMipScale;
+	bool shouldUseKarisAverage;
+};
+
+enum class BloomDescriptorSetBindingPoint {
+	eLayer = 0,
+	eShared = 1,
+};
+
+};	// namespace
+
 namespace graphics {
 void recordBloomRenderpass(
-	Module& module,
-	RenderSubmission& renderSubmission,
-	vk::CommandBuffer buffer,
-	uint32_t imageIndex
+	Module& module, RenderSubmission& renderSubmission, vk::CommandBuffer buffer, uint32_t imageIndex
 ) {
-	ASSERT(
-		module.device.swapchain.has_value(),
-		"Cannot record if the swapchain is empty"
-	);
-	ASSERT(
-		module.device.bloom.swapchainObjects.has_value(),
-		"Cannot record if the swapchain is empty"
-	);
+	ASSERT(module.device.swapchain.has_value(), "Cannot record if the swapchain is empty");
+	ASSERT(module.device.bloom.swapchainObjects.has_value(), "Cannot record if the swapchain is empty");
 
 	ASSERT(
 		module.device.bloom.swapchainObjects->size() > imageIndex,
@@ -32,12 +40,30 @@ void recordBloomRenderpass(
 	const BloomGraphicsObjects::SwapchainObject& bloomSwapchainObject =
 		module.device.bloom.swapchainObjects.value()[imageIndex];
 
+	const std::array<vk::ImageSubresourceRange, 1> subresources = {
+		vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, NUM_BLOOM_MIPS, 0, 1)
+	};
+
+	// buffer.clearColorImage(
+	// 	bloomSwapchainObject.colorBuffer[0],
+	// 	vk::ImageLayout::eUndefined,
+	// 	vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f),
+	// 	subresources
+	// );
+	// buffer.clearColorImage(
+	// 	bloomSwapchainObject.colorBuffer[1],
+	// 	vk::ImageLayout::eUndefined,
+	// 	vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f),
+	// 	subresources
+	// );
+
 	for (size_t pass = 0; pass < NUM_BLOOM_PASSES; pass++) {
 		const bool isCombinePass = pass == NUM_BLOOM_PASSES - 1;
 		const size_t mip = getBloomRenderMip(pass);
 
 		// Technically we only have to bloom the main window,
-		// but just so that the bloom is consistent we shall bloom the entire image
+		// but just so that the bloom is consistent we shall bloom the entire
+		// image
 		const vk::Viewport viewport(
 			0,
 			0,
@@ -56,42 +82,28 @@ void recordBloomRenderpass(
 			}
 		);
 		buffer.setScissor(0, 1, &renderRect);
-		const vk::RenderPass renderPass =
-			isCombinePass ? module.device.bloom.renderPasses.combine
-			: pass < NUM_BLOOM_LAYERS
-				? module.device.bloom.renderPasses.downsample
-				: module.device.bloom.renderPasses.upsample;
-		const vk::PipelineLayout pipelineLayout =
-			isCombinePass ? module.device.bloom.pipelineLayouts.combine
-			: pass < NUM_BLOOM_LAYERS
-				? module.device.bloom.pipelineLayouts.downsample
-				: module.device.bloom.pipelineLayouts.upsample;
-		const std::array<vk::ClearValue, 1> clearColors = {
-			vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f),
-		};
+		const vk::RenderPass renderPass = isCombinePass				? module.device.bloom.renderPasses.combine
+										  : pass < NUM_BLOOM_LAYERS ? module.device.bloom.renderPasses.downsample
+																	: module.device.bloom.renderPasses.upsample;
+		const vk::PipelineLayout pipelineLayout = isCombinePass ? module.device.bloom.pipelineLayouts.combine
+												  : pass < NUM_BLOOM_LAYERS
+													  ? module.device.bloom.pipelineLayouts.downsample
+													  : module.device.bloom.pipelineLayouts.upsample;
 
+		const std::array<vk::ClearValue, 1> clearColors = {
+			vk::ClearColorValue(0.0f, 0.0f, 0.0f, 0.0f),
+		};
 		const vk::RenderPassBeginInfo renderPassInfo(
-			renderPass,
-			bloomSwapchainObject.framebuffers[pass],
-			renderRect,
-			clearColors.size(),
-			clearColors.data()
+			renderPass, bloomSwapchainObject.framebuffers[pass], renderRect, clearColors.size(), clearColors.data()
 		);
 		buffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
-		buffer.bindDescriptorSets(
-			vk::PipelineBindPoint::eGraphics,
-			pipelineLayout,
-			static_cast<int>(BloomDescriptorSetBindingPoint::eSwapchain),
-			1,
-			&module.device.bloom.descriptors.swapchain,
-			0,
-			nullptr
-		);
+		buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, module.device.bloom.pipelines[pass]);
+
 		if (isCombinePass) {
 			buffer.bindDescriptorSets(
 				vk::PipelineBindPoint::eGraphics,
 				pipelineLayout,
-				static_cast<int>(BloomDescriptorSetBindingPoint::eCombine),
+				static_cast<int>(BloomDescriptorSetBindingPoint::eLayer),
 				1,
 				&bloomSwapchainObject.descriptors.combine,
 				0,
@@ -101,44 +113,60 @@ void recordBloomRenderpass(
 			buffer.bindDescriptorSets(
 				vk::PipelineBindPoint::eGraphics,
 				pipelineLayout,
-				static_cast<int>(BloomDescriptorSetBindingPoint::eTexture),
+				static_cast<int>(BloomDescriptorSetBindingPoint::eShared),
 				1,
-				&bloomSwapchainObject.descriptors.texture[pass],
+				&module.device.bloom.descriptors.shared,
 				0,
 				nullptr
 			);
+			const bool isDownsamplePass = pass < NUM_BLOOM_LAYERS;
+			if (isDownsamplePass) {
+				buffer.bindDescriptorSets(
+					vk::PipelineBindPoint::eGraphics,
+					pipelineLayout,
+					static_cast<int>(BloomDescriptorSetBindingPoint::eLayer),
+					1,
+					&bloomSwapchainObject.descriptors.downsample[pass],
+					0,
+					nullptr
+				);
+			} else {
+				ASSERT(pass >= NUM_BLOOM_LAYERS, "Pass " << pass << " should be ");
+				buffer.bindDescriptorSets(
+					vk::PipelineBindPoint::eGraphics,
+					pipelineLayout,
+					static_cast<int>(BloomDescriptorSetBindingPoint::eLayer),
+					1,
+					&bloomSwapchainObject.descriptors.upsample[pass - NUM_BLOOM_LAYERS],
+					0,
+					nullptr
+				);
+			}
 		}
 
-		buffer.bindPipeline(
-			vk::PipelineBindPoint::eGraphics,
-			module.device.bloom.pipelines[pass]
-		);
 		buffer.draw(6, 1, 0, 0);
 		buffer.endRenderPass();
 	}
 }
 
 BloomGraphicsObjects createBloomObjects(
-	vk::Device device,
-	vk::PhysicalDevice physicalDevice,
-	ShaderStorage& shaders,
-	vk::Format colorFormat
+	vk::Device device, vk::PhysicalDevice physicalDevice, ShaderStorage& shaders, vk::Format colorFormat
 ) {
 	ASSERT(
 		NUM_BLOOM_PASSES > 0,
-		"Number of bloom passes cannot be 0. "
-			<< "If not using bloom, then don't call this function."
+		"Number of bloom passes cannot be 0. " << "If not using bloom, then don't call this function."
 	);
 
-	const auto createRenderPass = [&](vk::ImageLayout attachmentInitialLayout) {
+	const auto createRenderPass = [](vk::Device device, vk::ImageLayout attachmentInitialLayout, vk::Format colorFormat
+								  ) {
 		const std::array<vk::AttachmentDescription, 1> attachments = {
 			vk::AttachmentDescription(
 				{},
 				colorFormat,
 				vk::SampleCountFlagBits::e1,
-				vk::AttachmentLoadOp::eClear,
+				vk::AttachmentLoadOp::eDontCare,
 				vk::AttachmentStoreOp::eStore,
-				vk::AttachmentLoadOp::eClear,
+				vk::AttachmentLoadOp::eDontCare,
 				vk::AttachmentStoreOp::eDontCare,
 				attachmentInitialLayout,
 				vk::ImageLayout::eShaderReadOnlyOptimal
@@ -159,29 +187,29 @@ BloomGraphicsObjects createBloomObjects(
 			nullptr,
 			nullptr
 		);
-		const vk::RenderPassCreateInfo renderPassInfo(
-			{},
-			attachments.size(),
-			attachments.data(),
-			1,
-			&mainSubpassDescriptions,
+		const vk::SubpassDependency subpassDependency(
+			vk::SubpassExternal,
 			0,
-			nullptr
+			vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests,
+			vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests,
+			{},
+			vk::AccessFlagBits::eColorAttachmentWrite | vk::AccessFlagBits::eDepthStencilAttachmentWrite
 		);
-		const vk::ResultValue<vk::RenderPass> renderPassCreation =
-			device.createRenderPass(renderPassInfo);
-		VULKAN_ENSURE_SUCCESS(
-			renderPassCreation.result, "Can't create bloom renderpass:"
+		const vk::RenderPassCreateInfo renderPassInfo(
+			{}, attachments.size(), attachments.data(), 1, &mainSubpassDescriptions, 1, &subpassDependency
 		);
+		const vk::ResultValue<vk::RenderPass> renderPassCreation = device.createRenderPass(renderPassInfo);
+		VULKAN_ENSURE_SUCCESS(renderPassCreation.result, "Can't create bloom renderpass:");
 		return renderPassCreation.value;
 	};
+	// TODO: optimize it to just one renderpass should multiple not be needed
 	const BloomGraphicsObjects::RenderPasses renderPasses = {
-		.downsample = createRenderPass(vk::ImageLayout::eUndefined),
-		.upsample = createRenderPass(vk::ImageLayout::eShaderReadOnlyOptimal),
-		.combine = createRenderPass(vk::ImageLayout::eUndefined)
+		.downsample = createRenderPass(device, vk::ImageLayout::eUndefined, colorFormat),
+		.upsample = createRenderPass(device, vk::ImageLayout::eUndefined, colorFormat),
+		.combine = createRenderPass(device, vk::ImageLayout::eUndefined, colorFormat)
 	};
 
-	constexpr std::array<vk::DescriptorSetLayoutBinding, 2> COMBINE_LAYOUT = {
+	constexpr std::array<vk::DescriptorSetLayoutBinding, 3> COMBINE_LAYER_LAYOUT = {
 		vk::DescriptorSetLayoutBinding{
 			0,	// binding
 			vk::DescriptorType::eCombinedImageSampler,
@@ -194,39 +222,64 @@ BloomGraphicsObjects createBloomObjects(
 			1,	// descriptor count
 			vk::ShaderStageFlagBits::eFragment
 		},
-	};
-	constexpr std::array<vk::DescriptorSetLayoutBinding, 1> TEXTURE_LAYOUT = {
 		vk::DescriptorSetLayoutBinding{
-			0,	// binding
-			vk::DescriptorType::eCombinedImageSampler,
-			1,	// descriptor count
-			vk::ShaderStageFlagBits::eFragment
-		}
-	};
-	constexpr std::array<vk::DescriptorSetLayoutBinding, 1> SWAPCHAIN_LAYOUT = {
-		vk::DescriptorSetLayoutBinding{
-			0,	// binding
+			2,	// binding
 			vk::DescriptorType::eUniformBuffer,
 			1,	// descriptor count
 			vk::ShaderStageFlagBits::eFragment
 		}
 	};
-	const BloomGraphicsObjects::SetLayouts setLayouts{
-		.combine = createDescriptorLayout(device, COMBINE_LAYOUT),
-		.texture = createDescriptorLayout(device, TEXTURE_LAYOUT),
-		.swapchain = createDescriptorLayout(device, SWAPCHAIN_LAYOUT),
+	constexpr std::array<vk::DescriptorSetLayoutBinding, 1> DOWNSAMPLE_LAYER_LAYOUT = {vk::DescriptorSetLayoutBinding{
+		0,	// binding
+		vk::DescriptorType::eCombinedImageSampler,
+		1,	// descriptor count
+		vk::ShaderStageFlagBits::eFragment
+	}};
+	constexpr std::array<vk::DescriptorSetLayoutBinding, 3> UPSAMPLE_LAYER_LAYOUT = {
+		vk::DescriptorSetLayoutBinding{
+			0,	// binding
+			vk::DescriptorType::eCombinedImageSampler,
+			1,	// descriptor count
+			vk::ShaderStageFlagBits::eFragment
+		},
+		vk::DescriptorSetLayoutBinding{
+			1,	// binding
+			vk::DescriptorType::eCombinedImageSampler,
+			1,	// descriptor count
+			vk::ShaderStageFlagBits::eFragment
+		},
+		vk::DescriptorSetLayoutBinding{
+			2,	// binding
+			vk::DescriptorType::eUniformBuffer,
+			1,	// descriptor count
+			vk::ShaderStageFlagBits::eFragment
+		}
+	};
+	constexpr std::array<vk::DescriptorSetLayoutBinding, 1> SHARED_LAYOUT = {vk::DescriptorSetLayoutBinding{
+		0,	// binding
+		vk::DescriptorType::eUniformBuffer,
+		1,	// descriptor count
+		vk::ShaderStageFlagBits::eFragment
+	}};
+
+	const BloomGraphicsObjects::LayerSetLayouts uniformLayouts = {
+		.downsample = createDescriptorLayout(device, DOWNSAMPLE_LAYER_LAYOUT),
+		.upsample = createDescriptorLayout(device, UPSAMPLE_LAYER_LAYOUT),
+		.combine = createDescriptorLayout(device, COMBINE_LAYER_LAYOUT),
+		.shared = createDescriptorLayout(device, SHARED_LAYOUT),
 	};
 
-	const std::array<vk::DescriptorSetLayout, 2> nonfinalLayouts = {
-		setLayouts.texture, setLayouts.swapchain
+	const std::array<vk::DescriptorSetLayout, 2> downsamplePipelineLayoutSets = {
+		uniformLayouts.downsample, uniformLayouts.shared
 	};
-	const std::array<vk::DescriptorSetLayout, 2> finalLayouts = {
-		setLayouts.combine, setLayouts.swapchain
+	const std::array<vk::DescriptorSetLayout, 2> upsamplePipelineLayoutSets = {
+		uniformLayouts.upsample, uniformLayouts.shared
 	};
+	const std::array<vk::DescriptorSetLayout, 1> combinePipelineLayoutSets = {uniformLayouts.combine};
 	const BloomGraphicsObjects::PipelineLayouts pipelineLayouts = {
-		.downsample = createPipelineLayout(device, nonfinalLayouts, {}),
-		.upsample = createPipelineLayout(device, nonfinalLayouts, {}),
-		.combine = createPipelineLayout(device, finalLayouts, {}),
+		.downsample = createPipelineLayout(device, downsamplePipelineLayoutSets, {}),
+		.upsample = createPipelineLayout(device, upsamplePipelineLayoutSets, {}),
+		.combine = createPipelineLayout(device, combinePipelineLayoutSets, {}),
 	};
 
 	const std::vector<vk::DynamicState> dynamicStates = {
@@ -236,21 +289,17 @@ BloomGraphicsObjects createBloomObjects(
 	const vk::PipelineDynamicStateCreateInfo dynamicStateInfo(
 		{}, static_cast<uint32_t>(dynamicStates.size()), dynamicStates.data()
 	);
-	const vk::PipelineVertexInputStateCreateInfo vertexInputStateInfo(
-		{}, 0, nullptr, 0, nullptr
-	);
+	const vk::PipelineVertexInputStateCreateInfo vertexInputStateInfo({}, 0, nullptr, 0, nullptr);
 	const vk::PipelineInputAssemblyStateCreateInfo inputAssemblyStateInfo(
 		{},
 		vk::PrimitiveTopology::eTriangleList,
 		vk::False  // primitive restart
 	);
-	const vk::PipelineViewportStateCreateInfo viewportStateInfo(
-		{}, 1, nullptr, 1, nullptr
-	);
+	const vk::PipelineViewportStateCreateInfo viewportStateInfo({}, 1, nullptr, 1, nullptr);
 	const vk::PipelineRasterizationStateCreateInfo rasterizerCreateInfo(
 		{},
-		vk::False,	// depth clamp enable. only useful for shadow mapping
-		vk::False,	// rasterizerDiscardEnable
+		vk::False,					  // depth clamp enable. only useful for shadow mapping
+		vk::False,					  // rasterizerDiscardEnable
 		vk::PolygonMode::eFill,		  // fill polygon with fragments
 		vk::CullModeFlagBits::eNone,  // we need this for our vertex shader to
 									  // work
@@ -262,36 +311,24 @@ BloomGraphicsObjects createBloomObjects(
 		1.0f  // line width
 	);
 	const vk::PipelineMultisampleStateCreateInfo multisamplingInfo(
-		{},
-		vk::SampleCountFlagBits::e1,
-		vk::False,
-		1.0f,
-		nullptr,
-		vk::False,
-		vk::False
+		{}, vk::SampleCountFlagBits::e1, vk::False, 1.0f, nullptr, vk::False, vk::False
 	);
-	const std::array<float, 4> colorBlendingConstants = {
-		0.0f, 0.0f, 0.0f, 0.0f
-	};
-	const std::array<vk::PipelineColorBlendAttachmentState, 1>
-		colorBlendStates = {vk::PipelineColorBlendAttachmentState(
-			vk::False,	// disable blend
-			vk::BlendFactor::eSrcAlpha,
-			vk::BlendFactor::eOneMinusSrcAlpha,
-			vk::BlendOp::eAdd,
+	const std::array<float, 4> colorBlendingConstants = {0.0f, 0.0f, 0.0f, 0.0f};
+	const std::array<vk::PipelineColorBlendAttachmentState, 1> colorBlendStates = {
+		vk::PipelineColorBlendAttachmentState(
+			vk::True,  // disable blend
 			vk::BlendFactor::eOne,
 			vk::BlendFactor::eZero,
 			vk::BlendOp::eAdd,
-			vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
-				vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA
-		)};
+			vk::BlendFactor::eOne,
+			vk::BlendFactor::eOne,
+			vk::BlendOp::eMax,
+			vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB |
+				vk::ColorComponentFlagBits::eA
+		)
+	};
 	const vk::PipelineColorBlendStateCreateInfo colorBlendingInfo(
-		{},
-		vk::False,
-		vk::LogicOp::eCopy,
-		colorBlendStates.size(),
-		colorBlendStates.data(),
-		colorBlendingConstants
+		{}, vk::False, vk::LogicOp::eCopy, colorBlendStates.size(), colorBlendStates.data(), colorBlendingConstants
 	);
 	const vk::PipelineDepthStencilStateCreateInfo depthStencilState(
 		{},
@@ -306,153 +343,166 @@ BloomGraphicsObjects createBloomObjects(
 		{}			// max depth bound
 	);
 
-	const ShaderID vertexShaderID = loadShaderFromFile(
-		shaders, device, "shaders/entire_screen.vert.glsl.spv"
-	);
-	const ShaderID fragmentShaderID =
-		loadShaderFromFile(shaders, device, "shaders/bloom.frag.glsl.spv");
-	const ShaderID combineShaderID = loadShaderFromFile(
-		shaders, device, "shaders/bloom_combine.frag.glsl.spv"
-	);
+	const ShaderID vertexShaderID = loadShaderFromFile(shaders, device, "shaders/entire_screen.vert.glsl.spv");
+	const ShaderID downsampleShaderID = loadShaderFromFile(shaders, device, "shaders/bloom_downsample.frag.glsl.spv");
+	const ShaderID upsampleShaderID = loadShaderFromFile(shaders, device, "shaders/bloom_upsample.frag.glsl.spv");
+	const ShaderID combineShaderID = loadShaderFromFile(shaders, device, "shaders/bloom_combine.frag.glsl.spv");
 
 	const vk::PipelineShaderStageCreateInfo vertexShaderInfo(
-		{},
-		vk::ShaderStageFlagBits::eVertex,
-		getModule(shaders, vertexShaderID),
-		"main",
-		nullptr
+		{}, vk::ShaderStageFlagBits::eVertex, getModule(shaders, vertexShaderID), "main", nullptr
 	);
 
+	constexpr std::array<vk::SpecializationMapEntry, 2> SPECIALIZATION_INFO_DOWNSAMPLE_ENTRY = {
+		vk::SpecializationMapEntry{0, offsetof(DownsampleSpecializationConstants, currentMipScale), sizeof(float)},
+		vk::SpecializationMapEntry{1, offsetof(DownsampleSpecializationConstants, shouldUseKarisAverage), 4}
+	};
+	constexpr std::array<vk::SpecializationMapEntry, 1> SPECIALIZATION_INFO_UPSAMPLE_ENTRY = {
+		vk::SpecializationMapEntry{0, offsetof(UpsampleSpecializationConstants, currentMipScale), sizeof(float)},
+	};
+
 	std::array<vk::Pipeline, NUM_BLOOM_PASSES> pipelines;
-	for (uint32_t subpass = 0; subpass < NUM_BLOOM_PASSES; subpass++) {
-		const bool isUpsamplePass = subpass >= NUM_BLOOM_LAYERS;
-		const bool isLastSubpass = subpass == NUM_BLOOM_PASSES - 1;
+	std::array<DownsampleSpecializationConstants, NUM_BLOOM_LAYERS> downsampleConstants;
+	std::array<UpsampleSpecializationConstants, NUM_BLOOM_LAYERS - 1> upsampleConstants;
+	std::array<vk::SpecializationInfo, NUM_BLOOM_PASSES - 1> specializationInfo;
 
+	for (uint32_t subpass = 0; subpass < NUM_BLOOM_LAYERS; subpass++) {
 		const uint32_t divisions = getBloomRenderMip(subpass);
+		downsampleConstants[subpass] = {
+			.currentMipScale = static_cast<float>(1u << divisions), .shouldUseKarisAverage = (subpass == 0)
+		};
+		specializationInfo[subpass] = {
+			SPECIALIZATION_INFO_DOWNSAMPLE_ENTRY.size(),
+			SPECIALIZATION_INFO_DOWNSAMPLE_ENTRY.data(),
+			sizeof(downsampleConstants[subpass]),
+			&downsampleConstants[subpass]
+		};
+	}
+
+	for (uint32_t subpass = NUM_BLOOM_LAYERS; subpass < NUM_BLOOM_PASSES - 1; subpass++) {
+		const uint32_t divisions = getBloomRenderMip(subpass);
+		upsampleConstants[subpass - NUM_BLOOM_LAYERS] = {
+			.currentMipScale = static_cast<float>(1u << divisions),
+		};
+		specializationInfo[subpass] = {
+			SPECIALIZATION_INFO_UPSAMPLE_ENTRY.size(),
+			SPECIALIZATION_INFO_UPSAMPLE_ENTRY.data(),
+			sizeof(upsampleConstants[subpass - NUM_BLOOM_LAYERS]),
+			&upsampleConstants[subpass - NUM_BLOOM_LAYERS]
+		};
+	}
+
+	vk::GraphicsPipelineCreateInfo pipelineCreateInfo(
+		{},
+		0,
+		nullptr,
+		&vertexInputStateInfo,
+		&inputAssemblyStateInfo,
+		nullptr,  // no tesselation viewport
+		&viewportStateInfo,
+		&rasterizerCreateInfo,
+		&multisamplingInfo,
+		&depthStencilState,
+		&colorBlendingInfo,
+		&dynamicStateInfo,
+		{},
+		{},
+		0  // subpass = 0 since we use one subpass per renderpass
+	);
+
+	for (uint32_t subpass = 0; subpass < NUM_BLOOM_PASSES - 1; subpass++) {
+		const bool isDownsamplePass = subpass < NUM_BLOOM_LAYERS;
+
 		const std::string kernelName = "main";
-		const BloomSpecializationConstants constants = {
-			.texelScale = static_cast<float>(1u << divisions),
-			.sampleDistance = isUpsamplePass ? 1.0f : 0.5f
-		};
-
-		constexpr std::array<vk::SpecializationMapEntry, 2>
-			SPECIALIZATION_INFO_ENTRY = {
-				vk::SpecializationMapEntry{
-					0,
-					offsetof(BloomSpecializationConstants, sampleDistance),
-					sizeof(float)
-				},
-				vk::SpecializationMapEntry{
-					1,
-					offsetof(BloomSpecializationConstants, texelScale),
-					sizeof(float)
-				}
-			};
-
-		const vk::SpecializationInfo specializationInfo{
-			SPECIALIZATION_INFO_ENTRY.size(),
-			SPECIALIZATION_INFO_ENTRY.data(),
-			sizeof(constants),
-			&constants
-		};
-
 		const vk::PipelineShaderStageCreateInfo fragmentShaderInfo(
 			{},
 			vk::ShaderStageFlagBits::eFragment,
-			getModule(
-				shaders, isLastSubpass ? combineShaderID : fragmentShaderID
-			),
+			getModule(shaders, isDownsamplePass ? downsampleShaderID : upsampleShaderID),
 			kernelName.c_str(),
-			&specializationInfo
+			&specializationInfo[subpass]
 		);
 
-		const std::array<vk::PipelineShaderStageCreateInfo, 2> shaderStages = {
-			vertexShaderInfo, fragmentShaderInfo
-		};
+		const std::array<vk::PipelineShaderStageCreateInfo, 2> shaderStages = {vertexShaderInfo, fragmentShaderInfo};
 
-		vk::PipelineLayout pipelineLayout;
-		vk::RenderPass renderPass;
-		if (isLastSubpass) {
-			pipelineLayout = pipelineLayouts.combine;
-			renderPass = renderPasses.combine;
-		} else if (isUpsamplePass) {
-			pipelineLayout = pipelineLayouts.upsample;
-			renderPass = renderPasses.upsample;
-		} else {
-			pipelineLayout = pipelineLayouts.downsample;
-			renderPass = renderPasses.downsample;
-		}
-
-		const vk::GraphicsPipelineCreateInfo pipelineCreateInfo(
-			{},
-			shaderStages.size(),
-			shaderStages.data(),
-			&vertexInputStateInfo,
-			&inputAssemblyStateInfo,
-			nullptr,  // no tesselation viewport
-			&viewportStateInfo,
-			&rasterizerCreateInfo,
-			&multisamplingInfo,
-			&depthStencilState,
-			&colorBlendingInfo,
-			&dynamicStateInfo,
-			pipelineLayout,
-			renderPass,
-			0  // subpass = 0 since we use one subpass per renderpass
-		);
+		pipelineCreateInfo.setStageCount(shaderStages.size());
+		pipelineCreateInfo.setStages(shaderStages);
+		pipelineCreateInfo.setLayout(isDownsamplePass ? pipelineLayouts.downsample : pipelineLayouts.upsample);
+		pipelineCreateInfo.setRenderPass(isDownsamplePass ? renderPasses.downsample : renderPasses.upsample);
 
 		const vk::ResultValue<vk::Pipeline> pipelineCreation =
 			device.createGraphicsPipeline(nullptr, pipelineCreateInfo);
-		VULKAN_ENSURE_SUCCESS(
-			pipelineCreation.result, "Can't create bloom pipeline:"
-		);
-
+		VULKAN_ENSURE_SUCCESS(pipelineCreation.result, "Can't create bloom pipeline:");
 		pipelines[subpass] = pipelineCreation.value;
 	}
 
+	{
+		const std::string kernelName = "main";
+		const vk::PipelineShaderStageCreateInfo fragmentShaderInfo(
+			{}, vk::ShaderStageFlagBits::eFragment, getModule(shaders, combineShaderID), kernelName.c_str()
+		);
+
+		const std::array<vk::PipelineShaderStageCreateInfo, 2> shaderStages = {vertexShaderInfo, fragmentShaderInfo};
+
+		pipelineCreateInfo.setStageCount(shaderStages.size());
+		pipelineCreateInfo.setStages(shaderStages);
+		pipelineCreateInfo.setLayout(pipelineLayouts.combine);
+		pipelineCreateInfo.setRenderPass(renderPasses.combine);
+
+		const vk::ResultValue<vk::Pipeline> pipelineCreation =
+			device.createGraphicsPipeline(nullptr, pipelineCreateInfo);
+		VULKAN_ENSURE_SUCCESS(pipelineCreation.result, "Can't create bloom pipeline:");
+		pipelines[NUM_BLOOM_PASSES - 1] = pipelineCreation.value;
+	}
+
+	constexpr std::array<vk::DescriptorPoolSize, 1> DOWNSAMPLE_POOL_SIZES = {
+		vk::DescriptorPoolSize(vk::DescriptorType::eCombinedImageSampler, 1),
+	};
+	constexpr std::array<vk::DescriptorPoolSize, 2> UPSAMPLE_POOL_SIZES = {
+		vk::DescriptorPoolSize(vk::DescriptorType::eCombinedImageSampler, 2),
+		vk::DescriptorPoolSize(vk::DescriptorType::eUniformBuffer, 1),
+	};
 	constexpr std::array<vk::DescriptorPoolSize, 2> COMBINE_POOL_SIZES = {
 		vk::DescriptorPoolSize(vk::DescriptorType::eCombinedImageSampler, 2),
 		vk::DescriptorPoolSize(vk::DescriptorType::eUniformBuffer, 1),
 	};
-	constexpr std::array<vk::DescriptorPoolSize, 1> TEXTURE_POOL_SIZES = {
-		vk::DescriptorPoolSize(vk::DescriptorType::eCombinedImageSampler, 1),
-	};
-	constexpr std::array<vk::DescriptorPoolSize, 1> SWAPCHAIN_POOL_SIZES = {
+	constexpr std::array<vk::DescriptorPoolSize, 1> SHARED_POOL_SIZES = {
 		vk::DescriptorPoolSize(vk::DescriptorType::eUniformBuffer, 1),
 	};
 
 	const BloomGraphicsObjects::DescriptorPools pools = {
-		.combine = DescriptorAllocator::create(
-			device, COMBINE_POOL_SIZES, MAX_FRAMES_IN_FLIGHT
-		),
-		.texture = DescriptorAllocator::create(
-			device, TEXTURE_POOL_SIZES, NUM_BLOOM_PASSES - 1
-		),
-		.swapchain = createDescriptorPool(device, 1, SWAPCHAIN_POOL_SIZES),
+		.layer_downsample = DescriptorAllocator::create(device, DOWNSAMPLE_POOL_SIZES, MAX_FRAMES_IN_FLIGHT),
+		.layer_upsample = DescriptorAllocator::create(device, UPSAMPLE_POOL_SIZES, MAX_FRAMES_IN_FLIGHT),
+		.layer_combine = DescriptorAllocator::create(device, COMBINE_POOL_SIZES, MAX_FRAMES_IN_FLIGHT),
+		.shared = createDescriptorPool(device, 1, SHARED_POOL_SIZES)
 	};
 
-	const std::vector<vk::DescriptorSet> swapchainDescriptors =
-		createDescriptorSets(device, pools.swapchain, setLayouts.swapchain, 1);
+	const std::vector<vk::DescriptorSet> sharedDescriptors =
+		createDescriptorSets(device, pools.shared, uniformLayouts.shared, 1);
 
-	const BloomGraphicsObjects::Descriptors descriptors = {
-		.swapchain = swapchainDescriptors.front()
-	};
+	const BloomGraphicsObjects::Descriptors descriptors = {.shared = sharedDescriptors.front()};
 
 	// TODO: optimize this write buffer. It's using way too much memory.
 	// Write buffers in general is good and perhaps we should have a global one
 	DescriptorWriteBuffer writeBuffer;
 
 	const BloomGraphicsObjects::DataBuffers buffers{
-		.swapchain =
-			UniformBuffer<BloomUniformBuffer>::create(device, physicalDevice, 1)
+		.upsample = UniformBuffer<BloomUpsampleBuffer>::create(device, physicalDevice, 1),
+		.combine = UniformBuffer<BloomCombineBuffer>::create(device, physicalDevice, 1),
+		.shared = UniformBuffer<BloomSharedBuffer>::create(device, physicalDevice, 1),
 	};
 
-	buffers.swapchain.bind(writeBuffer, descriptors.swapchain, 0);
+	buffers.combine.update(BloomCombineBuffer{
+		.intensity = 0.5f,
+	});
+	buffers.upsample.update(BloomUpsampleBuffer{
+		.blurRadius = 1.0f,
+	});
+
+	buffers.shared.bind(writeBuffer, descriptors.shared, 0);
 	writeBuffer.batchWrite(device);
 
 	return BloomGraphicsObjects{
 		.renderPasses = renderPasses,
-		.setLayouts = setLayouts,
+		.uniformLayouts = uniformLayouts,
 		.pipelineLayouts = pipelineLayouts,
 		.pools = pools,
 		.descriptors = descriptors,
@@ -471,51 +521,46 @@ std::vector<BloomGraphicsObjects::SwapchainObject> createBloomSwapchainObjects(
 
 	DescriptorWriteBuffer writeBuffer;
 	for (size_t objectIndex = 0; objectIndex < numObjects; objectIndex++) {
-		const vk::Format imageFormat =
-			createInfo.colorBuffers[objectIndex].format;
-		const auto [image, memory] = Image::createImage(
-			createInfo.device,
-			createInfo.physicalDevice,
-			createInfo.swapchainExtent.width,
-			createInfo.swapchainExtent.height,
-			imageFormat,
-			vk::ImageTiling::eOptimal,
-			vk::ImageUsageFlagBits::eColorAttachment |
-				vk::ImageUsageFlagBits::eSampled,
-			vk::MemoryPropertyFlagBits::eDeviceLocal,
-			vk::SampleCountFlagBits::e1,
-			NUM_BLOOM_MIPS
-		);
+		const vk::Format imageFormat = createInfo.colorBuffers[objectIndex].format;
 
-		std::array<vk::ImageView, NUM_BLOOM_MIPS> colorViews;
-		for (size_t i = 0; i < NUM_BLOOM_MIPS; i++) {
-			colorViews[i] = Image::createImageView(
+		constexpr size_t NUM_BUFFERS = BloomGraphicsObjects::SwapchainObject::NUM_BUFFERS;
+
+		std::array<vk::Image, NUM_BUFFERS> images;
+		std::array<vk::DeviceMemory, NUM_BUFFERS> memory;
+		std::array<std::array<vk::ImageView, NUM_BLOOM_MIPS>, NUM_BUFFERS> colorViews;
+		for (size_t image_index = 0; image_index < 2; image_index++) {
+			std::tie(images[image_index], memory[image_index]) = Image::createImage(
 				createInfo.device,
-				image,
+				createInfo.physicalDevice,
+				createInfo.swapchainExtent.width,
+				createInfo.swapchainExtent.height,
 				imageFormat,
-				vk::ImageAspectFlagBits::eColor,
-				i,
-				1
+				vk::ImageTiling::eOptimal,
+				vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled,
+				vk::MemoryPropertyFlagBits::eDeviceLocal,
+				vk::SampleCountFlagBits::e1,
+				NUM_BLOOM_MIPS
 			);
+
+			for (size_t i = 0; i < NUM_BLOOM_MIPS; i++)
+				colorViews[image_index][i] = Image::createImageView(
+					createInfo.device, images[image_index], imageFormat, vk::ImageAspectFlagBits::eColor, i, 1
+				);
 		}
+
 		std::array<vk::Framebuffer, NUM_BLOOM_PASSES> framebuffers;
 		for (size_t pass = 0; pass < NUM_BLOOM_PASSES; pass++) {
 			const size_t mip = getBloomRenderMip(pass);
-			ASSERT(
-				mip >= 0 && mip < NUM_BLOOM_MIPS,
-				"Mip " << mip << " is not in range [0, " << NUM_BLOOM_MIPS
-					   << ")"
-			);
-			const std::array<vk::ImageView, 1> attachments = {colorViews[mip]};
+			ASSERT(mip >= 0 && mip < NUM_BLOOM_MIPS, "Mip " << mip << " is not in range [0, " << NUM_BLOOM_MIPS << ")");
+			const bool isDownsamplePass = pass < NUM_BLOOM_LAYERS;
+			const std::array<vk::ImageView, 1> attachments = {colorViews[!isDownsamplePass][mip]};
 
 			const uint32_t inverseSize = 1u << mip;
 
 			const vk::RenderPass renderPass =
-				pass == NUM_BLOOM_PASSES - 1
-					? createInfo.bloomGraphicsObjects.renderPasses.combine
-				: pass < NUM_BLOOM_LAYERS
-					? createInfo.bloomGraphicsObjects.renderPasses.downsample
-					: createInfo.bloomGraphicsObjects.renderPasses.upsample;
+				pass == NUM_BLOOM_PASSES - 1 ? createInfo.bloomGraphicsObjects.renderPasses.combine
+				: pass < NUM_BLOOM_LAYERS	 ? createInfo.bloomGraphicsObjects.renderPasses.downsample
+											 : createInfo.bloomGraphicsObjects.renderPasses.upsample;
 
 			const vk::FramebufferCreateInfo framebufferCreateInfo(
 				{},
@@ -529,73 +574,86 @@ std::vector<BloomGraphicsObjects::SwapchainObject> createBloomSwapchainObjects(
 
 			const vk::ResultValue<vk::Framebuffer> framebufferCreation =
 				createInfo.device.createFramebuffer(framebufferCreateInfo);
-			VULKAN_ENSURE_SUCCESS(
-				framebufferCreation.result, "Can't create bloom framebuffer:"
-			);
+			VULKAN_ENSURE_SUCCESS(framebufferCreation.result, "Can't create bloom framebuffer:");
 			framebuffers[pass] = framebufferCreation.value;
 		}
 
 		const vk::DescriptorSet combineDescriptor =
-			createInfo.bloomGraphicsObjects.pools.combine
-				.allocate(
-					createInfo.device,
-					createInfo.bloomGraphicsObjects.setLayouts.combine,
-					1
-				)
+			createInfo.bloomGraphicsObjects.pools.layer_combine
+				.allocate(createInfo.device, createInfo.bloomGraphicsObjects.uniformLayouts.combine, 1)
 				.front();
-		BloomGraphicsObjects::SwapchainObject::Descriptors descriptors = {
-			.combine = combineDescriptor
-		};
-		const std::vector<vk::DescriptorSet> textureSets =
-			createInfo.bloomGraphicsObjects.pools.texture.allocate(
-				createInfo.device,
-				createInfo.bloomGraphicsObjects.setLayouts.texture,
-				NUM_BLOOM_PASSES - 1
+		const std::vector<vk::DescriptorSet> downsampleDescriptors =
+			createInfo.bloomGraphicsObjects.pools.layer_downsample.allocate(
+				createInfo.device, createInfo.bloomGraphicsObjects.uniformLayouts.downsample, NUM_BLOOM_LAYERS
 			);
-		std::copy(
-			textureSets.begin(), textureSets.end(), descriptors.texture.begin()
-		);
+		const std::vector<vk::DescriptorSet> upsampleDescriptors =
+			createInfo.bloomGraphicsObjects.pools.layer_upsample.allocate(
+				createInfo.device, createInfo.bloomGraphicsObjects.uniformLayouts.upsample, NUM_BLOOM_LAYERS - 1
+			);
+		BloomGraphicsObjects::SwapchainObject::Descriptors descriptors = {.combine = combineDescriptor};
+		std::copy(downsampleDescriptors.begin(), downsampleDescriptors.end(), descriptors.downsample.begin());
+		std::copy(upsampleDescriptors.begin(), upsampleDescriptors.end(), descriptors.upsample.begin());
 
-		constexpr size_t textureBinding = 0;
-		static_assert(NUM_BLOOM_LAYERS >= 1);
 		writeBuffer.writeImage(
-			descriptors.texture[0],
-			textureBinding,
+			descriptors.downsample[0],
+			0,
 			createInfo.colorBuffers[objectIndex].imageView,
 			vk::DescriptorType::eCombinedImageSampler,
 			createInfo.linearSampler,
 			vk::ImageLayout::eShaderReadOnlyOptimal
 		);
-		for (size_t pass = 1; pass < NUM_BLOOM_PASSES - 1; pass++)
+		for (size_t pass = 1; pass < NUM_BLOOM_LAYERS; pass++) {
 			writeBuffer.writeImage(
-				descriptors.texture[pass],
-				textureBinding,
-				colorViews[getBloomSampleMip(pass)],
+				descriptors.downsample[pass],
+				0,
+				colorViews[0][getBloomSampleMip(pass)],
 				vk::DescriptorType::eCombinedImageSampler,
 				createInfo.linearSampler,
 				vk::ImageLayout::eShaderReadOnlyOptimal
 			);
-		static_assert(NUM_BLOOM_MIPS > 1);
+		}
+		for (size_t pass = NUM_BLOOM_LAYERS; pass < NUM_BLOOM_PASSES - 1; pass++) {
+			const bool shouldSampleFirstImage = pass == NUM_BLOOM_LAYERS;
+			writeBuffer.writeImage(
+				descriptors.upsample[pass - NUM_BLOOM_LAYERS],
+				0,
+				colorViews[!shouldSampleFirstImage][getBloomSampleMip(pass)],
+				vk::DescriptorType::eCombinedImageSampler,
+				createInfo.linearSampler,
+				vk::ImageLayout::eShaderReadOnlyOptimal
+			);
+			writeBuffer.writeImage(
+				descriptors.upsample[pass - NUM_BLOOM_LAYERS],
+				1,
+				colorViews[0][getBloomRenderMip(pass)],
+				vk::DescriptorType::eCombinedImageSampler,
+				createInfo.linearSampler,
+				vk::ImageLayout::eShaderReadOnlyOptimal
+			);
+			createInfo.bloomGraphicsObjects.buffers.upsample.bind(
+				writeBuffer, descriptors.upsample[pass - NUM_BLOOM_LAYERS], 2
+			);
+		}
 		writeBuffer.writeImage(
 			descriptors.combine,
-			textureBinding,
-			colorViews[1],
+			0,	// previous mip
+			colorViews[1][1],
 			vk::DescriptorType::eCombinedImageSampler,
 			createInfo.linearSampler,
 			vk::ImageLayout::eShaderReadOnlyOptimal
 		);
-		constexpr size_t combineBinding = 1;
 		writeBuffer.writeImage(
 			descriptors.combine,
-			combineBinding,
+			1,	// current mip
 			createInfo.colorBuffers[objectIndex].imageView,
 			vk::DescriptorType::eCombinedImageSampler,
 			createInfo.linearSampler,
 			vk::ImageLayout::eShaderReadOnlyOptimal
 		);
+		createInfo.bloomGraphicsObjects.buffers.combine.bind(writeBuffer, descriptors.combine, 2);
 
 		swapchainObjects.push_back(BloomGraphicsObjects::SwapchainObject{
-			.colorBuffer = image,
+			.colorBuffer = images,
 			.colorMemory = memory,
 			.colorViews = colorViews,
 			.descriptors = descriptors,
@@ -604,52 +662,53 @@ std::vector<BloomGraphicsObjects::SwapchainObject> createBloomSwapchainObjects(
 	}
 	writeBuffer.batchWrite(createInfo.device);
 
-	createInfo.bloomGraphicsObjects.buffers.swapchain.update(BloomUniformBuffer{
-		.swapchainExtent = glm::vec2(
-			createInfo.swapchainExtent.width, createInfo.swapchainExtent.height
-		)
-	});
+	createInfo.bloomGraphicsObjects.buffers.shared.update(
+		BloomSharedBuffer{.baseMipSize = glm::vec2(createInfo.swapchainExtent.width, createInfo.swapchainExtent.height)}
+	);
 
 	return swapchainObjects;
 }
 
 void destroy(BloomGraphicsObjects& objects, vk::Device device) {
-	if (objects.swapchainObjects.has_value())
-		destroyBloomSwapchainObjects(objects, device);
+	if (objects.swapchainObjects.has_value()) destroyBloomSwapchainObjects(objects, device);
 
-	objects.buffers.swapchain.destroyBy(device);
-	for (const vk::Pipeline& pipeline : objects.pipelines)
-		device.destroyPipeline(pipeline);
-	device.destroyDescriptorPool(objects.pools.swapchain);
-	objects.pools.texture.destroyBy(device);
-	objects.pools.combine.destroyBy(device);
+	for (const vk::Pipeline& pipeline : objects.pipelines) device.destroyPipeline(pipeline);
+	objects.buffers.combine.destroyBy(device);
+	objects.buffers.shared.destroyBy(device);
+	objects.buffers.upsample.destroyBy(device);
+	device.destroyDescriptorPool(objects.pools.shared);
+	objects.pools.layer_upsample.destroyBy(device);
+	objects.pools.layer_downsample.destroyBy(device);
+	objects.pools.layer_combine.destroyBy(device);
+
 	device.destroyPipelineLayout(objects.pipelineLayouts.combine);
 	device.destroyPipelineLayout(objects.pipelineLayouts.upsample);
 	device.destroyPipelineLayout(objects.pipelineLayouts.downsample);
-	device.destroyDescriptorSetLayout(objects.setLayouts.combine);
-	device.destroyDescriptorSetLayout(objects.setLayouts.texture);
-	device.destroyDescriptorSetLayout(objects.setLayouts.swapchain);
+
+	device.destroyDescriptorSetLayout(objects.uniformLayouts.upsample);
+	device.destroyDescriptorSetLayout(objects.uniformLayouts.downsample);
+	device.destroyDescriptorSetLayout(objects.uniformLayouts.combine);
+	device.destroyDescriptorSetLayout(objects.uniformLayouts.shared);
 	device.destroyRenderPass(objects.renderPasses.combine);
 	device.destroyRenderPass(objects.renderPasses.upsample);
 	device.destroyRenderPass(objects.renderPasses.downsample);
 }
 
-void destroyBloomSwapchainObjects(
-	BloomGraphicsObjects& graphicsObjects, vk::Device device
-) {
+void destroyBloomSwapchainObjects(BloomGraphicsObjects& graphicsObjects, vk::Device device) {
 	if (!graphicsObjects.swapchainObjects.has_value()) return;
 
-	graphicsObjects.pools.texture.clearPools(device);
-	graphicsObjects.pools.combine.clearPools(device);
+	graphicsObjects.pools.layer_upsample.clearPools(device);
+	graphicsObjects.pools.layer_downsample.clearPools(device);
+	graphicsObjects.pools.layer_combine.clearPools(device);
 
-	for (const BloomGraphicsObjects::SwapchainObject& swapchainObject :
-		 graphicsObjects.swapchainObjects.value()) {
-		for (const vk::Framebuffer& framebuffer : swapchainObject.framebuffers)
-			device.destroyFramebuffer(framebuffer);
-		for (const vk::ImageView& imageView : swapchainObject.colorViews)
-			device.destroyImageView(imageView);
-		device.destroyImage(swapchainObject.colorBuffer);
-		device.freeMemory(swapchainObject.colorMemory);
+	for (const BloomGraphicsObjects::SwapchainObject& swapchainObject : graphicsObjects.swapchainObjects.value()) {
+		for (const vk::Framebuffer& framebuffer : swapchainObject.framebuffers) device.destroyFramebuffer(framebuffer);
+		for (int image_index = 0; image_index < BloomGraphicsObjects::SwapchainObject::NUM_BUFFERS; image_index++) {
+			for (const vk::ImageView& imageView : swapchainObject.colorViews[image_index])
+				device.destroyImageView(imageView);
+			device.destroyImage(swapchainObject.colorBuffer[image_index]);
+			device.freeMemory(swapchainObject.colorMemory[image_index]);
+		}
 	}
 
 	graphicsObjects.swapchainObjects = {};

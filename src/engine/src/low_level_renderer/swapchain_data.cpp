@@ -167,7 +167,8 @@ SwapchainData GraphicsDeviceInterface::createSwapchain() {
 		createBloomSwapchainObjects(bloomSwapchainObjectsCreateInfo);
     for (size_t i = 0; i < swapchainSize; i++) {
 		bindTextureToDescriptor(
-			bloom.swapchainObjects.value()[i].colorViews.front(),
+            // intermediateColorAttachments[i].imageView,
+			bloom.swapchainObjects.value()[i].colorViews[1].front(),
 			frameDatas[i].postProcessingDescriptor,
 			0,
 			samplers.point,

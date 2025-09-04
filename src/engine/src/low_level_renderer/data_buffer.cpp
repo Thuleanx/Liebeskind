@@ -74,4 +74,6 @@ template struct graphics::DataBuffer<graphics::MaterialProperties, graphics::Dat
 template struct graphics::DataBuffer<graphics::InstanceData, graphics::DataBufferType::STORAGE>;
 
 #include "low_level_renderer/bloom.h"
-template struct graphics::DataBuffer<graphics::BloomUniformBuffer, graphics::DataBufferType::UNIFORM>;
+template struct graphics::DataBuffer<graphics::BloomSharedBuffer, graphics::DataBufferType::UNIFORM>;
+template struct graphics::DataBuffer<graphics::BloomUpsampleBuffer, graphics::DataBufferType::UNIFORM>;
+template struct graphics::DataBuffer<graphics::BloomCombineBuffer, graphics::DataBufferType::UNIFORM>;

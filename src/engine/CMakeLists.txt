@@ -22,7 +22,8 @@ set(GLSL_SOURCE_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/post_processing.vert.glsl
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/post_processing.frag.glsl
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/entire_screen.vert.glsl
-    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/bloom.frag.glsl
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/bloom_upsample.frag.glsl
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/bloom_downsample.frag.glsl
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/bloom_combine.frag.glsl
 )
 

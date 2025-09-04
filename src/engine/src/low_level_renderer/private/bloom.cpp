@@ -494,7 +494,7 @@ BloomGraphicsObjects createBloomObjects(
 		.intensity = 0.5f,
 	});
 	buffers.upsample.update(BloomUpsampleBuffer{
-		.blurRadius = 1.0f,
+		.blurRadius = 2.5f,
 	});
 
 	buffers.shared.bind(writeBuffer, descriptors.shared, 0);

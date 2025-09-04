@@ -22,14 +22,14 @@ layout(set = 0, binding = 2) uniform BloomLayerConfig {
 
 vec3 blur(vec2 uv) {
     vec2 currentMipPixelSize = currentMipScale
-        / sharedConfig.baseMipSize;
+        / sharedConfig.baseMipSize * 2;
     float weights[3] = float[](4, 2, 1);
     vec3 filterValue = vec3(0.0f);
 
     for (int du = -1; du <= 1; du++) {
         for (int dv = -1; dv <= 1; dv++) {
             vec3 sampleValue = texture(
-                currentMip, uv + layerConfig.blurScale * currentMipPixelSize 
+                lowerMip, uv + layerConfig.blurScale * currentMipPixelSize 
                     * vec2(du, dv)).xyz;
             filterValue += sampleValue * weights[abs(du) + abs(dv)];
         }
@@ -44,7 +44,7 @@ vec3 upsample(vec2 uv) {
 }
 
 void main() {
-    vec3 lowerMipValue = upsample(uv);
+    vec3 lowerMipValue = texture(currentMip, uv).xyz;
     vec3 currentMipValue = blur(uv);
 
     outColor = vec4(lowerMipValue + currentMipValue, 1);

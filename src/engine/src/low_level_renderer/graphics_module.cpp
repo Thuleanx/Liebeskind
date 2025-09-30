@@ -97,6 +97,18 @@ bool Module::drawFrame(
 ) {
 	ASSERT(device.swapchain, "Attempt to draw frame without a swapchain");
 
+	{
+	    ImGui::Begin("Graphics");
+		const bool intensityChanged =
+			ImGui::SliderFloat("Bloom Intensity", &device.bloom.config.intensity, 0.0, 2.0);
+		const bool blurRadiusChanged =
+			ImGui::SliderFloat("Bloom Pixel Radius", &device.bloom.config.blurRadius, 0.0, 10.0);
+
+		const bool anyChanged = blurRadiusChanged || intensityChanged;
+		if (anyChanged) graphics::updateConfigOnGPU(device.bloom);
+	    ImGui::End();
+	}
+
 	// Render ImGui. By this point all ImGui calls must be processed. If
 	// creating UI for debugging this draw frame process, then we would want to
 	// move this to another spot

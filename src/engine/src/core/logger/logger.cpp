@@ -32,7 +32,14 @@ namespace Logging {
 bool initializeLogger() {
     // TODO: create log file
     static plog::ColorConsoleAppender<plog::MyFormatter> appender;
-    plog::init(plog::Severity::debug, "liebeskind_runtime.log")
+
+    auto t = std::time(nullptr);
+    auto tm = *std::localtime(&t);
+
+    std::ostringstream ss;
+    ss << "liebeskind_runtime_" << std::put_time(&tm, "%d-%m-%Y_%H-%M-%S") << ".log";
+
+    plog::init(plog::Severity::debug, ss.str().c_str())
         .addAppender(&appender);
     PLOG_INFO << "Logger initialized.";
     return true;

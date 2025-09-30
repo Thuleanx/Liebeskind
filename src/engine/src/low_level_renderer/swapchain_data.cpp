@@ -160,7 +160,7 @@ SwapchainData GraphicsDeviceInterface::createSwapchain() {
 		.colorBuffers = intermediateColorAttachments,
 		.swapchainExtent = extent,
 		.bloomGraphicsObjects = bloom,
-		.linearSampler = samplers.linear
+		.linearSampler = samplers.linearClearBorder
 	};
 
 	bloom.swapchainObjects =

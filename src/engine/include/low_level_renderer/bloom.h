@@ -27,9 +27,14 @@ struct BloomCombineBuffer {
     float blurRadius;
 };
 
+
 struct BloomGraphicsObjects {
 	static_assert(NUM_BLOOM_PASSES > 0);
 
+    struct Config {
+        float intensity = 0.5f;
+        float blurRadius = 2.5f;
+    } config;
 	struct RenderPasses {
 		vk::RenderPass downsample;
 		vk::RenderPass upsample;

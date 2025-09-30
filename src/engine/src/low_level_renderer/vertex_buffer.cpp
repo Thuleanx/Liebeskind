@@ -25,10 +25,10 @@ namespace std {
 size_t hash<graphics::Vertex>::operator()(graphics::Vertex const& vertex
 ) const {
 	size_t hash_value = 0;
-	hash_value = (hash_value << 1) ^ hash<glm::vec3>()(vertex.position);
-	hash_value = (hash_value << 1) ^ hash<glm::vec3>()(vertex.normal);
-	hash_value = (hash_value << 1) ^ hash<glm::vec3>()(vertex.color);
-	hash_value = (hash_value << 1) ^ hash<glm::vec2>()(vertex.texCoord);
+	hash_value = (hash_value << 4) ^ hash<glm::vec3>()(vertex.position);
+	hash_value = (hash_value << 4) ^ hash<glm::vec3>()(vertex.normal);
+	hash_value = (hash_value << 4) ^ hash<glm::vec3>()(vertex.color);
+	hash_value = (hash_value << 4) ^ hash<glm::vec2>()(vertex.texCoord);
 	return hash_value;
 }
 
@@ -257,6 +257,8 @@ VertexBuffer VertexBuffer::create(
 
 void bind(vk::CommandBuffer commandBuffer, const VertexBuffer& vertexBuffer) {
 	vk::DeviceSize offsets[] = {0};
+    ASSERT(commandBuffer, "Cannot bind to null command buffer");
+    ASSERT(vertexBuffer.vertexBuffer, "Cannot bind to null command buffer");
 	commandBuffer.bindVertexBuffers(0, 1, &vertexBuffer.vertexBuffer, offsets);
 	commandBuffer.bindIndexBuffer(vertexBuffer.indexBuffer, 0, getIndexType());
 }

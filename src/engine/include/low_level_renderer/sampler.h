@@ -7,6 +7,7 @@ enum class SamplerType { eLinear, ePoint };
 
 struct Samplers {
     vk::Sampler linear;
+    vk::Sampler linearClearBorder;
     vk::Sampler point;
 
    public:

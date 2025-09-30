@@ -174,10 +174,14 @@ void main() {
         scene.mainLightColor * diffuse * materialProperties.diffuse +
         scene.mainLightColor * specular * materialProperties.specular;
 
+    vec3 color = texColor.xyz * lighting;
+
 #ifdef HAS_EMISSION
     vec3 emissiveColor = texture(emissiveSampler, uv).xyz;
-    lighting += emissiveColor * materialProperties.emission;
+    color += emissiveColor * materialProperties.emission;
+#else
+    color += materialProperties.emission;
 #endif
 
-    outColor = vec4(texColor.xyz * lighting, 1);
+    outColor = vec4(color, 1);
 }

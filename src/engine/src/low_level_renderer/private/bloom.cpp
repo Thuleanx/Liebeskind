@@ -8,6 +8,11 @@
 #include "low_level_renderer/shaders.h"
 #include "pipeline.h"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wold-style-cast"
+#include "imgui.h"
+#pragma GCC diagnostic pop
+
 namespace {
 struct CombineSpecializationConstants {
 	int numLayers;
@@ -33,6 +38,7 @@ namespace graphics {
 void recordBloomRenderpass(
 	Module& module, RenderSubmission& renderSubmission, vk::CommandBuffer buffer, uint32_t imageIndex
 ) {
+
 	ASSERT(module.device.swapchain.has_value(), "Cannot record if the swapchain is empty");
 	ASSERT(module.device.bloom.swapchainObjects.has_value(), "Cannot record if the swapchain is empty");
 
@@ -499,18 +505,21 @@ BloomGraphicsObjects createBloomObjects(
 		.shared = UniformBuffer<BloomSharedBuffer>::create(device, physicalDevice, 1),
 	};
 
+	const BloomGraphicsObjects::Config config;
+
 	buffers.combine.update(BloomCombineBuffer{
-		.intensity = 0.5f,
-		.blurRadius = 2.5f,
+		.intensity = config.intensity,
+		.blurRadius = config.blurRadius,
 	});
 	buffers.upsample.update(BloomUpsampleBuffer{
-		.blurRadius = 2.5f,
+		.blurRadius = config.blurRadius,
 	});
 
 	buffers.shared.bind(writeBuffer, descriptors.shared, 0);
 	writeBuffer.batchWrite(device);
 
 	return BloomGraphicsObjects{
+		.config = config,
 		.renderPasses = renderPasses,
 		.uniformLayouts = uniformLayouts,
 		.pipelineLayouts = pipelineLayouts,
@@ -520,6 +529,16 @@ BloomGraphicsObjects createBloomObjects(
 		.pipelines = pipelines,
 		.swapchainObjects = {}
 	};
+}
+
+void updateConfigOnGPU(const BloomGraphicsObjects& obj) {
+	obj.buffers.combine.update(BloomCombineBuffer{
+		.intensity = obj.config.intensity,
+		.blurRadius = obj.config.blurRadius,
+	});
+	obj.buffers.upsample.update(BloomUpsampleBuffer{
+		.blurRadius = obj.config.blurRadius,
+	});
 }
 
 std::vector<BloomGraphicsObjects::SwapchainObject> createBloomSwapchainObjects(

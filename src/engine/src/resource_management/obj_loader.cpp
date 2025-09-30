@@ -1,7 +1,7 @@
 #include "resource_management/obj_loader.h"
 
 #include <tiny_obj_loader.h>
-
+#include <glm/gtx/string_cast.hpp>
 #include <unordered_map>
 
 #include "core/logger/assert.h"
@@ -9,35 +9,22 @@
 namespace resource_management {
 
 Model loadObj(
-	graphics::Module& graphics,
-	std::string_view objPath,
-	std::string_view mtlDir,
-	std::string_view texturePath
+	graphics::Module& graphics, std::string_view objPath, std::string_view mtlDir, std::string_view texturePath
 ) {
 	tinyobj::attrib_t attrib;
 	std::vector<tinyobj::shape_t> shapes;
 	std::vector<tinyobj::material_t> materials;
 	std::string warn, err;
 
-	const bool successfullyLoadedModel = tinyobj::LoadObj(
-		&attrib, &shapes, &materials, &warn, &err, objPath.data(), mtlDir.data()
-	);
+	const bool successfullyLoadedModel =
+		tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, objPath.data(), mtlDir.data());
 
 	ASSERT(
 		successfullyLoadedModel,
-		"Can't load model at " << objPath << " and materials at " << mtlDir
-							   << " " << warn << " " << err
+		"Can't load model at " << objPath << " and materials at " << mtlDir << " " << warn << " " << err
 	);
 
 	const size_t numMaterials = materials.size();
-
-	// We will be grouping these meshes so that it's one mesh per material
-	std::vector<graphics::PipelineSpecializationConstants> variants;
-	std::vector<graphics::MeshID> loadedMeshes;
-	std::vector<graphics::MaterialInstanceID> loadedMaterials;
-	variants.resize(numMaterials);
-	loadedMeshes.resize(numMaterials);
-	loadedMaterials.resize(numMaterials);
 
 	struct PerMaterialData {
 		std::vector<graphics::Vertex> vertices;
@@ -54,46 +41,68 @@ Model loadObj(
 	materialDatas.resize(numMaterials);
 
 	for (const tinyobj::shape_t& shape : shapes) {
+		ASSERT(shape.mesh.material_ids.size() * 3 == shape.mesh.indices.size(), "Not a mesh made of triangles");
 		ASSERT(
-			shape.mesh.material_ids.size() * 3 == shape.mesh.indices.size(),
-			"Not a mesh made of triangles"
-		);
-
-		ASSERT(
-			shape.mesh.material_ids.size() ==
-				shape.mesh.num_face_vertices.size(),
-			"Materials " << shape.mesh.material_ids.size()
-						 << " and num vertices arrays "
-						 << shape.mesh.num_face_vertices.size()
-						 << " are not of the same size"
+			shape.mesh.material_ids.size() == shape.mesh.num_face_vertices.size(),
+			"Materials " << shape.mesh.material_ids.size() << " and num vertices arrays "
+						 << shape.mesh.num_face_vertices.size() << " are not of the same size"
 		);
 
 		size_t faceIndexOffset = 0;
-		for (size_t face = 0; face < shape.mesh.num_face_vertices.size();
-			 face++) {
+		for (size_t face = 0; face < shape.mesh.num_face_vertices.size(); face++) {
 			ASSERT(
 				shape.mesh.num_face_vertices[face] == 3,
-				"Cannot support meshes with polygons of "
-					<< shape.mesh.num_face_vertices[face]
-					<< " vertices, only triangle meshes permitted"
+				"Cannot support meshes with polygons of " << shape.mesh.num_face_vertices[face]
+														  << " vertices, only triangle meshes permitted"
 			);
 
 			const int perFaceMaterialIndex = shape.mesh.material_ids[face];
+            ASSERT(perFaceMaterialIndex >= 0 && perFaceMaterialIndex < numMaterials, "Material ids on the");
 			const size_t numVertices = shape.mesh.num_face_vertices[face];
 
-			PerMaterialData& faceMaterialData =
-				materialDatas[perFaceMaterialIndex];
+			PerMaterialData& faceMaterialData = materialDatas[perFaceMaterialIndex];
+
+			glm::vec3 faceVertices[numVertices];
+			for (size_t faceIndex = 0; faceIndex < numVertices; faceIndex++) {
+				ASSERT(
+					faceIndex + faceIndexOffset < shape.mesh.indices.size(),
+					"Index " << faceIndex + faceIndexOffset << " exceeds bounds of index array ("
+							 << shape.mesh.indices.size() << ")"
+				);
+				const tinyobj::index_t index = shape.mesh.indices[faceIndexOffset + faceIndex];
+				ASSERT(index.vertex_index >= 0, "Vertex does not specify a vertex index");
+				faceVertices[faceIndex] = glm::vec3(
+					attrib.vertices[3 * index.vertex_index + 0],
+					attrib.vertices[3 * index.vertex_index + 1],
+					attrib.vertices[3 * index.vertex_index + 2]
+				);
+			}
+
+			const glm::vec3 faceNormal =
+				glm::normalize(glm::cross(faceVertices[1] - faceVertices[0], faceVertices[2] - faceVertices[0]));
+
+			size_t faceGlobalVertexIndex[3];
 
 			for (size_t faceIndex = 0; faceIndex < numVertices; faceIndex++) {
-				const tinyobj::index_t index =
-					shape.mesh.indices[faceIndexOffset + faceIndex];
-				ASSERT(
-					index.normal_index >= 0, "Vertex does not specify a normal"
-				);
-				ASSERT(
-					index.texcoord_index >= 0,
-					"Vertex does not specify a tex coordinate"
-				);
+				const tinyobj::index_t index = shape.mesh.indices[faceIndexOffset + faceIndex];
+
+				const glm::vec3 normal = [&]() {
+					if (index.normal_index >= 0) {
+						ASSERT(
+							3 * index.normal_index + 2 < attrib.normals.size(),
+							"Normal index " << index.normal_index << " is outside of bounds ("
+											<< attrib.normals.size() / 3 << ")"
+						);
+						return glm::vec3(
+							attrib.normals[3 * index.normal_index + 0],
+							attrib.normals[3 * index.normal_index + 1],
+							attrib.normals[3 * index.normal_index + 2]
+						);
+					}
+					return faceNormal;
+				}();
+
+				ASSERT(index.texcoord_index >= 0, "Vertex does not specify a tex coordinate");
 
 				const graphics::Vertex vertex{
 					.position =
@@ -102,12 +111,7 @@ Model loadObj(
 							attrib.vertices[3 * index.vertex_index + 1],
 							attrib.vertices[3 * index.vertex_index + 2]
 						},
-					.normal =
-						glm::vec3{
-							attrib.normals[3 * index.normal_index + 0],
-							attrib.normals[3 * index.normal_index + 1],
-							attrib.normals[3 * index.normal_index + 2]
-						},
+					.normal = normal,
 					.tangent = glm::vec3(0),
 					.color = glm::vec3{1.0, 1.0, 1.0},
 					// obj format coordinate system makes 0 the bottom of
@@ -125,12 +129,14 @@ Model loadObj(
 					const size_t vertexIndex = uniqueGlobalVertices.size();
 					uniqueGlobalVertices[vertex] = vertexIndex;
 					globalTangents.emplace_back(0);
+					faceGlobalVertexIndex[faceIndex] = vertexIndex;
+				} else {
+					faceGlobalVertexIndex[faceIndex] = uniqueGlobalVertices[vertex];
 				}
 
 				const size_t vertexIndex = [&]() {
 					if (!faceMaterialData.uniqueVertices.count(vertex)) {
-						const size_t result =
-							faceMaterialData.uniqueVertices.size();
+						const size_t result = faceMaterialData.uniqueVertices.size();
 						faceMaterialData.vertices.push_back(vertex);
 						faceMaterialData.uniqueVertices[vertex] = result;
 						return result;
@@ -141,47 +147,48 @@ Model loadObj(
 				faceMaterialData.indices.push_back(vertexIndex);
 			}
 
-			const size_t faceMaterialIndex =
-				faceMaterialData.indices.size() - numVertices;
+			const size_t faceMaterialIndex = faceMaterialData.indices.size() - numVertices;
 
-			const graphics::Vertex& v0 =
-				faceMaterialData
-					.vertices[faceMaterialData.indices[faceMaterialIndex]];
-			const graphics::Vertex& v1 =
-				faceMaterialData
-					.vertices[faceMaterialData.indices[faceMaterialIndex + 1]];
-			const graphics::Vertex& v2 =
-				faceMaterialData
-					.vertices[faceMaterialData.indices[faceMaterialIndex + 2]];
+			const graphics::Vertex& v0 = faceMaterialData.vertices[faceMaterialData.indices[faceMaterialIndex]];
+			const graphics::Vertex& v1 = faceMaterialData.vertices[faceMaterialData.indices[faceMaterialIndex + 1]];
+			const graphics::Vertex& v2 = faceMaterialData.vertices[faceMaterialData.indices[faceMaterialIndex + 2]];
 
 			const glm::vec3 tangent = getTangent(v0, v1, v2);
 
-			globalTangents.at(uniqueGlobalVertices[v0]) += tangent;
-			globalTangents.at(uniqueGlobalVertices[v1]) += tangent;
-			globalTangents.at(uniqueGlobalVertices[v2]) += tangent;
+			globalTangents.at(faceGlobalVertexIndex[0]) += tangent;
+			globalTangents.at(faceGlobalVertexIndex[1]) += tangent;
+			globalTangents.at(faceGlobalVertexIndex[2]) += tangent;
 
 			faceIndexOffset += numVertices;
 		}
 
-		ASSERT(
-			faceIndexOffset == shape.mesh.indices.size(),
-			"Have not parsed through all faces"
-		);
+		ASSERT(faceIndexOffset == shape.mesh.indices.size(), "Have not parsed through all faces");
 	}
 
 	for (glm::vec3& tangent : globalTangents) tangent = glm::normalize(tangent);
 
-	std::unordered_map<std::string, graphics::Texture> textures;
+	// We will be grouping these meshes so that it's one mesh per material
+	std::vector<graphics::PipelineSpecializationConstants> variants;
+	std::vector<graphics::MeshID> loadedMeshes;
+	std::vector<graphics::MaterialInstanceID> loadedMaterials;
+	variants.reserve(numMaterials);
+	loadedMeshes.reserve(numMaterials);
+	loadedMaterials.reserve(numMaterials);
+
 	for (size_t materialId = 0; materialId < numMaterials; materialId++) {
-		LLOG_INFO << "Loading material : " << materialId;
+		if (materialDatas[materialId].vertices.empty()) {
+			LLOG_WARNING << "Material " << materialId << " of model at " << objPath << " has no associated vertices,"
+						 << " skipping creating this material";
+			continue;
+		}
+
 		for (graphics::Vertex& vertex : materialDatas[materialId].vertices)
 			vertex.tangent = globalTangents[uniqueGlobalVertices[vertex]];
 
 		PerMaterialData materialData = materialDatas[materialId];
-		const graphics::MeshID mesh =
-			graphics.loadMesh(materialData.vertices, materialData.indices);
+		const graphics::MeshID mesh = graphics.loadMesh(materialData.vertices, materialData.indices);
 
-		loadedMeshes[materialId] = mesh;
+		loadedMeshes.push_back(mesh);
 
 		const tinyobj::material_t material = materials[materialId];
 
@@ -193,25 +200,22 @@ Model loadObj(
 			.shininess = material.shininess,
 		};
 
+		LLOG_VERBOSE << "Material " << materialId << " " << glm::to_string(properties.specular) << " "
+				  << glm::to_string(properties.diffuse) << " " << glm::to_string(properties.ambient) << " "
+				  << glm::to_string(properties.emission);
+
 		const auto generateTexture = [&](const std::string& path,
-										 graphics::TextureFormatHint formatHint
-									 ) -> std::optional<graphics::TextureID> {
-			if (path.length() > 0)
-				return graphics.loadTexture(
-					std::string(texturePath) + path, formatHint
-				);
+										 graphics::TextureFormatHint formatHint) -> std::optional<graphics::TextureID> {
+			if (path.length() > 0) return graphics.loadTexture(std::string(texturePath) + path, formatHint);
 			return std::nullopt;
 		};
 
-		const std::optional<graphics::TextureID> albedo = generateTexture(
-			material.diffuse_texname, graphics::TextureFormatHint::eGamma8
-		);
-		const std::optional<graphics::TextureID> normal = generateTexture(
-			material.normal_texname, graphics::TextureFormatHint::eLinear8
-		);
-		const std::optional<graphics::TextureID> displacement = generateTexture(
-			material.displacement_texname, graphics::TextureFormatHint::eLinear8
-		);
+		const std::optional<graphics::TextureID> albedo =
+			generateTexture(material.diffuse_texname, graphics::TextureFormatHint::eGamma8);
+		const std::optional<graphics::TextureID> normal =
+			generateTexture(material.normal_texname, graphics::TextureFormatHint::eLinear8);
+		const std::optional<graphics::TextureID> displacement =
+			generateTexture(material.displacement_texname, graphics::TextureFormatHint::eLinear8);
 		const std::optional<graphics::TextureID> emission = std::nullopt;
 
 		const graphics::MaterialCreateInfo createInfo{
@@ -223,16 +227,10 @@ Model loadObj(
 			.sampler = graphics::SamplerType::eLinear
 		};
 
-		loadedMaterials[materialId] = graphics.loadMaterial(createInfo);
-		variants[materialId] =
-			graphics::createSpecializationConstant(createInfo);
+		loadedMaterials.push_back(graphics.loadMaterial(createInfo));
+		variants.push_back(graphics::createSpecializationConstant(createInfo));
 	}
 
-	return {
-		.variants = variants,
-		.meshes = loadedMeshes,
-		.materials = loadedMaterials
-	};
+	return {.variants = variants, .meshes = loadedMeshes, .materials = loadedMaterials};
 }
-
 };	// namespace resource_management

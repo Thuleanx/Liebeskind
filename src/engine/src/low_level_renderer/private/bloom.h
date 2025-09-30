@@ -47,4 +47,6 @@ void recordBloomRenderpass(
 	uint32_t imageIndex
 );
 
+void updateConfigOnGPU(const BloomGraphicsObjects& obj);
+
 }  // namespace graphics

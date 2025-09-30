@@ -1,0 +1,36 @@
+{
+    "textures": [],
+    "meshes": [],
+    "materials": [],
+    "objects": [
+        {
+            "id": 0,
+            "modelPath": "models/bedroom/iscv2.obj",
+            "mtlPath": "models/bedroom/",
+            "texturePath": "models/bedroom/"
+        }
+    ],
+    "statics": [
+        {
+            "transform": {
+                "position": [
+                    0,
+                    0,
+                    0.0
+                ],
+                "rotation": [
+                    0.0,
+                    0.0,
+                    0
+                ],
+                "scale": [
+                    1.00,
+                    1.00,
+                    1.00
+                ]
+            },
+            "type": "obj",
+            "id": 0
+        }
+    ]
+}

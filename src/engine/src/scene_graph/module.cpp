@@ -82,7 +82,7 @@ void Module::updateObjects(std::vector<std::tuple<int, glm::mat4>> updates) {
 bool Module::drawFrame(graphics::Module& graphics) {
 	cameras::PerspectiveCamera& mainCamera = cameras::module->mainCamera;
 
-	ImGui::Begin("Graphics");
+	ImGui::Begin("Scene");
 	ImGui::ColorEdit3("Ambient Color", glm::value_ptr(sceneData.ambientColor));
 	ImGui::ColorEdit3("Light Color", glm::value_ptr(sceneData.mainLightColor));
 	ImGui::SliderFloat3(
@@ -150,6 +150,7 @@ bool Module::drawFrame(graphics::Module& graphics) {
 
 	bool isRenderSuccessful = graphics.drawFrame(renderSubmission, sceneData);
 	clear(renderSubmission);
+
 	return isRenderSuccessful;
 }
 }  // namespace scene_graph

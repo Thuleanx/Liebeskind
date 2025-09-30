@@ -52,6 +52,7 @@ Texture loadTextureFromFile(
 	int width, height, channels;
 	stbi_uc* pixels =
 		stbi_load(filePath.data(), &width, &height, &channels, STBI_default);
+	ASSERT(pixels, "Can't load texture at " << filePath);
 
 	const vk::FormatFeatureFlags requiredImageFormatFeatures =
 		vk::FormatFeatureFlagBits::eSampledImage |
@@ -83,10 +84,10 @@ Texture loadTextureFromFile(
 	const vk::Format imageFormat = bestFormat.value();
 	const bool isIdealFormatChosen = idealFormat == imageFormat;
 
+	LLOG_INFO << "Format chosen: " << vk::to_string(imageFormat);
+
 	const int bytesPerPixel = (isIdealFormatChosen ? channels : STBI_rgb_alpha);
 	const vk::DeviceSize size(width * height * bytesPerPixel);
-
-	ASSERT(pixels, "Can't load texture at " << filePath);
 
 	const auto [stagingBuffer, stagingBufferMemory] = Buffer::create(
 		device,

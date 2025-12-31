@@ -1,6 +1,3 @@
-#pragma once
-#include "core/algo/generation_index_array.h"
-
 #include "core/logger/assert.h"
 
 namespace algo {

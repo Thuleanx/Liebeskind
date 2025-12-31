@@ -198,15 +198,15 @@ GraphicsUserInterface GraphicsUserInterface::create(
 		.QueueFamily = device.queueFamily.graphicsFamily.value(),
 		.Queue = device.graphicsQueue,
 		.DescriptorPool = descriptorPool,
-		.RenderPass = renderPass,
 		.MinImageCount = MAX_FRAMES_IN_FLIGHT,
 		.ImageCount = MAX_FRAMES_IN_FLIGHT,
+        .PipelineInfoMain = ImGui_ImplVulkan_PipelineInfo {
+            .RenderPass = renderPass,
+        },
 	};
 #pragma GCC diagnostic pop
 
 	ImGui_ImplVulkan_Init(&initInfo);
-
-	ImGui_ImplVulkan_CreateFontsTexture();
 
 	return GraphicsUserInterface{
 		.descriptorPool = descriptorPool,
@@ -240,7 +240,6 @@ void GraphicsUserInterface::recreateRenderpassAndFramebuffers(
 }
 
 void GraphicsUserInterface::destroy(GraphicsDeviceInterface& device) {
-	ImGui_ImplVulkan_DestroyFontsTexture();
 	ImGui_ImplVulkan_Shutdown();
 
 	for (const vk::Framebuffer& framebuffer : framebuffers)

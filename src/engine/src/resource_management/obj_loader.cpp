@@ -190,7 +190,11 @@ Model loadObj(
 
 		loadedMeshes.push_back(mesh);
 
-		const tinyobj::material_t material = materials[materialId];
+		tinyobj::material_t material = materials[materialId];
+        if (material.ambient[0] == 0 && material.ambient[1] == 0 && material.ambient[2] == 0) {
+            // if ambient is not specified then we set it to 1
+            material.ambient[0] = material.ambient[1] = material.ambient[2] = 1;
+        }
 
 		const graphics::MaterialProperties properties{
 			.specular = reinterpret_cast<const glm::vec3&>(material.specular),

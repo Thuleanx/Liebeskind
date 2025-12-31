@@ -3,6 +3,7 @@
 #include <array>
 #include <span>
 #include <vector>
+#include <cstdint>
 
 #include "core/logger/assert.h"
 

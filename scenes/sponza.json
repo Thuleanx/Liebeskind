@@ -64,6 +64,12 @@
             "modelPath": "models/sponza/sponza.obj",
             "mtlPath": "models/sponza/",
             "texturePath": "models/sponza/"
+        },
+        {
+            "id": 1,
+            "modelPath": "models/ChibiPippa.obj",
+            "mtlPath": "models/",
+            "texturePath": "textures/"
         }
     ],
     "statics": [
@@ -87,6 +93,27 @@
             },
             "type": "obj",
             "id": 0
+        },
+        {
+            "transform": {
+                "position": [
+                    0,
+                    0,
+                    0.0
+                ],
+                "rotation": [
+                    0.0,
+                    0.0,
+                    0
+                ],
+                "scale": [
+                    2.00,
+                    2.00,
+                    2.00
+                ]
+            },
+            "type": "obj",
+            "id": 1
         }
     ]
 }

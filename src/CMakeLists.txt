@@ -15,13 +15,13 @@ add_subdirectory(game)
 target_link_libraries(source PUBLIC engine)
 target_link_libraries(source PUBLIC game)
 
-# Needed for shared library builds on windows:  copy cpptrace.dll to the same directory as the
-# executable for your_target
-if(WIN32)
-  add_custom_command(
-    TARGET source POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    $<TARGET_FILE:cpptrace::cpptrace>
-    $<TARGET_FILE_DIR:source>
-  )
-endif()
+# # Needed for shared library builds on windows:  copy cpptrace.dll to the same directory as the
+# # executable for your_target
+# if(WIN32)
+#   add_custom_command(
+#     TARGET source POST_BUILD
+#     COMMAND ${CMAKE_COMMAND} -E copy_if_different
+#     $<TARGET_FILE:cpptrace::cpptrace>
+#     $<TARGET_FILE_DIR:source>
+#   )
+# endif()

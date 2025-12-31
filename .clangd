@@ -1,2 +1,22 @@
 CompileFlags:
-  Add: [-DVULKAN_HPP_NO_EXCEPTIONS, -std=c++23, -DGLM_ENABLE_EXPERIMENTAL, -Wall, -Wextra, -Wpedantic, -Wfloat-equal, -pedantic-errors, -Wold-style-cast]
+  Add: [
+    -DVULKAN_HPP_NO_EXCEPTIONS, 
+    -std=c++20, 
+    -DGLM_ENABLE_EXPERIMENTAL,
+    -Wall,
+    -Wextra,
+    -Wpedantic,
+    -Wfloat-equal,
+    -pedantic-errors,
+    -Wold-style-cast,
+  ]
+# CompileFlags:
+#   Add: [ 
+#     # -std=c++17,
+#     # - "-fms-extensions"
+#     # -fno-ms-compatibility,
+#     # -fno-ms-extensions,
+#     -isystem,C:/Users/xxxx/scoop/apps/llvm-mingw/current/include/c++/v1,
+#     -isystem,C:/Users/xxxx/scoop/apps/llvm-mingw/20240417/lib/clang/18/include,
+#     -isystem,C:/Users/xxxx/scoop/apps/llvm-mingw/current/include,
+#   ] 

@@ -2,6 +2,18 @@ cmake_minimum_required(VERSION 3.25)
 
 project(star_judgement)
 
+# C files should now compile as C++
+# list(APPEND CMAKE_CXX_SOURCE_FILE_EXTENSIONS c)
+
+# Force static linking for libgcc and libstdc++
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+ 
+# Static link libwinpthread (if using threads)
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-Bstatic -lwinpthread -Wl,-Bdynamic")
+
+# Make it so that CMake outputs dlls into the binary directory
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+
 add_compile_definitions(VULKAN_HPP_NO_EXCEPTIONS)
 add_compile_definitions(VULKAN_HPP_ASSERT_ON_RESULT=VULKAN_HPP_NAMESPACE::detail::ignore)
 add_compile_definitions(DEBUG)
@@ -39,3 +51,16 @@ add_custom_command(
 )
 
 add_dependencies(source Scenes)
+
+add_custom_target(Bundled)
+
+# Copy over dlls
+add_custom_command(
+    TARGET Bundled POST_BUILD
+    COMMENT "Copying dlls" VERBATIM
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    "${CMAKE_CURRENT_SOURCE_DIR}/bundled"
+    "$<TARGET_FILE_DIR:source>"
+)
+
+add_dependencies(source Bundled)

@@ -2,6 +2,8 @@
 #include "core/logger/assert.h"
 #include "core/logger/logger.h"
 
+#include <cpptrace/cpptrace.hpp>
+
 namespace graphics {
 void DescriptorWriteBuffer::writeBuffer(
     vk::DescriptorSet descriptorSet,
@@ -38,6 +40,7 @@ void DescriptorWriteBuffer::writeImage(
 }
 
 void DescriptorWriteBuffer::batchWrite(const vk::Device& device) {
+    LLOG_INFO << "Write: " << cpptrace::generate_trace().to_string(true);
     device.updateDescriptorSets(
         static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr
     );

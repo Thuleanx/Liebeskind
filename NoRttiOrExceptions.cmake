@@ -11,6 +11,6 @@ if (${CMAKE_CXX_COMPILER_ID} STREQUAL MSVC)
     string(REGEX REPLACE "/EHsc" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}") # Try to remove default /EHsc cxx_flag
     add_compile_options(/D_HAS_EXCEPTIONS=0)
 else ()
-    add_compile_options(-fno-rtti)
-    add_compile_options(-fno-exceptions)
+    # add_compile_options(-fno-rtti)
+    # add_compile_options(-fno-exceptions)
 endif ()

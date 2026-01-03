@@ -4,6 +4,7 @@ add_subdirectory(src)
 
 target_link_libraries(engine INTERFACE low_level_renderer scene_graph cameras scene_graph core save_load)
 target_link_libraries(engine PRIVATE third_party)
+target_link_libraries(engine PRIVATE SDL3::Headers)
 
 set(ENGINE_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/src/engine/include")
 

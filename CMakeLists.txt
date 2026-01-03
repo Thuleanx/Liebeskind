@@ -2,14 +2,18 @@ cmake_minimum_required(VERSION 3.25)
 
 project(star_judgement)
 
+set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
+
 # C files should now compile as C++
 # list(APPEND CMAKE_CXX_SOURCE_FILE_EXTENSIONS c)
+
+set_property(GLOBAL PROPERTY CMAKE_CXX_SCAN_FOR_MODULES OFF)
 
 # Force static linking for libgcc and libstdc++
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
  
 # Static link libwinpthread (if using threads)
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-Bstatic -lwinpthread -Wl,-Bdynamic")
+# set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-Bstatic -lwinpthread -Wl,-Bdynamic")
 
 # Make it so that CMake outputs dlls into the binary directory
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
@@ -29,6 +33,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 20)
 
 include(NoRttiOrExceptions.cmake)
+
+find_package(Threads REQUIRED)
 
 add_subdirectory(src)
 add_subdirectory(third_party EXCLUDE_FROM_ALL)

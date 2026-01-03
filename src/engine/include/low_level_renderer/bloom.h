@@ -27,7 +27,6 @@ struct BloomCombineBuffer {
     float blurRadius;
 };
 
-
 struct BloomGraphicsObjects {
 	static_assert(NUM_BLOOM_PASSES > 0);
 

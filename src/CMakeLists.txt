@@ -6,7 +6,7 @@ if (MSVC)
     # Warning all, sdl = security, extern = ignore external headers warnings for angle brackets includes
     target_compile_options(source PRIVATE /W4 /Wall /sdl /extern:anglebrackets /extern:W2 /fsanitize=address)
 else ()
-    target_compile_options(source PRIVATE -Wall -Wextra -Wpedantic -Werror -Wfloat-equal -pedantic-errors -Wold-style-cast -DNDEBUG -g -ggdb)
+    target_compile_options(source PRIVATE -Wall -Wextra -Wpedantic -Werror -Wfloat-equal -pedantic-errors -Wold-style-cast -DNDEBUG -g -ggdb -fno-rtti -fno-exceptions)
 endif ()
 
 add_subdirectory(engine)
@@ -14,6 +14,19 @@ add_subdirectory(game)
 
 target_link_libraries(source PUBLIC engine)
 target_link_libraries(source PUBLIC game)
+
+if(APPLE)
+  set_target_properties(source PROPERTIES
+    INSTALL_RPATH "@executable_path;@loader_path"
+    BUILD_WITH_INSTALL_RPATH TRUE
+    MACOSX_RPATH TRUE
+  )
+elseif(UNIX)
+  set_target_properties(source PROPERTIES
+    INSTALL_RPATH "$ORIGIN"
+    BUILD_WITH_INSTALL_RPATH TRUE
+  )
+endif()
 
 # # Needed for shared library builds on windows:  copy cpptrace.dll to the same directory as the
 # # executable for your_target

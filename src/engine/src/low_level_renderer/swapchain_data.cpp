@@ -21,6 +21,7 @@ SwapchainData GraphicsDeviceInterface::createSwapchain() {
 	);
 	const vk::SurfaceCapabilitiesKHR surfaceCapability =
 		Swapchain::getSurfaceCapability(physicalDevice, surface);
+    LLOG_INFO << "Image count: " << surfaceCapability.minImageCount << " " << surfaceCapability.maxImageCount;
 	const vk::Extent2D extent =
 		Swapchain::chooseSwapExtent(surfaceCapability, window);
 
@@ -60,7 +61,7 @@ SwapchainData GraphicsDeviceInterface::createSwapchain() {
 
 	LLOG_INFO << "Swapchain created with format "
 			  << to_string(renderPasses.swapchainColorFormat.format)
-			  << " and extent " << extent.width << " x " << extent.height;
+			  << " and extent " << extent.width << " x " << extent.height << " with " << swapchain;
 	const auto colorAttachmentsGet = device.getSwapchainImagesKHR(swapchain);
 	VULKAN_ENSURE_SUCCESS(
 		colorAttachmentsGet.result, "Can't get swapchain images:"
@@ -93,66 +94,74 @@ SwapchainData GraphicsDeviceInterface::createSwapchain() {
 	std::vector<Texture> intermediateColorAttachments;
 	intermediateColorAttachments.reserve(swapchainSize);
 
-	DescriptorWriteBuffer writeBuffer;
-	for (size_t i = 0; i < swapchainSize; i++) {
-		constexpr uint32_t depthMipLevels = 1;
-		depthAttachments.push_back(createTexture(
-			device,
-			physicalDevice,
-			renderPasses.depthAttachmentFormat,
-			extent.width,
-			extent.height,
-			vk::ImageTiling::eOptimal,
-			vk::ImageUsageFlagBits::eDepthStencilAttachment |
-				vk::ImageUsageFlagBits::eSampled,
-			vk::ImageAspectFlagBits::eDepth,
-			renderPasses.multisampleAntialiasingSampleCount,
-			depthMipLevels
-		));
-		transitionLayout(
-			depthAttachments.back(),
-			vk::ImageLayout::eUndefined,
-			vk::ImageLayout::eDepthStencilAttachmentOptimal,
-			device,
-			commandPool,
-			graphicsQueue
-		);
-		constexpr uint32_t multisampleMipLevels = 1;
-		multisampleColorAttachments.push_back(createTexture(
-			device,
-			physicalDevice,
-			renderPasses.colorAttachmentFormat,
-			extent.width,
-			extent.height,
-			vk::ImageTiling::eOptimal,
-			vk::ImageUsageFlagBits::eColorAttachment,
-			vk::ImageAspectFlagBits::eColor,
-			renderPasses.multisampleAntialiasingSampleCount,
-			multisampleMipLevels
-		));
-		constexpr uint32_t intermediateMipLevels = 1;
-		intermediateColorAttachments.push_back(createTexture(
-			device,
-			physicalDevice,
-			renderPasses.colorAttachmentFormat,
-			extent.width,
-			extent.height,
-			vk::ImageTiling::eOptimal,
-			vk::ImageUsageFlagBits::eColorAttachment |
-				vk::ImageUsageFlagBits::eSampled,
-			vk::ImageAspectFlagBits::eColor,
-			vk::SampleCountFlagBits::e1,
-			intermediateMipLevels
-		));
-		bindTextureToDescriptor(
-			depthAttachments[i].imageView,
-			frameDatas[i].postProcessingDescriptor,
-			1,
-			samplers.point,
-			writeBuffer,
-			vk::ImageLayout::eShaderReadOnlyOptimal
-		);
-	}
+	
+    {
+        LLOG_INFO << frameDatas.size() << " " << swapchainSize;
+        DescriptorWriteBuffer writeBuffer;
+        for (size_t i = 0; i < swapchainSize; i++) {
+            constexpr uint32_t depthMipLevels = 1;
+            depthAttachments.push_back(createTexture(
+                device,
+                physicalDevice,
+                renderPasses.depthAttachmentFormat,
+                extent.width,
+                extent.height,
+                vk::ImageTiling::eOptimal,
+                vk::ImageUsageFlagBits::eDepthStencilAttachment |
+                    vk::ImageUsageFlagBits::eSampled,
+                vk::ImageAspectFlagBits::eDepth,
+                renderPasses.multisampleAntialiasingSampleCount,
+                depthMipLevels
+            ));
+            transitionLayout(
+                depthAttachments.back(),
+                vk::ImageLayout::eUndefined,
+                vk::ImageLayout::eDepthStencilAttachmentOptimal,
+                device,
+                commandPool,
+                graphicsQueue
+            );
+            constexpr uint32_t multisampleMipLevels = 1;
+            multisampleColorAttachments.push_back(createTexture(
+                device,
+                physicalDevice,
+                renderPasses.colorAttachmentFormat,
+                extent.width,
+                extent.height,
+                vk::ImageTiling::eOptimal,
+                vk::ImageUsageFlagBits::eColorAttachment,
+                vk::ImageAspectFlagBits::eColor,
+                renderPasses.multisampleAntialiasingSampleCount,
+                multisampleMipLevels
+            ));
+            constexpr uint32_t intermediateMipLevels = 1;
+            intermediateColorAttachments.push_back(createTexture(
+                device,
+                physicalDevice,
+                renderPasses.colorAttachmentFormat,
+                extent.width,
+                extent.height,
+                vk::ImageTiling::eOptimal,
+                vk::ImageUsageFlagBits::eColorAttachment |
+                    vk::ImageUsageFlagBits::eSampled,
+                vk::ImageAspectFlagBits::eColor,
+                vk::SampleCountFlagBits::e1,
+                intermediateMipLevels
+            ));
+
+            LLOG_INFO << "Bind depth attachment for layer " << i;
+            bindTextureToDescriptor(
+                depthAttachments[i].imageView,
+                frameDatas[i].postProcessingDescriptor,
+                1,
+                samplers.point,
+                writeBuffer,
+                vk::ImageLayout::eShaderReadOnlyOptimal
+            );
+        }
+
+        writeBuffer.batchWrite(device);
+    }
 
 	const BloomSwapchainObjectsCreateInfo bloomSwapchainObjectsCreateInfo = {
 		.device = device,
@@ -163,18 +172,25 @@ SwapchainData GraphicsDeviceInterface::createSwapchain() {
 		.linearSampler = samplers.linearClearBorder
 	};
 
-	bloom.swapchainObjects =
-		createBloomSwapchainObjects(bloomSwapchainObjectsCreateInfo);
-    for (size_t i = 0; i < swapchainSize; i++) {
-		bindTextureToDescriptor(
-            // intermediateColorAttachments[i].imageView,
-			bloom.swapchainObjects.value()[i].colorViews[1].front(),
-			frameDatas[i].postProcessingDescriptor,
-			0,
-			samplers.point,
-			writeBuffer,
-			vk::ImageLayout::eShaderReadOnlyOptimal
-		);
+    {
+        DescriptorWriteBuffer writeBuffer;
+        LLOG_INFO << "Creating bloom swapchain objects";
+        bloom.swapchainObjects =
+            createBloomSwapchainObjects(bloomSwapchainObjectsCreateInfo);
+        LLOG_INFO << "Created bloom swapchain objects, binding...";
+        for (size_t i = 0; i < swapchainSize; i++) {
+            LLOG_INFO << "Bind bloom swapchain for layer " << i;
+            bindTextureToDescriptor(
+                // intermediateColorAttachments[i].imageView,
+                bloom.swapchainObjects.value()[i].colorViews[1].front(),
+                frameDatas[i].postProcessingDescriptor,
+                0,
+                samplers.point,
+                writeBuffer,
+                vk::ImageLayout::eShaderReadOnlyOptimal
+            );
+        }
+	    writeBuffer.batchWrite(device);
     }
 
 	std::vector<vk::Framebuffer> mainFramebuffers(swapchainSize);
@@ -239,8 +255,6 @@ SwapchainData GraphicsDeviceInterface::createSwapchain() {
 				postProcessingFramebufferCreation.value;
 		}
 	}
-
-	writeBuffer.batchWrite(device);
 
 	return SwapchainData{
 		.swapchain = swapchain,

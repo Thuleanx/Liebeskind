@@ -1,7 +1,7 @@
 #pragma once
 
 #include <vulkan/vulkan.hpp>
-#include <SDL3/SDL.H>
+#include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
 
 #include <optional>

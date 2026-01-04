@@ -65,6 +65,9 @@ struct GraphicsDeviceInterface {
 
 	void recreateSwapchain();
 
+    // Use sparringly!!! this waits for device and all queues to be idle
+    void waitCompleteIdle() const;
+
    private:
 	void cleanupSwapchain();
 	void handleWindowResize(int width, int height);

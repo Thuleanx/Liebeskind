@@ -45,9 +45,7 @@ Module Module::create() {
 }
 
 void Module::destroy() {
-	VULKAN_ENSURE_SUCCESS_EXPR(
-		device.device.waitIdle(), "Can't wait for device idle:"
-	);
+    device.waitCompleteIdle();
 	graphics::destroy(meshes, device.device);
 	graphics::destroy(materials, device.device);
 	graphics::destroy(textures, device.device);
@@ -71,8 +69,8 @@ void Module::beginFrame() {
 		ImGuiDockNodeFlags_PassthruCentralNode |
 			ImGuiDockNodeFlags_NoDockingOverCentralNode
 	);
-	ImGuiViewport* mainViewport = ImGui::GetMainViewport();
 	ImGuiDockNode* centralNode = ImGui::DockBuilderGetCentralNode(dockSpaceID);
+	ImGuiViewport* mainViewport = ImGui::GetMainViewport();
 	mainWindowExtent = vk::Rect2D{
 		vk::Offset2D{
 			static_cast<int32_t>(centralNode->Pos.x - mainViewport->Pos.x),
@@ -185,12 +183,14 @@ bool Module::drawFrame(
 		"Can't submit graphics queue:"
 	);
 
+#ifdef IMGUI_MULTIVIEW
 	ImGuiIO& io = ImGui::GetIO();
 	// Update and Render additional Platform Windows
 	if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
 		ImGui::UpdatePlatformWindows();
 		ImGui::RenderPlatformWindowsDefault();
 	}
+#endif
 
 	const vk::PresentInfoKHR presentInfo(
 		1,

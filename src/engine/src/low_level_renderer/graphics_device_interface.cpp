@@ -417,9 +417,7 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
 }
 
 void GraphicsDeviceInterface::destroy() {
-	VULKAN_ENSURE_SUCCESS_EXPR(
-		device.waitIdle(), "Can't wait for device idle:"
-	);
+    waitCompleteIdle();
 
 	for (FrameData& frameData : frameDatas) {
 		device.destroySemaphore(frameData.isImageAvailable);
@@ -462,9 +460,7 @@ void GraphicsDeviceInterface::handleEvent(const SDL_Event& event) {
 }
 
 void GraphicsDeviceInterface::recreateSwapchain() {
-	VULKAN_ENSURE_SUCCESS_EXPR(
-		device.waitIdle(), "Can't wait for device to idle:"
-	);
+    waitCompleteIdle();
 	cleanupSwapchain();
 	ASSERT(
 		!swapchain.has_value(),
@@ -488,5 +484,17 @@ void GraphicsDeviceInterface::handleWindowResize(
 	bool isMinimized = _width == 0 || _height == 0;
 	if (!isMinimized) recreateSwapchain();
 	else LLOG_INFO << "Window is minimized";
+}
+
+void GraphicsDeviceInterface::waitCompleteIdle() const {
+	VULKAN_ENSURE_SUCCESS_EXPR(
+		presentQueue.waitIdle(), "Can't wait for present queue to idle:"
+	);
+	VULKAN_ENSURE_SUCCESS_EXPR(
+		graphicsQueue.waitIdle(), "Can't wait for graphics queue to idle:"
+	);
+	VULKAN_ENSURE_SUCCESS_EXPR(
+		device.waitIdle(), "Can't wait for device to idle:"
+	);
 }
 }  // namespace graphics

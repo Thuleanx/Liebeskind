@@ -178,7 +178,9 @@ GraphicsUserInterface GraphicsUserInterface::create(
 
 	ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+#ifdef IMGUI_MULTIVIEWPORT
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+#endif
 	ImGui_ImplSDL3_InitForVulkan(device.window);
 
 	const vk::DescriptorPool descriptorPool = createUIDescriptorPool(device);
@@ -231,11 +233,13 @@ void GraphicsUserInterface::handleEvent(
 void GraphicsUserInterface::recreateRenderpassAndFramebuffers(
 	const GraphicsDeviceInterface& device
 ) {
+    device.waitCompleteIdle();
+
 	for (const vk::Framebuffer& framebuffer : framebuffers)
 		device.device.destroyFramebuffer(framebuffer);
 	device.device.destroyRenderPass(renderPass);
 
-    LLOG_INFO << "Recreating renderpass";
+    LLOG_INFO << "Recreating imgui renderpass";
 	renderPass = createUIRenderPass(device);
 	framebuffers = createUIFramebuffers(device, renderPass);
 }

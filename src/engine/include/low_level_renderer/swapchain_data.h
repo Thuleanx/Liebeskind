@@ -11,11 +11,12 @@ struct SwapchainData {
     vk::Extent2D extent;
     std::vector<vk::Image> colorAttachments;
     std::vector<vk::ImageView> colorAttachmentViews;
-    std::vector<Texture> intermediateColorAttachments;
-    std::vector<Texture> multisampleColorAttachments;
-    std::vector<Texture> depthAttachments;
-    std::vector<vk::Framebuffer> mainFramebuffers;
+    Texture intermediateColor;
+    Texture multisampleColor;
+    Texture depth;
+    vk::Framebuffer mainFramebuffer;
     std::vector<vk::Framebuffer> postProcessingFramebuffers;
+    std::vector<vk::Semaphore> submitSemaphores;
 
    public:
     float getAspectRatio() const;

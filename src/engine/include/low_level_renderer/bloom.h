@@ -79,7 +79,7 @@ struct BloomGraphicsObjects {
 		} descriptors;
 		std::array<vk::Framebuffer, NUM_BLOOM_PASSES> framebuffers;
 	};
-	std::optional<std::vector<SwapchainObject>> swapchainObjects;
+	std::optional<SwapchainObject> swapchainObject;
 };
 
 };	// namespace graphics

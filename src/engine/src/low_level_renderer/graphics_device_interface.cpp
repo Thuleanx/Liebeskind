@@ -185,11 +185,9 @@ std::vector<vk::CommandBuffer> init_createCommandBuffers(
 
 std::tuple<
 	std::vector<vk::Semaphore>,
-	std::vector<vk::Semaphore>,
 	std::vector<vk::Fence>>
 init_createSyncObjects(const vk::Device& device, const uint32_t num_of_frames) {
 	std::vector<vk::Semaphore> isImageAvailable(num_of_frames);
-	std::vector<vk::Semaphore> isRenderingFinished(num_of_frames);
 	std::vector<vk::Fence> isRenderingInFlight(num_of_frames);
 	vk::SemaphoreCreateInfo semaphoreCreateInfo;
 	vk::FenceCreateInfo fenceCreateInfo(vk::FenceCreateFlagBits::eSignaled);
@@ -197,26 +195,20 @@ init_createSyncObjects(const vk::Device& device, const uint32_t num_of_frames) {
 	for (uint32_t i = 0; i < num_of_frames; i++) {
 		const vk::ResultValue<vk::Semaphore> isImageAvailableCreation =
 			device.createSemaphore(semaphoreCreateInfo);
-		const vk::ResultValue<vk::Semaphore> isRenderingFinishedCreation =
-			device.createSemaphore(semaphoreCreateInfo);
 		const vk::ResultValue<vk::Fence> isRenderingInFlightCreation =
 			device.createFence(fenceCreateInfo);
 		VULKAN_ENSURE_SUCCESS(
 			isImageAvailableCreation.result, "Can't create semaphore:"
 		);
 		VULKAN_ENSURE_SUCCESS(
-			isRenderingFinishedCreation.result, "Can't create semaphore:"
-		);
-		VULKAN_ENSURE_SUCCESS(
 			isRenderingInFlightCreation.result, "Can't create fence:"
 		);
 		isImageAvailable[i] = isImageAvailableCreation.value;
-		isRenderingFinished[i] = isRenderingFinishedCreation.value;
 		isRenderingInFlight[i] = isRenderingInFlightCreation.value;
 	}
 
 	return std::make_tuple(
-		isImageAvailable, isRenderingFinished, isRenderingInFlight
+		isImageAvailable, isRenderingInFlight
 	);
 }
 
@@ -377,7 +369,7 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
 		uniformBuffers[i].bind(writeBuffer, globalDescriptors[i], 0);
 	writeBuffer.batchWrite(device);
 
-	const auto [isImageAvailable, isRenderingFinished, isRenderingInFlight] =
+	const auto [isImageAvailable, isRenderingInFlight] =
 		init_createSyncObjects(device, MAX_FRAMES_IN_FLIGHT);
 	LLOG_INFO << "Created semaphore and fences";
 
@@ -389,7 +381,6 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
 			uniformBuffers[i],
 			commandBuffers[i],
 			isImageAvailable[i],
-			isRenderingFinished[i],
 			isRenderingInFlight[i]
 		};
 	}
@@ -432,7 +423,6 @@ void GraphicsDeviceInterface::destroy() {
 
 	for (FrameData& frameData : frameDatas) {
 		device.destroySemaphore(frameData.isImageAvailable);
-		device.destroySemaphore(frameData.isRenderingFinished);
 		device.destroyFence(frameData.isRenderingInFlight);
 		frameData.sceneDataBuffer.destroyBy(device);
 	}
@@ -482,12 +472,12 @@ void GraphicsDeviceInterface::recreateSwapchain() {
 		"swapchain"
 	);
 	swapchain = createSwapchain();
-	LLOG_INFO << "Swapchain recreated";
+	LLOG_INFO << "Swapchain recreated ";
 }
 
 void GraphicsDeviceInterface::cleanupSwapchain() {
 	ASSERT(swapchain.has_value(), "Swapchain does not exist to clean up");
-	destroyBloomSwapchainObjects(bloom, device);
+	destroyBloomSwapchainObject(bloom, device);
 	destroy(swapchain.value());
 	swapchain = std::nullopt;
 }

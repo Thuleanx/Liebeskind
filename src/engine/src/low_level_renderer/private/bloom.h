@@ -25,26 +25,25 @@ BloomGraphicsObjects createBloomObjects(
 );
 void destroy(BloomGraphicsObjects& objects, vk::Device device);
 
-struct BloomSwapchainObjectsCreateInfo {
+struct BloomSwapchainObjectCreateInfo {
 	vk::Device device;
 	vk::PhysicalDevice physicalDevice;
-	std::span<const Texture> colorBuffers;
+	const Texture& colorBuffer;
 	vk::Extent2D swapchainExtent;
 	BloomGraphicsObjects& bloomGraphicsObjects;
 	vk::Sampler linearSampler;
 };
-std::vector<BloomGraphicsObjects::SwapchainObject> createBloomSwapchainObjects(
-	BloomSwapchainObjectsCreateInfo createInfo
+BloomGraphicsObjects::SwapchainObject createBloomSwapchainObject(
+	BloomSwapchainObjectCreateInfo createInfo
 );
-void destroyBloomSwapchainObjects(
+void destroyBloomSwapchainObject(
 	BloomGraphicsObjects& graphicsObjects, vk::Device device
 );
 
 void recordBloomRenderpass(
 	Module& module,
 	RenderSubmission& renderSubmission,
-	vk::CommandBuffer buffer,
-	uint32_t imageIndex
+	vk::CommandBuffer buffer
 );
 
 void updateConfigOnGPU(const BloomGraphicsObjects& obj);

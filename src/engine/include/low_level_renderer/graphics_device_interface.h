@@ -26,7 +26,6 @@ struct GraphicsDeviceInterface {
 		UniformBuffer<GPUSceneData> sceneDataBuffer;
 		vk::CommandBuffer drawCommandBuffer;
 		vk::Semaphore isImageAvailable;
-		vk::Semaphore isRenderingFinished;
 		vk::Fence isRenderingInFlight;
 	};
 	std::array<FrameData, MAX_FRAMES_IN_FLIGHT> frameDatas;

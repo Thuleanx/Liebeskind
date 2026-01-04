@@ -1,0 +1,3 @@
+- [ ] Address semaphore reuse
+- [ ] Clean up duplicated descriptors in FrameData
+- [ ] Setup geometry shader

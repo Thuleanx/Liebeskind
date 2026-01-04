@@ -128,6 +128,7 @@ bool Module::drawFrame(
 		),
 		"Can't wait for previous frame rendering:"
 	);
+
 	const vk::ResultValue<uint32_t> imageIndex = device.acquireNextImageKHR(
 		this->device.swapchain->swapchain,
 		no_time_limit,
@@ -139,6 +140,7 @@ bool Module::drawFrame(
 		case vk::Result::eErrorOutOfDateKHR:
 			LLOG_INFO << "Out of date KHR";
 			this->device.recreateSwapchain();
+            this->ui.recreateRenderpassAndFramebuffers(this->device);
 			return true;
 
 		case vk::Result::eSuccess:
@@ -154,10 +156,14 @@ bool Module::drawFrame(
 		device.resetFences(1, &currentFrame.isRenderingInFlight),
 		"Can't reset fence for render:"
 	);
+
+
 	vk::CommandBuffer commandBuffer = currentFrame.drawCommandBuffer;
 	commandBuffer.reset();
 
 	currentFrame.sceneDataBuffer.update(sceneData);
+
+    const vk::Semaphore submitSemaphore = this->device.swapchain->submitSemaphores[imageIndex.value];
 
 	recordCommandBuffer(renderSubmission, commandBuffer, imageIndex.value);
 
@@ -170,7 +176,7 @@ bool Module::drawFrame(
 		1,
 		&currentFrame.drawCommandBuffer,
 		1,
-		&currentFrame.isRenderingFinished
+        &submitSemaphore
 	);
 	VULKAN_ENSURE_SUCCESS_EXPR(
 		this->device.graphicsQueue.submit(
@@ -188,7 +194,7 @@ bool Module::drawFrame(
 
 	const vk::PresentInfoKHR presentInfo(
 		1,
-		&currentFrame.isRenderingFinished,
+        &submitSemaphore,
 		1,
 		&this->device.swapchain->swapchain,
 		&imageIndex.value,
@@ -199,10 +205,12 @@ bool Module::drawFrame(
 		case vk::Result::eErrorOutOfDateKHR:
 			LLOG_INFO << "OutOfDateKHR encountered when presenting swapchain";
 			this->device.recreateSwapchain();
+            this->ui.recreateRenderpassAndFramebuffers(this->device);
 			break;
 		case vk::Result::eSuboptimalKHR:
 			LLOG_INFO << "SuboptimalKHR encountered when presenting swapchain";
 			this->device.recreateSwapchain();
+            this->ui.recreateRenderpassAndFramebuffers(this->device);
 		case vk::Result::eSuccess: break;
 		default:
 			LLOG_ERROR << "Error submitting to present queue: "
@@ -258,7 +266,7 @@ void Module::recordCommandBuffer(
 		};
 		const vk::RenderPassBeginInfo renderPassInfo(
 			device.renderPasses.mainPass,
-			device.swapchain->mainFramebuffers[imageIndex],
+			device.swapchain->mainFramebuffer,
 			mainWindowExtent,
 			static_cast<uint32_t>(clearColors.size()),
 			clearColors.data()
@@ -312,8 +320,7 @@ void Module::recordCommandBuffer(
 	recordBloomRenderpass(
 		*this,
         renderSubmission,
-        buffer,
-        imageIndex
+        buffer
 	);
 
     // Bloom renderpass can mess with viewport and scissor, 
@@ -345,7 +352,7 @@ void Module::recordCommandBuffer(
 			device.pipeline.postProcessingPipeline.layout,
 			static_cast<int>(PostProcessingDescriptorSetBindingPoint::eGlobal),
 			1,
-			&device.frameDatas[imageIndex].postProcessingDescriptor,
+			&device.frameDatas[device.currentFrame].postProcessingDescriptor,
 			0,
 			nullptr
 		);
@@ -362,6 +369,8 @@ void Module::recordCommandBuffer(
 	buffer.setScissor(0, 1, &screenExtent);
 
 	{  // UI RenderPass
+        ASSERT(ui.framebuffers.size() > imageIndex, 
+                "Attempting to index " << imageIndex << " into a framebuffer array of size " << ui.framebuffers.size());
 		const vk::RenderPassBeginInfo renderPassInfo(
 			ui.renderPass,
 			ui.framebuffers[imageIndex],

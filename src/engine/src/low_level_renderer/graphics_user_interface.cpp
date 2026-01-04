@@ -235,6 +235,7 @@ void GraphicsUserInterface::recreateRenderpassAndFramebuffers(
 		device.device.destroyFramebuffer(framebuffer);
 	device.device.destroyRenderPass(renderPass);
 
+    LLOG_INFO << "Recreating renderpass";
 	renderPass = createUIRenderPass(device);
 	framebuffers = createUIFramebuffers(device, renderPass);
 }

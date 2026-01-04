@@ -10,7 +10,7 @@ Ke 2.000000 2.000000 0.000000
 Ni 1.000000
 d 1.000000
 illum 2
-	map_Kd ChibiPippa.PNG
+	map_Kd ChibiPippa.png
 
 newmtl Outline
 Ns 360.000000

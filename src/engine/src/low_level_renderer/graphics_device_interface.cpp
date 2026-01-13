@@ -5,7 +5,6 @@
 #include <set>
 #include <vector>
 
-#include "core/file_system/file.h"
 #include "core/logger/assert.h"
 #include "core/logger/vulkan_ensures.h"
 #include "low_level_renderer/descriptor_write_buffer.h"
@@ -13,6 +12,8 @@
 #include "low_level_renderer/queue_family.h"
 #include "private/bloom.h"
 #include "private/graphics_device_helper.h"
+#include "private/radiance_cascade.h"
+#include "private/shader_helper.h"
 #include "private/swapchain.h"
 #include "private/validation.h"
 
@@ -105,6 +106,7 @@ vk::Device init_createLogicalDevice(
 	}
 
 	vk::PhysicalDeviceFeatures deviceFeatures;
+    deviceFeatures.geometryShader = vk::True;
 	deviceFeatures.fragmentStoresAndAtomics = vk::True;
 	deviceFeatures.vertexPipelineStoresAndAtomics = vk::True;
 	deviceFeatures.shaderInt64 = vk::True;
@@ -228,20 +230,6 @@ std::vector<UniformBuffer<T>> init_createUniformBuffers(
 	return result;
 }
 
-UncompiledShader loadUncompiledShaderFromFile(
-	std::string_view filePath, vk::ShaderStageFlagBits stage
-) {
-	const std::optional<std::vector<char>> bytecode =
-		file_system::readFile(filePath);
-	ASSERT(
-		bytecode.has_value(),
-		"Shader needs to be able to be loaded from " << filePath
-	);
-	return UncompiledShader{
-		.code = std::string(bytecode.value().begin(), bytecode.value().end()),
-		.stage = stage
-	};
-}
 
 }  // namespace
 GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
@@ -389,6 +377,17 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
 		device, physicalDevice, shaders, colorAttachmentFormat
 	);
 
+    const RadianceCascadeData radianceCascade = create(
+        RadianceCascadeCreateInfo {
+            device,
+             physicalDevice,
+            shaders,
+            300,
+            glm::vec3(0,0,0),
+            glm::vec3(300, 300, 300)
+        }
+    );
+
 	GraphicsDeviceInterface deviceInterface{
 		.frameDatas = frameDatas,
 		.window = window,
@@ -405,6 +404,7 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
 		.mainShaders = mainShaders,
 		.swapchain = {},
 		.bloom = bloomObjects,
+        .radianceCascade = radianceCascade,
 		.commandPool = commandPool,
 		.samplers = allSamplers,
 		.currentFrame = 0,
@@ -437,6 +437,9 @@ void GraphicsDeviceInterface::destroy() {
 	graphics::destroy(pipeline, device);
 	LLOG_INFO << "Destroyed material pipeline";
 	graphics::destroy(bloom, device);
+	LLOG_INFO << "Destroyed bloom object";
+    graphics::destroy(radianceCascade, device);
+	LLOG_INFO << "Destroyed radiance cascade data";
 
 	device.destroy();
 	LLOG_INFO << "Destroyed device";

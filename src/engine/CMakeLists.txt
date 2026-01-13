@@ -26,6 +26,9 @@ set(GLSL_SOURCE_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/bloom_upsample.frag.glsl
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/bloom_downsample.frag.glsl
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/bloom_combine.frag.glsl
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/scene_voxelizer.frag.glsl
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/scene_voxelizer.geom.glsl
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/scene_voxelizer.vert.glsl
 )
 
 find_program(GLSL_VALIDATOR "glslangValidator")

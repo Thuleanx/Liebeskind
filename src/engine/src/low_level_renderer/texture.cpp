@@ -125,23 +125,19 @@ Texture loadTextureFromFile(
 
 	stbi_image_free(pixels);
 
-	const int mipLevels =
+	const uint32_t mipLevels =
 		static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) +
 		1;
 
-	const auto [textureImage, textureMemory] = Image::createImage(
-		device,
-		physicalDevice,
-		width,
-		height,
-		imageFormat,
-		vk::ImageTiling::eOptimal,
-		vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
-		vk::MemoryPropertyFlagBits::eDeviceLocal,
-		vk::SampleCountFlagBits::e1,  // We don't need antialiasing on these
-									  // textures, we're going to perform it on
-									  // the entire framebuffer
-		mipLevels
+	const auto [textureImage, textureMemory] = Image::create(
+        Image::CreateInfo {
+            device: device,
+            physicalDevice: physicalDevice,
+            size: vk::Extent3D(width, height, 1),
+            format: imageFormat,
+            usage: vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
+            mipLevels: mipLevels
+        }
 	);
 
 	Image::transitionImageLayout(
@@ -182,6 +178,7 @@ Texture loadTextureFromFile(
 	const vk::ImageView imageView = Image::createImageView(
 		device,
 		textureImage,
+        vk::ImageViewType::e2D,
 		imageFormat,
 		vk::ImageAspectFlagBits::eColor,
         mipLevelBase,
@@ -205,21 +202,21 @@ Texture createTexture(
 	vk::SampleCountFlagBits samplesCount,
 	uint32_t mipLevels
 ) {
-	const auto [image, memory] = Image::createImage(
-		device,
-		physicalDevice,
-		width,
-		height,
-		format,
-		tiling,
-		usage,
-		vk::MemoryPropertyFlagBits::eDeviceLocal,
-		samplesCount,
-		mipLevels
+	const auto [image, memory] = Image::create(
+        Image::CreateInfo {
+            device: device,
+            physicalDevice: physicalDevice,
+            size: vk::Extent3D(width, height, 1),
+            format: format,
+            tiling: tiling,
+            usage: usage,
+            sampleCount: samplesCount,
+            mipLevels: mipLevels
+        }
 	);
     constexpr uint32_t mipLevelBase = 0;
 	const vk::ImageView imageView =
-		Image::createImageView(device, image, format, aspect, mipLevelBase, mipLevels);
+        Image::createImageView(device, image, vk::ImageViewType::e2D, format, aspect, mipLevelBase, mipLevels);
 	return Texture{image, imageView, memory, format, mipLevels};
 }
 

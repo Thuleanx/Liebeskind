@@ -4,18 +4,19 @@
 #include <vulkan/vulkan.hpp>
 
 namespace Image {
-std::tuple<vk::Image, vk::DeviceMemory> createImage(
-    const vk::Device& device,
-    const vk::PhysicalDevice& physicalDevice,
-    uint32_t width,
-    uint32_t height,
-    vk::Format format,
-    vk::ImageTiling tiling,
-    vk::ImageUsageFlags usage,
-    vk::MemoryPropertyFlags properties,
-    vk::SampleCountFlagBits sampleCount,
-    uint32_t mipLevels = 1
-);
+struct CreateInfo {
+    const vk::Device& device;
+    const vk::PhysicalDevice& physicalDevice;
+    vk::Extent3D size;
+    vk::Format format;
+    vk::ImageTiling tiling = vk::ImageTiling::eOptimal;
+    vk::ImageUsageFlags usage;
+    vk::MemoryPropertyFlags properties = vk::MemoryPropertyFlagBits::eDeviceLocal;
+    vk::SampleCountFlagBits sampleCount = vk::SampleCountFlagBits::e1;
+    uint32_t mipLevels = 1;
+};
+std::tuple<vk::Image, vk::DeviceMemory> create(const CreateInfo& info);
+
 void generateMipMaps(
     vk::Device device,
     vk::CommandPool commandPool,
@@ -47,6 +48,7 @@ void transitionImageLayout(
 vk::ImageView createImageView(
     const vk::Device& device,
     const vk::Image& image,
+    vk::ImageViewType viewType,
     vk::Format imageFormat,
     vk::ImageAspectFlags imageAspect,
     uint32_t mipBaseLevel,

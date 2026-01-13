@@ -10,6 +10,7 @@
 #include "low_level_renderer/data_buffer.h"
 #include "low_level_renderer/material_pipeline.h"
 #include "low_level_renderer/queue_family.h"
+#include "low_level_renderer/radiance_cascade.h"
 #include "low_level_renderer/sampler.h"
 #include "low_level_renderer/shader_data.h"
 #include "low_level_renderer/shaders.h"
@@ -50,6 +51,7 @@ struct GraphicsDeviceInterface {
 	Shaders mainShaders;
 	std::optional<SwapchainData> swapchain;
     BloomGraphicsObjects bloom;
+    RadianceCascadeData radianceCascade;
 
 	vk::CommandPool commandPool;
 	Samplers samplers;

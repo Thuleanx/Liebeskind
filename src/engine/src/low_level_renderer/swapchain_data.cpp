@@ -75,6 +75,7 @@ SwapchainData GraphicsDeviceInterface::createSwapchain() {
 		colorAttachmentViews[i] = Image::createImageView(
 			device,
 			colorAttachments[i],
+            vk::ImageViewType::e2D,
 			colorFormat,
 			vk::ImageAspectFlagBits::eColor,
 			mipLevelBase,

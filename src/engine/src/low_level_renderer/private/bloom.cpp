@@ -548,22 +548,20 @@ BloomGraphicsObjects::SwapchainObject createBloomSwapchainObject(
     std::array<vk::DeviceMemory, NUM_BUFFERS> memory;
     std::array<std::array<vk::ImageView, NUM_BLOOM_MIPS>, NUM_BUFFERS> colorViews;
     for (size_t image_index = 0; image_index < 2; image_index++) {
-        std::tie(images[image_index], memory[image_index]) = Image::createImage(
-            createInfo.device,
-            createInfo.physicalDevice,
-            createInfo.swapchainExtent.width,
-            createInfo.swapchainExtent.height,
-            imageFormat,
-            vk::ImageTiling::eOptimal,
-            vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled,
-            vk::MemoryPropertyFlagBits::eDeviceLocal,
-            vk::SampleCountFlagBits::e1,
-            NUM_BLOOM_MIPS
+        std::tie(images[image_index], memory[image_index]) = Image::create(
+            Image::CreateInfo {
+                device: createInfo.device,
+                physicalDevice: createInfo.physicalDevice,
+                size: vk::Extent3D(createInfo.swapchainExtent.width, createInfo.swapchainExtent.height, 1),
+                format: imageFormat,
+                usage: vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled,
+                mipLevels: NUM_BLOOM_MIPS
+            }
         );
 
         for (size_t i = 0; i < NUM_BLOOM_MIPS; i++)
             colorViews[image_index][i] = Image::createImageView(
-                createInfo.device, images[image_index], imageFormat, vk::ImageAspectFlagBits::eColor, i, 1
+                createInfo.device, images[image_index], vk::ImageViewType::e2D, imageFormat, vk::ImageAspectFlagBits::eColor, i, 1
             );
     }
 

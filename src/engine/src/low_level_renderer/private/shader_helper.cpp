@@ -4,6 +4,7 @@
 #include <glslang/Public/ShaderLang.h>
 #include <glslang/SPIRV/SpvTools.h>
 
+#include "core/file_system/file.h"
 #include "core/logger/logger.h"
 
 namespace graphics {
@@ -73,5 +74,20 @@ std::vector<uint32_t> compileFromGLSLToSPIRV(
 	glslang::GlslangToSpv(*intermediate, spriv);
 
 	return spriv;
+}
+
+UncompiledShader loadUncompiledShaderFromFile(
+	std::string_view filePath, vk::ShaderStageFlagBits stage
+) {
+	const std::optional<std::vector<char>> bytecode =
+		file_system::readFile(filePath);
+	ASSERT(
+		bytecode.has_value(),
+		"Shader needs to be able to be loaded from " << filePath
+	);
+	return UncompiledShader{
+		.code = std::string(bytecode.value().begin(), bytecode.value().end()),
+		.stage = stage
+	};
 }
 };	// namespace graphics

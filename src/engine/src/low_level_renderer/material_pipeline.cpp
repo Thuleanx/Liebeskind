@@ -30,11 +30,7 @@ MaterialPipeline MaterialPipeline::create(
 					 globalBindings.data());
 		const vk::ResultValue<vk::DescriptorSetLayout>
 			globalDescriptorSetLayoutCreation =
-				device.createDescriptorSetLayout(
-					{{},
-					 static_cast<uint32_t>(globalBindings.size()),
-					 globalBindings.data()}
-				);
+				device.createDescriptorSetLayout(layoutCreateInfo);
 		VULKAN_ENSURE_SUCCESS(
 			globalDescriptorSetLayoutCreation.result,
 			"Can't create global descriptor set layout"

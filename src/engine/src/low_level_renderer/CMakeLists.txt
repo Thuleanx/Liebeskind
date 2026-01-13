@@ -23,6 +23,8 @@ set(SRC
     private/command.h
     private/image.cpp
     private/image.h
+    private/radiance_cascade.cpp
+    private/radiance_cascade.h
     private/graphics_device_helper.h
     private/graphics_device_helper.cpp
     private/validation.h

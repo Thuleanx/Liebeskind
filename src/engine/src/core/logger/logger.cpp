@@ -37,7 +37,7 @@ bool initializeLogger() {
     auto tm = *std::localtime(&t);
 
     std::ostringstream ss;
-    ss << "liebeskind_runtime_" << std::put_time(&tm, "%d-%m-%Y_%H-%M-%S") << ".log";
+    ss << "logs/liebeskind_runtime_" << std::put_time(&tm, "%d-%m-%Y_%H-%M-%S") << ".log";
 
     plog::init(plog::Severity::debug, ss.str().c_str())
         .addAppender(&appender);

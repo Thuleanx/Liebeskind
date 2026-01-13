@@ -4,34 +4,21 @@
 #include "command.h"
 #include "core/logger/vulkan_ensures.h"
 
-std::tuple<vk::Image, vk::DeviceMemory> Image::createImage(
-    const vk::Device &device,
-    const vk::PhysicalDevice &physicalDevice,
-    uint32_t width,
-    uint32_t height,
-    vk::Format format,
-    vk::ImageTiling tiling,
-    vk::ImageUsageFlags usage,
-    vk::MemoryPropertyFlags properties,
-    vk::SampleCountFlagBits sampleCount,
-    uint32_t mipLevels
-) {
-    // To generate the mip maps, we need to blit the image onto itself, hence
-    // this usage flag
-    if (mipLevels > 0)
-        usage |= vk::ImageUsageFlagBits::eTransferDst |
-                 vk::ImageUsageFlagBits::eTransferSrc;
+std::tuple<vk::Image, vk::DeviceMemory> Image::create(const Image::CreateInfo& info) {
+    const bool isImage3D = info.size.depth > 1;
+    const bool shouldGenerateMips = info.mipLevels > 1;
+    const vk::ImageUsageFlags usage = info.usage 
+        | (shouldGenerateMips ? 
+            vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc : vk::ImageUsageFlags());
     const vk::ImageCreateInfo imageCreateInfo(
         {},
-        vk::ImageType::e2D,
-        format,
-        vk::Extent3D(
-            static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1
-        ),
-        mipLevels,                    // mip levels
+        isImage3D ? vk::ImageType::e3D : vk::ImageType::e2D,
+        info.format,
+        info.size,
+        info.mipLevels,
         1,                            // array layers
-        sampleCount,
-        tiling,
+        info.sampleCount,
+        info.tiling,
         usage,
         vk::SharingMode::eExclusive,
         0,
@@ -39,35 +26,35 @@ std::tuple<vk::Image, vk::DeviceMemory> Image::createImage(
         vk::ImageLayout::eUndefined
     );
     const vk::ResultValue<vk::Image> imageCreation =
-        device.createImage(imageCreateInfo);
+        info.device.createImage(imageCreateInfo);
     VULKAN_ENSURE_SUCCESS(imageCreation.result, "Unable to create image");
 
     const vk::Image image = imageCreation.value;
     const vk::MemoryRequirements memoryRequirements =
-        device.getImageMemoryRequirements(image);
+        info.device.getImageMemoryRequirements(image);
     const std::optional<uint32_t> suitableMemoryType =
         Buffer::findSuitableMemoryType(
-            physicalDevice.getMemoryProperties(),
+            info.physicalDevice.getMemoryProperties(),
             memoryRequirements.memoryTypeBits,
-            properties
+            info.properties
         );
     ASSERT(
         suitableMemoryType.has_value(),
         "Can't find suitable memory type for requirement "
             << memoryRequirements.memoryTypeBits << " with property: "
-            << vk::to_string(vk::MemoryPropertyFlagBits::eDeviceLocal)
+            << vk::to_string(info.properties)
     );
     const vk::MemoryAllocateInfo memoryAllocateInfo(
         memoryRequirements.size, suitableMemoryType.value()
     );
     const vk::ResultValue<vk::DeviceMemory> memoryAllocation =
-        device.allocateMemory(memoryAllocateInfo);
+        info.device.allocateMemory(memoryAllocateInfo);
     VULKAN_ENSURE_SUCCESS(
         memoryAllocation.result, "Can't allocate memory for image"
     );
     const vk::DeviceMemory deviceMemory = memoryAllocation.value;
     VULKAN_ENSURE_SUCCESS_EXPR(
-        device.bindImageMemory(image, deviceMemory, 0),
+        info.device.bindImageMemory(image, deviceMemory, 0),
         "Can't bind image and image memory"
     );
     return std::make_tuple(image, deviceMemory);
@@ -184,6 +171,7 @@ void Image::copyBufferToImage(
 vk::ImageView Image::createImageView(
     const vk::Device &device,
     const vk::Image &image,
+    vk::ImageViewType viewType,
     vk::Format imageFormat,
     vk::ImageAspectFlags imageAspect,
     uint32_t mipBaseLevel,
@@ -192,7 +180,7 @@ vk::ImageView Image::createImageView(
     const vk::ImageViewCreateInfo imageViewInfo(
         {},
         image,
-        vk::ImageViewType::e2D,
+        viewType,
         imageFormat,
         {},
         vk::ImageSubresourceRange(imageAspect, mipBaseLevel, mipLevels, 0, 1)

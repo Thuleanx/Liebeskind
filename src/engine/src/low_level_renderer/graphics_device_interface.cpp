@@ -113,10 +113,30 @@ vk::Device init_createLogicalDevice(
 	deviceFeatures.samplerAnisotropy = vk::True;
 	deviceFeatures.sampleRateShading = vk::True;
 
+    vk::PhysicalDeviceConservativeRasterizationPropertiesEXT conservativeRasterizationProperties(
+        0,
+        0,
+        0,
+        vk::False,
+        vk::False,
+        vk::False,
+        vk::False,
+        vk::False,
+        vk::False
+    );
+
 	// we are using semaphores
-	vk::PhysicalDevice8BitStorageFeaturesKHR storageFeatures(vk::True);
+	vk::PhysicalDevice8BitStorageFeaturesKHR storageFeatures(
+            vk::True, 
+            {},
+            {},
+            &conservativeRasterizationProperties
+    );
 	vk::PhysicalDeviceBufferDeviceAddressFeatures bufferDeviceAddress(
-		vk::True, vk::False, vk::False, std::addressof(storageFeatures)
+		vk::True,
+        vk::False,
+        vk::False,
+        std::addressof(storageFeatures)
 	);
 	vk::PhysicalDeviceTimelineSemaphoreFeatures semaphoreFeatures(
 		vk::True, std::addressof(bufferDeviceAddress)

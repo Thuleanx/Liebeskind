@@ -31,6 +31,7 @@ bool isInstanceExtensionSupported(const char* extension) {
 namespace graphics {
 const std::vector<const char*> deviceExtensions = {
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+    VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME
 };
 
 std::vector<const char*> getInstanceExtensions() {
@@ -155,6 +156,8 @@ bool isDeviceSuitable(
 	}
 	const bool isAnisotropicFilteringSupported =
 		deviceFeatures.samplerAnisotropy == vk::True;
+    const bool isGeometryShaderSupported =
+        deviceFeatures.geometryShader == vk::True;
 
 	return deviceProperties.deviceType ==
 			   vk::PhysicalDeviceType::eDiscreteGpu &&
@@ -162,7 +165,7 @@ bool isDeviceSuitable(
 		   QueueFamilyIndices::findQueueFamilies(physicalDevice, surface)
 			   .isComplete() &&
 		   areRequiredExtensionsSupported && isSwapchainAdequate &&
-		   isAnisotropicFilteringSupported;
+		   isAnisotropicFilteringSupported && isGeometryShaderSupported;
 }
 
 bool areRequiredDeviceExtensionsSupported(const vk::PhysicalDevice& device) {

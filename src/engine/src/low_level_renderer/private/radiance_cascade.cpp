@@ -188,6 +188,11 @@ graphics::RadianceCascadeData graphics::create(const RadianceCascadeCreateInfo& 
                 vertexInputAttributes.data()
             );
 
+            const vk::PipelineRasterizationConservativeStateCreateInfoEXT conservativeRasterizationInfo(
+                {},
+                vk::ConservativeRasterizationModeEXT::eOverestimate,
+                0
+            );
             const vk::PipelineRasterizationStateCreateInfo rasterizerCreateInfo(
                 {},
                 vk::False,
@@ -199,7 +204,8 @@ graphics::RadianceCascadeData graphics::create(const RadianceCascadeCreateInfo& 
                 0.0f,
                 0.0f,
                 0.0f,
-                1.0f
+                1.0f,
+                &conservativeRasterizationInfo
             );
 
             const vk::Viewport viewport(

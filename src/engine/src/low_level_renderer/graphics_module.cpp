@@ -6,6 +6,7 @@
 #include "low_level_renderer/pipeline_template.h"
 #include "low_level_renderer/render_submission.h"
 #include "private/bloom.h"
+#include "private/radiance_cascade.h"
 #include "private/shader_helper.h"
 
 #pragma GCC diagnostic push
@@ -112,7 +113,7 @@ bool Module::drawFrame(
 	// move this to another spot
 	ImGui::Render();
 
-	device.writeBuffer.batchWrite(device.device);
+	device.writeBuffer.flush(device.device);
 
 	GraphicsDeviceInterface::FrameData& currentFrame =
 		device.frameDatas[device.currentFrame];
@@ -177,7 +178,7 @@ bool Module::drawFrame(
         &submitSemaphore
 	);
 	VULKAN_ENSURE_SUCCESS_EXPR(
-		this->device.graphicsQueue.submit(
+		this->device.graphicsAndComputeQueue.submit(
 			1, &submitInfo, currentFrame.isRenderingInFlight
 		),
 		"Can't submit graphics queue:"
@@ -234,6 +235,17 @@ void Module::recordCommandBuffer(
 	VULKAN_ENSURE_SUCCESS_EXPR(
 		buffer.begin(beginInfo), "Can't begin recording command buffer:"
 	);
+
+    graphics::recordDraw(
+        device.radianceCascade, 
+        renderSubmission, 
+        buffer, 
+        instances,
+        device.pipeline,
+        materials,
+        meshes,
+        device.currentFrame
+    );
 
 	const vk::Rect2D screenExtent = {
 		vk::Offset2D{},
@@ -399,7 +411,7 @@ TextureID Module::loadTexture(
 		device.device,
 		device.physicalDevice,
 		device.commandPool,
-		device.graphicsQueue,
+		device.graphicsAndComputeQueue,
 		formatHint
 	);
 }
@@ -415,7 +427,7 @@ MeshID Module::loadMesh(
 		device.device,
 		device.physicalDevice,
 		device.commandPool,
-		device.graphicsQueue
+		device.graphicsAndComputeQueue
 	);
 }
 
@@ -425,7 +437,7 @@ MeshID Module::loadMesh(std::string_view filePath) {
 		device.device,
 		device.physicalDevice,
 		device.commandPool,
-		device.graphicsQueue,
+		device.graphicsAndComputeQueue,
 		filePath
 	);
 }

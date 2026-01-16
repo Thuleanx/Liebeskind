@@ -511,7 +511,7 @@ BloomGraphicsObjects createBloomObjects(
 	});
 
 	buffers.shared.bind(writeBuffer, descriptors.shared, 0);
-	writeBuffer.batchWrite(device);
+	writeBuffer.flush(device);
 
 	return BloomGraphicsObjects{
 		.config = config,
@@ -672,7 +672,7 @@ BloomGraphicsObjects::SwapchainObject createBloomSwapchainObject(
 		BloomSharedBuffer{.baseMipSize = glm::vec2(createInfo.swapchainExtent.width, createInfo.swapchainExtent.height)}
 	);
     createInfo.bloomGraphicsObjects.buffers.combine.bind(writeBuffer, descriptors.combine, 2);
-	writeBuffer.batchWrite(createInfo.device);
+	writeBuffer.flush(createInfo.device);
 
     return BloomGraphicsObjects::SwapchainObject{
         .colorBuffer = images,

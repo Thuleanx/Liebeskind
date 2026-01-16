@@ -25,9 +25,9 @@ SwapchainData GraphicsDeviceInterface::createSwapchain() {
 		Swapchain::chooseSwapExtent(surfaceCapability, window);
 
 	const bool shouldUseExclusiveSharingMode =
-		queueFamily.presentFamily.value() == queueFamily.graphicsFamily.value();
+		queueFamily.presentFamily.value() == queueFamily.graphicsAndComputeFamily.value();
 	const uint32_t queueFamilyIndices[] = {
-		queueFamily.presentFamily.value(), queueFamily.graphicsFamily.value()
+		queueFamily.presentFamily.value(), queueFamily.graphicsAndComputeFamily.value()
 	};
 	const vk::SharingMode sharingMode = shouldUseExclusiveSharingMode
 											? vk::SharingMode::eExclusive
@@ -108,7 +108,7 @@ SwapchainData GraphicsDeviceInterface::createSwapchain() {
             vk::ImageLayout::eDepthStencilAttachmentOptimal,
             device,
             commandPool,
-            graphicsQueue
+            graphicsAndComputeQueue
         );
         return depthAttachment;
     }();
@@ -161,7 +161,7 @@ SwapchainData GraphicsDeviceInterface::createSwapchain() {
             );
         }
 
-        writeBuffer.batchWrite(device);
+        writeBuffer.flush(device);
     }
 
 	const BloomSwapchainObjectCreateInfo bloomSwapchainObjectsCreateInfo = {
@@ -190,7 +190,7 @@ SwapchainData GraphicsDeviceInterface::createSwapchain() {
                 vk::ImageLayout::eShaderReadOnlyOptimal
             );
         }
-	    writeBuffer.batchWrite(device);
+	    writeBuffer.flush(device);
     }
 
 	const vk::Framebuffer mainFramebuffer = [&]() {

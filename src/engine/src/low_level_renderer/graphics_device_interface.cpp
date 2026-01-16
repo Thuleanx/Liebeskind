@@ -94,7 +94,7 @@ vk::Device init_createLogicalDevice(
 	};
 	float queuePriority = 1.0f;
 	const std::set<uint32_t> uniqueQueueFamilies = {
-		queueFamily.graphicsFamily.value(), queueFamily.presentFamily.value()
+		queueFamily.graphicsAndComputeFamily.value(), queueFamily.presentFamily.value()
 	};
 	std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
 
@@ -113,24 +113,11 @@ vk::Device init_createLogicalDevice(
 	deviceFeatures.samplerAnisotropy = vk::True;
 	deviceFeatures.sampleRateShading = vk::True;
 
-    vk::PhysicalDeviceConservativeRasterizationPropertiesEXT conservativeRasterizationProperties(
-        0,
-        0,
-        0,
-        vk::False,
-        vk::False,
-        vk::False,
-        vk::False,
-        vk::False,
-        vk::False
-    );
-
 	// we are using semaphores
 	vk::PhysicalDevice8BitStorageFeaturesKHR storageFeatures(
             vk::True, 
             {},
-            {},
-            &conservativeRasterizationProperties
+            {}
     );
 	vk::PhysicalDeviceBufferDeviceAddressFeatures bufferDeviceAddress(
 		vk::True,
@@ -168,12 +155,12 @@ vk::CommandPool init_createCommandPool(
 	const vk::Device& device, const QueueFamilyIndices queueFamilies
 ) {
 	ASSERT(
-		queueFamilies.graphicsFamily.has_value(),
+		queueFamilies.graphicsAndComputeFamily.has_value(),
 		"Calling create command pool on incomplete family indices"
 	);
 	const vk::CommandPoolCreateInfo poolInfo(
 		vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
-		queueFamilies.graphicsFamily.value()
+		queueFamilies.graphicsAndComputeFamily.value()
 	);
 	const vk::ResultValue<vk::CommandPool> commandPoolCreation =
 		device.createCommandPool(poolInfo);
@@ -276,7 +263,7 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
 	const vk::Device device =
 		init_createLogicalDevice(physicalDevice, queueFamily);
 	const vk::Queue graphicsQueue =
-		device.getQueue(queueFamily.graphicsFamily.value(), 0);
+		device.getQueue(queueFamily.graphicsAndComputeFamily.value(), 0);
 	const vk::Queue presentQueue =
 		device.getQueue(queueFamily.presentFamily.value(), 0);
 	const vk::CommandPool commandPool =
@@ -375,7 +362,6 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
 
 	for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
 		uniformBuffers[i].bind(writeBuffer, globalDescriptors[i], 0);
-	writeBuffer.batchWrite(device);
 
 	const auto [isImageAvailable, isRenderingInFlight] =
 		init_createSyncObjects(device, MAX_FRAMES_IN_FLIGHT);
@@ -400,13 +386,17 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
     const RadianceCascadeData radianceCascade = create(
         RadianceCascadeCreateInfo {
             device,
-             physicalDevice,
+            physicalDevice,
+            allSamplers.linear,
+            writeBuffer,
             shaders,
             300,
             glm::vec3(0,0,0),
-            glm::vec3(300, 300, 300)
+            glm::vec3(30, 30, 30)
         }
     );
+
+	writeBuffer.flush(device);
 
 	GraphicsDeviceInterface deviceInterface{
 		.frameDatas = frameDatas,
@@ -417,7 +407,7 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
 		.device = device,
 		.physicalDevice = physicalDevice,
 		.queueFamily = queueFamily,
-		.graphicsQueue = graphicsQueue,
+		.graphicsAndComputeQueue = graphicsQueue,
 		.presentQueue = presentQueue,
 		.renderPasses = renderPasses,
 		.pipeline = pipeline,
@@ -514,7 +504,7 @@ void GraphicsDeviceInterface::waitCompleteIdle() const {
 		presentQueue.waitIdle(), "Can't wait for present queue to idle:"
 	);
 	VULKAN_ENSURE_SUCCESS_EXPR(
-		graphicsQueue.waitIdle(), "Can't wait for graphics queue to idle:"
+		graphicsAndComputeQueue.waitIdle(), "Can't wait for graphics queue to idle:"
 	);
 	VULKAN_ENSURE_SUCCESS_EXPR(
 		device.waitIdle(), "Can't wait for device to idle:"

@@ -99,12 +99,12 @@ vk::CommandPool createUICommandPool(
 	const GraphicsDeviceInterface& graphicsDevice
 ) {
 	ASSERT(
-		graphicsDevice.queueFamily.graphicsFamily.has_value(),
+		graphicsDevice.queueFamily.graphicsAndComputeFamily.has_value(),
 		"Can't find queue family for device"
 	);
 	const vk::CommandPoolCreateInfo poolInfo(
 		vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
-		graphicsDevice.queueFamily.graphicsFamily.value()
+		graphicsDevice.queueFamily.graphicsAndComputeFamily.value()
 	);
 	const vk::ResultValue<vk::CommandPool> commandPoolCreation =
 		graphicsDevice.device.createCommandPool(poolInfo);
@@ -197,8 +197,8 @@ GraphicsUserInterface GraphicsUserInterface::create(
 		.Instance = device.instance,
 		.PhysicalDevice = device.physicalDevice,
 		.Device = device.device,
-		.QueueFamily = device.queueFamily.graphicsFamily.value(),
-		.Queue = device.graphicsQueue,
+		.QueueFamily = device.queueFamily.graphicsAndComputeFamily.value(),
+		.Queue = device.graphicsAndComputeQueue,
 		.DescriptorPool = descriptorPool,
 		.MinImageCount = MAX_FRAMES_IN_FLIGHT,
 		.ImageCount = MAX_FRAMES_IN_FLIGHT,

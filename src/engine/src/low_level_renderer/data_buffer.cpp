@@ -64,6 +64,10 @@ void DataBuffer<T, E>::destroyBy(const vk::Device& device) const {
 
 }  // namespace Graphics
 
+
+#include <glm/glm.hpp>
+template struct graphics::DataBuffer<glm::mat4, graphics::DataBufferType::UNIFORM>;
+
 #include "low_level_renderer/shader_data.h"
 template struct graphics::DataBuffer<graphics::GPUSceneData, graphics::DataBufferType::UNIFORM>;
 

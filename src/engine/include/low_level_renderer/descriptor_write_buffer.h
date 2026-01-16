@@ -33,7 +33,7 @@ struct DescriptorWriteBuffer {
         vk::ImageLayout layout
     );
 
-    void batchWrite(const vk::Device& device);
+    void flush(const vk::Device& device);
     void clear();
 };
 }  // namespace Graphics

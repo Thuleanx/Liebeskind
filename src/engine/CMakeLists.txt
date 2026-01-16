@@ -29,6 +29,7 @@ set(GLSL_SOURCE_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/scene_voxelizer.frag.glsl
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/scene_voxelizer.geom.glsl
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/scene_voxelizer.vert.glsl
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/jump_flood.comp.glsl
 )
 
 find_program(GLSL_VALIDATOR "glslangValidator")

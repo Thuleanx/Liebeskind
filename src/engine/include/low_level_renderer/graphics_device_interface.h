@@ -39,7 +39,7 @@ struct GraphicsDeviceInterface {
 	vk::Device device;
 	vk::PhysicalDevice physicalDevice;
 	QueueFamilyIndices queueFamily;
-	vk::Queue graphicsQueue, presentQueue;
+	vk::Queue graphicsAndComputeQueue, presentQueue;
 
 	RenderPassData renderPasses;
 	MaterialPipeline pipeline;

@@ -33,13 +33,19 @@ void DescriptorWriteBuffer::writeImage(
     ASSERT(numberOfImagesInfo < MAX_DESCRIPTOR_WRITES, "Flush write buffer! It's exceeding its capacity");
 
     const vk::WriteDescriptorSet write(
-        descriptorSet, binding, 0, 1, type, &images[numberOfImagesInfo]
+        descriptorSet,
+        binding,
+        0,
+        1,
+        type,
+        &images[numberOfImagesInfo]
     );
-    images[numberOfImagesInfo++] = vk::DescriptorImageInfo(sampler, imageView, layout);
+    images[numberOfImagesInfo++] = 
+        vk::DescriptorImageInfo(sampler, imageView, layout);
     writes.push_back(write);
 }
 
-void DescriptorWriteBuffer::batchWrite(const vk::Device& device) {
+void DescriptorWriteBuffer::flush(const vk::Device& device) {
     device.updateDescriptorSets(
         static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr
     );

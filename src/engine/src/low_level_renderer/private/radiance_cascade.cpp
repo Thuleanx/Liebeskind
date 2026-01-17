@@ -8,21 +8,38 @@
 #include "low_level_renderer/texture.h"
 #include "low_level_renderer/descriptor_write_buffer.h"
 
+#include <glm/gtx/string_cast.hpp>
 #include "image.h"
+
+namespace {
+    glm::mat4 ortho(float left, float right, float bottom, float top, float zNear, float zFar) {
+        glm::mat4 result(1.0f);
+        result[0][0] = 2.0f / (right - left);
+        result[1][1] = 2.0f / (top - bottom);
+        result[2][2] = 2.0f / (zFar - zNear);
+        result[3][0] = -(right + left) / (right - left);
+        result[3][1] = -(top + bottom) / (top - bottom);
+        result[3][2] = -(zFar + zNear) / (zFar - zNear);
+        return result;
+    }
+}
 
 graphics::RadianceCascadeData graphics::create(const RadianceCascadeCreateInfo& info) {
     constexpr vk::Format imageFormat = vk::Format::eR32G32B32A32Sfloat;
 
     const UniformBuffer<glm::mat4> sceneDataBuffer = UniformBuffer<glm::mat4>::create(
         info.device, info.physicalDevice);
-    sceneDataBuffer.update(glm::ortho(
-        info.center.x - info.size.x,
-        info.center.x + info.size.x,
-        info.center.y - info.size.y,
-        info.center.y + info.size.y,
-        info.center.z - info.size.z,
-        info.center.z + info.size.z
-    ));
+
+    const glm::mat4 sceneData = ortho(
+        info.center.x - info.size.x/2.0f,
+        info.center.x + info.size.x/2.0f,
+        info.center.y - info.size.y/2.0f,
+        info.center.y + info.size.y/2.0f,
+        info.center.z - info.size.z/2.0f,
+        info.center.z + info.size.z/2.0f
+    );
+    sceneDataBuffer.update(sceneData);
+    // LLOG_INFO << glm::to_string(info.center) << " " << glm::to_string(sceneData);
 
     auto createSDFTexture = [&info]() {
         const auto [image, memory] = Image::create(Image::CreateInfo {
@@ -30,7 +47,7 @@ graphics::RadianceCascadeData graphics::create(const RadianceCascadeCreateInfo& 
             physicalDevice: info.physicalDevice,
             size: vk::Extent3D(info.resolution, info.resolution, info.resolution),
             format: imageFormat,
-            usage: vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferSrc
+            usage: vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst
         });
         const vk::ImageView imageView =
             Image::createImageView(
@@ -243,7 +260,7 @@ graphics::RadianceCascadeData graphics::create(const RadianceCascadeCreateInfo& 
                 vk::False,
                 vk::False,
                 vk::PolygonMode::eFill,
-                vk::CullModeFlagBits::eBack,
+                vk::CullModeFlagBits::eNone,
                 vk::FrontFace::eCounterClockwise,
                 vk::False,
                 0.0f,
@@ -426,7 +443,9 @@ graphics::RadianceCascadeData graphics::create(const RadianceCascadeCreateInfo& 
         }();
 
         const std::vector<vk::Pipeline> pipelines = [&info, &pipelineLayout, &compute]() {
-            uint k = info.resolution == 1u ? 1u : 1u << (32u - __builtin_clzl(info.resolution-1));
+            uint k = info.resolution == 1u ? 1u : 1u << (32u - __builtin_clz(info.resolution-1));
+
+            LLOG_INFO << "Pipelines creation: " << info.resolution << " " << k << " " << __builtin_clz(info.resolution-1);
 
             std::vector<vk::Pipeline> pipelines;
             pipelines.reserve(32);
@@ -499,7 +518,14 @@ void graphics::recordDraw(
 	const MeshStorage& meshes,
 	uint32_t currentFrame
 ) {
-    std::array<vk::ImageMemoryBarrier, 1> barriers = {vk::ImageMemoryBarrier(
+    const vk::ImageSubresourceRange sdfTextureSubresourceRange = 
+        vk::ImageSubresourceRange(
+            vk::ImageAspectFlagBits::eColor, 
+            0,
+            1,
+            0,
+            1);
+    const std::array<vk::ImageMemoryBarrier, 1> barriers = {vk::ImageMemoryBarrier(
         {},
         vk::AccessFlagBits::eShaderWrite,
         vk::ImageLayout::eUndefined,
@@ -507,17 +533,14 @@ void graphics::recordDraw(
         vk::QueueFamilyIgnored,
         vk::QueueFamilyIgnored,
         cascadeData.sdfTextures[0].image,
-        vk::ImageSubresourceRange(
-            vk::ImageAspectFlagBits::eColor, 
-            0,
-            1,
-            0,
-            1)
+        sdfTextureSubresourceRange
     )};
     buffer.pipelineBarrier(
         vk::PipelineStageFlagBits::eTopOfPipe, 
         vk::PipelineStageFlagBits::eFragmentShader, 
         {}, {}, {}, barriers);
+    buffer.clearColorImage(cascadeData.sdfTextures[0].image, vk::ImageLayout::eGeneral, 
+        vk::ClearColorValue(-100.0f, -100.0f, -100.0f, 1000000.0f), sdfTextureSubresourceRange);
 
     const vk::RenderPassBeginInfo sdfRenderpassInfo(
         cascadeData.rasterization.renderPass,
@@ -526,6 +549,7 @@ void graphics::recordDraw(
         0, nullptr
     );
     buffer.beginRenderPass(sdfRenderpassInfo, vk::SubpassContents::eInline);
+
     buffer.bindDescriptorSets(
         vk::PipelineBindPoint::eGraphics,
         cascadeData.rasterization.pipelineLayout,
@@ -567,6 +591,69 @@ void graphics::recordDraw(
     }
 
 	buffer.endRenderPass();
+    
+    const uint dispatchSize = (uint) ceil(cascadeData.resolution / 4.0f);
+
+    for (int i = 0; i < cascadeData.jumpFlood.pipelines.size(); i++) {
+        buffer.bindPipeline(vk::PipelineBindPoint::eCompute, cascadeData.jumpFlood.pipelines[i]);
+
+        const uint readTexture = i&1;
+        const uint writeTexture = readTexture ^ 1;
+
+        const std::array descriptors = {
+            cascadeData.jumpFlood.textureSets[readTexture],
+            cascadeData.jumpFlood.textureSets[writeTexture],
+        };
+
+        const std::array<vk::ImageMemoryBarrier, 2> barriers = {
+            vk::ImageMemoryBarrier(
+                vk::AccessFlagBits::eShaderWrite,
+                vk::AccessFlagBits::eShaderRead,
+                vk::ImageLayout::eGeneral,
+                vk::ImageLayout::eGeneral,
+                vk::QueueFamilyIgnored,
+                vk::QueueFamilyIgnored,
+                cascadeData.sdfTextures[readTexture].image,
+                vk::ImageSubresourceRange(
+                    vk::ImageAspectFlagBits::eColor, 
+                    0,
+                    1,
+                    0,
+                    1)
+            ),
+            vk::ImageMemoryBarrier(
+                i ? vk::AccessFlagBits::eShaderWrite : vk::AccessFlags(),
+                vk::AccessFlagBits::eShaderWrite,
+                i ? vk::ImageLayout::eGeneral : vk::ImageLayout::eUndefined,
+                vk::ImageLayout::eGeneral,
+                vk::QueueFamilyIgnored,
+                vk::QueueFamilyIgnored,
+                cascadeData.sdfTextures[writeTexture].image,
+                vk::ImageSubresourceRange(
+                    vk::ImageAspectFlagBits::eColor, 
+                    0,
+                    1,
+                    0,
+                    1)
+            ),
+        };
+        buffer.pipelineBarrier(
+            i ? vk::PipelineStageFlagBits::eComputeShader : vk::PipelineStageFlagBits::eFragmentShader, 
+            vk::PipelineStageFlagBits::eComputeShader, 
+            {}, {}, {}, barriers);
+
+        buffer.bindDescriptorSets(
+            vk::PipelineBindPoint::eCompute,
+            cascadeData.jumpFlood.pipelineLayout,
+            0,
+            descriptors.size(),
+            descriptors.data(),
+            0,
+            nullptr
+        );
+
+        buffer.dispatch( dispatchSize, dispatchSize, dispatchSize );
+    }
 }
 
 void graphics::destroy(const RadianceCascadeData& data, vk::Device device) {

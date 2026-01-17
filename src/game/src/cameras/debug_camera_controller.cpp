@@ -3,6 +3,8 @@
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/gtx/string_cast.hpp>
 
+#include "imgui.h"
+
 namespace {
 constexpr float AVERAGE_SCREEN_WIDTH = 1024;
 constexpr float AVERAGE_SCREEN_HEIGHT = 768;
@@ -14,6 +16,18 @@ void update(
 	cameras::PerspectiveCamera& camera,
 	float deltaTime
 ) {
+    ImGui::Begin("Debug camera");
+
+    const glm::vec3 currentPosition = 
+        glm::vec3(camera.transform[3]);
+
+    ImGui::Text(
+        "Position (%.3f, %.3f, %.3f)",
+        currentPosition.x,
+        currentPosition.y,
+        currentPosition.z
+    );
+
 	constexpr glm::vec3 UP = glm::vec3(0, 0, 1);
 	const glm::vec3 cameraRight = camera.getRight();
 	const glm::vec3 cameraForward = camera.getForward();
@@ -38,9 +52,18 @@ void update(
 		(normalizedInput +
 		 UP * static_cast<float>(controller.upInput - controller.downInput)) *
 		deltaTime;
+
+    ImGui::Text(
+        "Frame movement (%.3f, %.3f, %.3f)",
+        frameMovement.x,
+        frameMovement.y,
+        frameMovement.z
+    );
+
 	camera.setTransform(
 		glm::translate(glm::mat4(1), frameMovement) * camera.transform
 	);
+    ImGui::End();
 }
 
 void onMouseDeltaXDebug(

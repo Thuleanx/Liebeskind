@@ -32,11 +32,11 @@ void main() {
 
     for (int i = 0; i < 3; i++) {
         switch (swizzelMode) {
-            case 0: gl_Position = vec4(inPos[i].xy, 0, inPos[i].w); break;
-            case 1: gl_Position = vec4(inPos[i].yz, 0, inPos[i].w); break;
-            case 2: gl_Position = vec4(inPos[i].xz, 0, inPos[i].w); break;
+            case 0: gl_Position = vec4(inPos[i].xy / inPos[i].w, 0, 1.0); break;
+            case 1: gl_Position = vec4(inPos[i].yz / inPos[i].w, 0, 1.0); break;
+            case 2: gl_Position = vec4(inPos[i].xz / inPos[i].w, 0, 1.0); break;
         }
-        outPos = inPos[i].xyz;
+        outPos = inPos[i].xyz / inPos[i].w;
         outPosWS = inPosWS[i];
         EmitVertex();
     }

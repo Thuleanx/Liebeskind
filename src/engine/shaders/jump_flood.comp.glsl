@@ -1,6 +1,6 @@
 #version 450
 
-layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+layout (local_size_x = 4, local_size_y = 4, local_size_z = 4) in;
 
 layout (binding = 0, rgba32f, set = 0) uniform readonly image3D inputImage;
 layout (binding = 0, rgba32f, set = 1) uniform writeonly image3D outputImage;
@@ -10,6 +10,11 @@ layout(constant_id = 0) const uint k = 1;
 void main() {
     ivec3 dims = imageSize(inputImage);
     ivec3 texel = ivec3(gl_GlobalInvocationID.xyz);
+    bool outOfBounds = 
+        texel.x >= dims.x ||
+        texel.y >= dims.y ||
+        texel.z >= dims.z;
+    if (outOfBounds) return;
 
     vec3 uv = (vec3(texel) + 0.5) / dims;
 

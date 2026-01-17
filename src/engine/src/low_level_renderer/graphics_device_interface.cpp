@@ -390,9 +390,9 @@ GraphicsDeviceInterface GraphicsDeviceInterface::createGraphicsDevice(
             allSamplers.linear,
             writeBuffer,
             shaders,
-            300,
-            glm::vec3(0,0,0),
-            glm::vec3(30, 30, 30)
+            150,
+            glm::vec3(0,0,7.5),
+            glm::vec3(35, 17, 15)
         }
     );
 
